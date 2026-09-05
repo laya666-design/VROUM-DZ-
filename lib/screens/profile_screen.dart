@@ -5,6 +5,7 @@ import '../services/vehicule_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/screen_background.dart';
 import 'admin/admin_login_screen.dart';
+import 'role_selection_screen.dart';
 
 /// Onglet Profil amélioré :
 /// - Carte compte claire (badge + nombre de véhicules)
@@ -783,6 +784,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+
+                // Espace Pro — Architecture VROUM Native
+                // Le choix de rôle n'est plus forcé au démarrage.
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    side: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  child: ListTile(
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.storefront_outlined,
+                          color: Color(0xFFEA580C), size: 20),
+                    ),
+                    title: Text(t('Espace Pro', 'فضاء المحترفين'),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 15)),
+                    subtitle: Text(
+                      t(
+                        'Magasin de pièces ou dépanneuse',
+                        'متجر قطع غيار أو سطحات',
+                      ),
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                    trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RoleSelectionScreen(
+                            config: widget.config,
+                            isAr: widget.isAr,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 const SizedBox(height: 8),
 

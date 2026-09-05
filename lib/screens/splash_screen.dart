@@ -10,7 +10,11 @@ import 'marketplace/magasin_shell_screen.dart';
 import 'sos/depanneuse_shell_screen.dart';
 
 /// Splash plein écran avec la roue qui tourne (VROUM).
-/// Puis route selon le rôle (ou RoleSelectionScreen au premier lancement).
+///
+/// Architecture VROUM Native :
+/// - Par défaut → Accueil Conducteur (mode invité, aucune connexion forcée)
+/// - Si l'utilisateur a déjà choisi un rôle Pro (magasin / dépanneuse) → shell pro
+/// - Le choix de rôle n'est plus imposé au premier lancement
 class SplashScreen extends StatefulWidget {
   final AppConfig config;
   final ValueNotifier<bool> isAr;
@@ -70,41 +74,31 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 
+  /// VROUM Native : on ne force plus le RoleSelectionScreen.
+  /// - Magasin / Dépanneuse déjà choisis → shell pro
+  /// - Sinon → HomeScreen en mode Conducteur (invité)
   Widget _resolveNextScreen() {
     final role = SettingsService.userRole;
 
-    if (role == null) {
-      return RoleSelectionScreen(
+    if (role == UserRole.magasin) {
+      return MagasinShellScreen(
         config: widget.config,
-        isAr: widget.isAr,
+        isAr: widget.isAr.value,
       );
     }
 
-    switch (role) {
-      case UserRole.conducteur:
-        if (!SettingsService.hasChosenVehicleProfile) {
-          return OnboardingProfileScreen(
-            config: widget.config,
-            isAr: widget.isAr,
-            onChosen: (value) => SettingsService.setVehicleProfile(value),
-          );
-        }
-        return HomeScreen(config: widget.config, isAr: widget.isAr);
-
-      case UserRole.magasin:
-        return MagasinShellScreen(
-          config: widget.config,
-          isAr: widget.isAr.value,
-        );
-
-      case UserRole.depanneuse:
-        return DepanneuseShellScreen(
-          config: widget.config,
-          isAr: widget.isAr.value,
-        );
+    if (role == UserRole.depanneuse) {
+      return DepanneuseShellScreen(
+        config: widget.config,
+        isAr: widget.isAr.value,
+      );
     }
-  }
 
+    // Par défaut : Conducteur (mode invité). On n'impose plus l'onboarding profil.
+    // L'utilisateur peut choisir voiture/moto plus tard depuis le Profil.
+    return HomeScreen(config: widget.config, isAr: widget.isAr);
+  }
+}
   @override
   void dispose() {
     _controller.removeListener(_onVideoUpdate);

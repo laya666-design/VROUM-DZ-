@@ -8,8 +8,12 @@ import 'onboarding_profile_screen.dart';
 import 'marketplace/magasin_shell_screen.dart';
 import 'sos/depanneuse_shell_screen.dart';
 
-/// Écran obligatoire au premier lancement.
-/// L'utilisateur choisit son rôle une seule fois (1 compte = 1 rôle).
+/// Écran de choix de rôle — Architecture VROUM Native.
+///
+/// N'est plus obligatoire au premier lancement.
+/// Accessible depuis Profil → « Espace Pro ».
+/// - Conducteur → Accueil (mode invité / normal)
+/// - Magasin / Dépanneuse → shell pro
 class RoleSelectionScreen extends StatelessWidget {
   final AppConfig config;
   final ValueNotifier<bool> isAr;
@@ -27,13 +31,8 @@ class RoleSelectionScreen extends StatelessWidget {
     final Widget next;
     switch (role) {
       case UserRole.conducteur:
-        next = SettingsService.hasChosenVehicleProfile
-            ? HomeScreen(config: config, isAr: isAr)
-            : OnboardingProfileScreen(
-                config: config,
-                isAr: isAr,
-                onChosen: (value) => SettingsService.setVehicleProfile(value),
-              );
+        // Plus d'onboarding forcé
+        next = HomeScreen(config: config, isAr: isAr);
         break;
       case UserRole.magasin:
         next = MagasinShellScreen(config: config, isAr: isAr.value);
@@ -43,7 +42,7 @@ class RoleSelectionScreen extends StatelessWidget {
         break;
     }
 
-    Navigator.of(context).pushReplacement(
+    Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => next,
         transitionDuration: const Duration(milliseconds: 350),
@@ -51,9 +50,10 @@ class RoleSelectionScreen extends StatelessWidget {
           return FadeTransition(opacity: animation, child: child);
         },
       ),
+      (route) => false,
     );
   }
-
+}
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(

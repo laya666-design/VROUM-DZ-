@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 import '../services/marketplace_service.dart';
-import '../services/store_service.dart';
 import '../widgets/screen_background.dart';
 import 'buyer_portal_screen.dart';
 import 'marketplace/buyer_phone_login_screen.dart';
-import 'marketplace/store_dashboard_screen.dart';
-import 'marketplace/store_phone_login_screen.dart';
 
-/// Entrée de l'onglet "Pièces" : deux branches distinctes.
-/// - Portail acheteur : connexion téléphone (recommandée) ou anonyme,
-///   scan photo + suivi de "Mes demandes".
-/// - Portail vendeur (Espace magasin) : réservé aux magasins, protégé par
-///   un compte. Un client sans compte magasin ne peut jamais y entrer.
+/// Onglet "Pièces" — Architecture VROUM Native.
+///
+/// Uniquement le parcours acheteur (scan pièce + demande aux magasins).
+/// L'espace magasin (vendeur) est accessible uniquement via
+/// Profil → Espace Pro, pour ne pas polluer l'expérience conducteur.
 class PartsPortalScreen extends StatelessWidget {
   final AppConfig config;
   final bool isAr;
@@ -21,73 +18,65 @@ class PartsPortalScreen extends StatelessWidget {
   bool get _ar => isAr;
   String _t(String fr, String ar) => _ar ? ar : fr;
 
+  Future<void> _openBuyer(BuildContext context) async {
+    await MarketplaceService.loadPhoneAsId();
+    if (!context.mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MarketplaceService.hasSession
+            ? BuyerPortalScreen(config: config, isAr: isAr)
+            : BuyerPhoneLoginScreen(config: config, isAr: isAr),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ScreenBackground(
       category: BackgroundCategory.pieces,
       accentColor: config.primaryColor,
       child: SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(_t('Pièces détachées', 'قطع الغيار'),
-                style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 4),
-            Text(
-              _t('Choisis ton profil pour continuer.', 'اختر ملفك للمتابعة.'),
-              style: const TextStyle(color: Colors.black54),
-            ),
-            const SizedBox(height: 28),
-            _PortalCard(
-              icon: Icons.camera_alt_outlined,
-              title: _t('Portail acheteur', 'بوابة المشتري'),
-              subtitle: _t(
-                'Photographie ta pièce cassée, obtiens la référence et '
-                'diffuse ta demande aux magasins.',
-                'صوّر القطعة المكسورة، احصل على المرجع وأرسل طلبك للمتاجر.',
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(_t('Pièces détachées', 'قطع الغيار'),
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 4),
+              Text(
+                _t(
+                  'Photographie ta pièce, obtiens la référence et contacte les magasins.',
+                  'صوّر القطعة، احصل على المرجع واتصل بالمتاجر.',
+                ),
+                style: const TextStyle(color: Colors.black54),
               ),
-              color: config.primaryColor,
-              onTap: () async {
-                await MarketplaceService.loadPhoneAsId();
-                if (!context.mounted) return;
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MarketplaceService.hasSession
-                        ? BuyerPortalScreen(config: config, isAr: isAr)
-                        : BuyerPhoneLoginScreen(config: config, isAr: isAr),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            _PortalCard(
-              icon: Icons.storefront_outlined,
-              title: _t('Portail vendeur — Espace magasin', 'بوابة البائع'),
-              subtitle: _t(
-                'Réservé aux magasins : reçois les commandes des clients, '
-                'réponds avec ton prix, gère ton abonnement.',
-                'مخصص للمتاجر: استقبل الطلبات، أجب بالسعر، أدر اشتراكك.',
+              const SizedBox(height: 28),
+              _PortalCard(
+                icon: Icons.camera_alt_outlined,
+                title: _t('Identifier une pièce', 'تعرّف على قطعة'),
+                subtitle: _t(
+                  'Prends une photo → référence, compatibilité, magasins à proximité.',
+                  'التقط صورة → المرجع، التوافق، المتاجر القريبة.',
+                ),
+                color: config.primaryColor,
+                onTap: () => _openBuyer(context),
               ),
-              color: Colors.black87,
-              onTap: () async {
-                await StoreService.loadPhoneAsId();
-                if (!context.mounted) return;
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => StoreService.isLoggedIn
-                        ? StoreDashboardScreen(config: config)
-                        : StorePhoneLoginScreen(config: config),
-                  ),
-                );
-              },
-            ),
-          ],
+              const SizedBox(height: 16),
+              _PortalCard(
+                icon: Icons.list_alt_outlined,
+                title: _t('Mes demandes', 'طلباتي'),
+                subtitle: _t(
+                  'Suivi des demandes déjà envoyées aux magasins.',
+                  'متابعة الطلبات المرسلة للمتاجر.',
+                ),
+                color: Colors.black87,
+                onTap: () => _openBuyer(context),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
