@@ -4,8 +4,6 @@ import '../config/app_config.dart';
 import '../models/user_role.dart';
 import '../services/vehicule_service.dart';
 import 'home_screen.dart';
-import 'onboarding_profile_screen.dart';
-import 'role_selection_screen.dart';
 import 'marketplace/magasin_shell_screen.dart';
 import 'sos/depanneuse_shell_screen.dart';
 
@@ -94,11 +92,10 @@ class _SplashScreenState extends State<SplashScreen> {
       );
     }
 
-    // Par défaut : Conducteur (mode invité). On n'impose plus l'onboarding profil.
-    // L'utilisateur peut choisir voiture/moto plus tard depuis le Profil.
+    // Par défaut : Conducteur (mode invité).
     return HomeScreen(config: widget.config, isAr: widget.isAr);
   }
-}
+
   @override
   void dispose() {
     _controller.removeListener(_onVideoUpdate);

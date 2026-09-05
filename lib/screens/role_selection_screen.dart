@@ -4,7 +4,6 @@ import '../models/user_role.dart';
 import '../services/vehicule_service.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
-import 'onboarding_profile_screen.dart';
 import 'marketplace/magasin_shell_screen.dart';
 import 'sos/depanneuse_shell_screen.dart';
 
@@ -31,7 +30,6 @@ class RoleSelectionScreen extends StatelessWidget {
     final Widget next;
     switch (role) {
       case UserRole.conducteur:
-        // Plus d'onboarding forcé
         next = HomeScreen(config: config, isAr: isAr);
         break;
       case UserRole.magasin:
@@ -53,7 +51,7 @@ class RoleSelectionScreen extends StatelessWidget {
       (route) => false,
     );
   }
-}
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
