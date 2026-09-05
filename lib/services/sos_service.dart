@@ -91,8 +91,17 @@ class SosService {
 
   static String? _phoneAsId;
 
+  // Le numéro en local (SharedPreferences) ne suffit pas à lui seul :
+  // si la session Firebase Auth a été perdue entre-temps (déconnexion,
+  // session expirée, un autre flux — ex: SOS anonyme — qui a remplacé
+  // l'utilisateur courant), l'app pensait quand même être "connectée"
+  // et tentait des lectures/écritures Firestore qui échouaient alors
+  // en permission-denied. On exige donc aussi une session Firebase Auth
+  // active pour considérer la dépanneuse comme connectée.
   static bool get isDepanneuseLoggedIn =>
-      _phoneAsId != null && _phoneAsId!.isNotEmpty;
+      _phoneAsId != null &&
+      _phoneAsId!.isNotEmpty &&
+      FirebaseAuth.instance.currentUser != null;
 
   static Future<void> loadPhoneAsId() async {
     final prefs = await SharedPreferences.getInstance();
@@ -110,6 +119,20 @@ class SosService {
 
   static String _emailTechniqueDepuisNumero(String numeroLocal) =>
       '$numeroLocal@vroumdep.local';
+
+  /// Message affichable à l'utilisateur pour n'importe quelle erreur
+  /// remontée par un appel Firestore/Auth côté dépanneuse — jamais le
+  /// texte technique brut (ex: "[cloud_firestore/permission-denied] ...").
+  static String friendlyError(Object e) {
+    final s = e.toString();
+    if (s.contains('permission-denied')) {
+      return 'Session expirée ou non autorisée. Reconnecte-toi et réessaie.';
+    }
+    if (s.contains('network-request-failed') || s.contains('unavailable')) {
+      return 'Pas de connexion internet. Vérifie ton réseau et réessaie.';
+    }
+    return 'Une erreur est survenue. Réessaie dans un instant.';
+  }
 
   static String _messageErreurAuth(FirebaseAuthException e) {
     switch (e.code) {

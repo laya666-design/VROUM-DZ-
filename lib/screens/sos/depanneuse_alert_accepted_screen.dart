@@ -59,7 +59,7 @@ class _DepanneuseAlertAcceptedScreenState
       if (!mounted) return;
       setState(() => _enCours = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur : $e')),
+        SnackBar(content: Text(SosService.friendlyError(e))),
       );
     }
   }

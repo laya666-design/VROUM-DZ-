@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../config/wilayas.dart';
 import '../../services/sos_service.dart';
+import '../role_router.dart';
 import 'depanneuse_dashboard_screen.dart';
 import 'depanneuse_shell_screen.dart';
 
@@ -127,7 +128,12 @@ class _DepanneuseAuthScreenState extends State<DepanneuseAuthScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () => Navigator.maybePop(context),
+                    // Cet écran est toujours atteint par un pushReplacement
+                    // (accès caché SOS, ou déconnexion) : il n'y a jamais de
+                    // route précédente à dépiler, donc Navigator.maybePop ne
+                    // faisait rien. La croix ramène explicitement au choix
+                    // de profil (les 3 cartes).
+                    onPressed: () => RoleRouter.changerDeProfil(context),
                     icon: const Icon(Icons.close, size: 22),
                   ),
                   const Spacer(),

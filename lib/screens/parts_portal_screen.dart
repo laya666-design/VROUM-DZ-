@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 import '../services/marketplace_service.dart';
 import 'buyer_portal_screen.dart';
-import 'marketplace/buyer_phone_login_screen.dart';
 
 /// Entrée de l'onglet "Pièces" du conducteur.
-/// Plus d'écran de choix de portail : le portail vendeur (magasin) est
-/// un rôle séparé choisi dès le lancement de l'app (voir
-/// role_selection_screen.dart), donc ce tab va directement au scan
-/// photo (portail acheteur), une fois la session chargée.
+/// Va directement au portail acheteur (scan photo), session ou pas : la
+/// connexion (numéro + mot de passe) n'est demandée qu'au moment où elle
+/// devient utile (ex: retrouver ses anciennes demandes), jamais avant.
+/// L'envoi d'une demande fonctionne déjà sans connexion préalable
+/// (MarketplaceService.ensureSignedIn crée une session anonyme au besoin).
 class PartsPortalScreen extends StatefulWidget {
   final AppConfig config;
   final bool isAr;
@@ -40,8 +40,6 @@ class _PartsPortalScreenState extends State<PartsPortalScreen> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    return MarketplaceService.hasSession
-        ? BuyerPortalScreen(config: widget.config, isAr: widget.isAr)
-        : BuyerPhoneLoginScreen(config: widget.config, isAr: widget.isAr);
+    return BuyerPortalScreen(config: widget.config, isAr: widget.isAr);
   }
 }

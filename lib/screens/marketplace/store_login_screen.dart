@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../services/store_service.dart';
+import '../role_router.dart';
 import 'store_dashboard_screen.dart';
 import 'magasin_shell_screen.dart';
 import 'store_forgot_password_screen.dart';
@@ -73,6 +74,15 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
         backgroundColor: widget.config.primaryColor,
         foregroundColor: Colors.white,
         title: const Text('Espace Pro — Magasin'),
+        // Cette écran est toujours atteint par un pushReplacement (choix
+        // du rôle, ou déconnexion) : jamais de route précédente à
+        // dépiler, donc la flèche retour par défaut ne s'affichait
+        // jamais. Une croix explicite ramène au choix de profil.
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          tooltip: 'Changer de profil',
+          onPressed: () => RoleRouter.changerDeProfil(context),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

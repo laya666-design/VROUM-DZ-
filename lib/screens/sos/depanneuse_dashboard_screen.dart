@@ -76,7 +76,7 @@ class _DepanneuseDashboardScreenState
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur : $e')),
+        SnackBar(content: Text(SosService.friendlyError(e))),
       );
     } finally {
       if (mounted) setState(() => _enCoursAcceptation.remove(alerte.id));
@@ -116,8 +116,9 @@ class _DepanneuseDashboardScreenState
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Text(
-                  'Erreur profil : ${profileSnap.error}',
+                  SosService.friendlyError(profileSnap.error!),
                   style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
                 ),
               ),
             );
@@ -172,8 +173,9 @@ class _DepanneuseDashboardScreenState
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      'Erreur requête alertes (wilaya="${profile.wilaya}") : ${snap.error}',
+                      SosService.friendlyError(snap.error!),
                       style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 );
@@ -200,17 +202,6 @@ class _DepanneuseDashboardScreenState
                     child: Text(
                       '${profile.nom} — Wilaya de ${profile.wilaya}',
                       style: TextStyle(fontWeight: FontWeight.w600, color: sos),
-                    ),
-                  ),
-                  // Bandeau de debug temporaire : confirme que le flux a bien
-                  // répondu (0 alerte ou plus) — à retirer une fois validé.
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    color: Colors.black87,
-                    child: Text(
-                      'DEBUG: ${alertes.length} alerte(s) trouvée(s) pour wilaya="${profile.wilaya}"',
-                      style: const TextStyle(color: Colors.greenAccent, fontSize: 11),
                     ),
                   ),
                   if (alertes.isEmpty)
