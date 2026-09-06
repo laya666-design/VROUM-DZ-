@@ -75,10 +75,15 @@ class RoleRouter {
     BuildContext context, {
     required AppConfig config,
     required ValueNotifier<bool> isAr,
+    bool afficherConducteur = true,
   }) async {
     Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => RoleSelectionScreen(config: config, isAr: isAr),
+        builder: (_) => RoleSelectionScreen(
+          config: config,
+          isAr: isAr,
+          afficherConducteur: afficherConducteur,
+        ),
       ),
       (route) => false,
     );

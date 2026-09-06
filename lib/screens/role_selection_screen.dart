@@ -10,11 +10,18 @@ import 'role_router.dart';
 class RoleSelectionScreen extends StatelessWidget {
   final AppConfig config;
   final ValueNotifier<bool> isAr;
+  // Masque la carte "Conducteur" quand cet écran est ouvert depuis
+  // l'Espace Pro du Profil conducteur (on est déjà conducteur, l'option
+  // n'a pas de sens là). Reste à true par défaut pour les autres accès
+  // (magasin_shell, depanneuse_shell, store_login, depanneuse_auth) où
+  // revenir à Conducteur doit rester possible.
+  final bool afficherConducteur;
 
   const RoleSelectionScreen({
     super.key,
     required this.config,
     required this.isAr,
+    this.afficherConducteur = true,
   });
 
   Future<void> _selectRole(BuildContext context, UserRole role) async {
@@ -137,19 +144,22 @@ class RoleSelectionScreen extends StatelessWidget {
                     Expanded(
                       child: ListView(
                         children: [
-                          _RoleCard(
-                            icon: Icons.directions_car_rounded,
-                            iconBg: const Color(0xFFDCFCE7),
-                            iconColor: config.primaryDark,
-                            title: t('Conducteur', 'سائق'),
-                            subtitle: t(
-                              'Gérer mes véhicules, pièces, rappels et envoyer une alerte SOS',
-                              'إدارة مركباتي، القطع، التذكيرات وإرسال تنبيه استغاثة',
+                          if (afficherConducteur) ...[
+                            _RoleCard(
+                              icon: Icons.directions_car_rounded,
+                              iconBg: const Color(0xFFDCFCE7),
+                              iconColor: config.primaryDark,
+                              title: t('Conducteur', 'سائق'),
+                              subtitle: t(
+                                'Gérer mes véhicules, pièces, rappels et envoyer une alerte SOS',
+                                'إدارة مركباتي، القطع، التذكيرات وإرسال تنبيه استغاثة',
+                              ),
+                              accent: config.primaryColor,
+                              onTap: () =>
+                                  _selectRole(context, UserRole.conducteur),
                             ),
-                            accent: config.primaryColor,
-                            onTap: () => _selectRole(context, UserRole.conducteur),
-                          ),
-                          const SizedBox(height: 14),
+                            const SizedBox(height: 14),
+                          ],
                           _RoleCard(
                             icon: Icons.storefront_rounded,
                             iconBg: const Color(0xFFFFEDD5),

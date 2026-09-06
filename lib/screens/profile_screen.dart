@@ -569,6 +569,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       context,
                       config: widget.config,
                       isAr: widget.isAr,
+                      afficherConducteur: false,
                     ),
                   ),
                 ),
