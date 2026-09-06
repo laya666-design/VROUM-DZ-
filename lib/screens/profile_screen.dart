@@ -861,7 +861,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     trailing:
                         const Icon(Icons.chevron_right, color: Colors.grey),
-                    onTap: () => RoleRouter.changerDeProfil(context),
+                    onTap: () => RoleRouter.changerDeProfil(
+                      context,
+                      config: widget.config,
+                      isAr: widget.isAr,
+                    ),
                   ),
                 ),
               ],
