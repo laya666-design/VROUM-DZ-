@@ -133,7 +133,11 @@ class _DepanneuseAuthScreenState extends State<DepanneuseAuthScreen> {
                     // route précédente à dépiler, donc Navigator.maybePop ne
                     // faisait rien. La croix ramène explicitement au choix
                     // de profil (les 3 cartes).
-                    onPressed: () => RoleRouter.changerDeProfil(context),
+                    onPressed: () => RoleRouter.changerDeProfil(
+                      context,
+                      config: widget.config,
+                      isAr: ValueNotifier<bool>(false),
+                    ),
                     icon: const Icon(Icons.close, size: 22),
                   ),
                   const Spacer(),
