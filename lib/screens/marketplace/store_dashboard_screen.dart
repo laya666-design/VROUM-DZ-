@@ -225,10 +225,12 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
   Future<void> _logout() async {
     await StoreService.signOut();
     if (!mounted) return;
-    Navigator.pushReplacement(
+    // Vide toute la pile pour empêcher le retour vers le dashboard.
+    Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
           builder: (_) => StorePhoneLoginScreen(config: widget.config)),
+      (route) => false,
     );
   }
 
