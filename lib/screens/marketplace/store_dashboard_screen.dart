@@ -9,6 +9,7 @@ import 'package:record/record.dart';
 import '../../config/app_config.dart';
 import '../../services/marketplace_models.dart';
 import '../../services/notification_service.dart';
+import '../../services/part_categories.dart';
 import '../../services/store_service.dart';
 import '../../widgets/screen_background.dart';
 import 'store_phone_login_screen.dart';
@@ -245,6 +246,130 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
       messenger.showSnackBar(
         SnackBar(content: Text('$e')),
       );
+    }
+  }
+
+  Future<void> _editCategories(StoreProfile profile) async {
+    final selected = Set<String>.from(profile.categories);
+    final autreCtrl =
+        TextEditingController(text: profile.categorieAutre ?? '');
+    String? error;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocal) {
+            return AlertDialog(
+              title: const Text('Mes spécialités'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Coche les types de pièces que tu vends. Tu ne verras que les demandes correspondantes.',
+                        style: TextStyle(fontSize: 13, color: Colors.black54),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final cat in kPartCategories)
+                            FilterChip(
+                              label: Text(cat.labelFr),
+                              selected: selected.contains(cat.id),
+                              onSelected: (_) {
+                                setLocal(() {
+                                  if (selected.contains(cat.id)) {
+                                    selected.remove(cat.id);
+                                  } else {
+                                    selected.add(cat.id);
+                                  }
+                                  error = null;
+                                });
+                              },
+                              selectedColor:
+                                  widget.config.primaryColor.withOpacity(0.2),
+                              checkmarkColor: widget.config.primaryColor,
+                            ),
+                        ],
+                      ),
+                      if (selected.contains(kCategorieAutre)) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: autreCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Précise ta spécialité *',
+                            hintText:
+                                'Ex. pièces poids lourds, climatisation…',
+                          ),
+                        ),
+                      ],
+                      if (error != null) ...[
+                        const SizedBox(height: 8),
+                        Text(error!,
+                            style: const TextStyle(color: Colors.red, fontSize: 13)),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Annuler'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (selected.isEmpty) {
+                      setLocal(() =>
+                          error = 'Choisis au moins une catégorie.');
+                      return;
+                    }
+                    if (selected.contains(kCategorieAutre) &&
+                        autreCtrl.text.trim().isEmpty) {
+                      setLocal(() => error =
+                          'Précise ta spécialité dans le champ « Autre ».');
+                      return;
+                    }
+                    Navigator.pop(ctx, true);
+                  },
+                  child: const Text('Enregistrer'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (ok != true || !mounted) {
+      autreCtrl.dispose();
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await StoreService.updateCategories(
+        categories: selected.toList(),
+        categorieAutre: selected.contains(kCategorieAutre)
+            ? autreCtrl.text.trim()
+            : null,
+      );
+      if (mounted) {
+        setState(() => _storeCategories = selected.toList());
+      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Spécialités mises à jour.')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      autreCtrl.dispose();
     }
   }
 
@@ -843,6 +968,17 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                   onPressed: _selected.isEmpty ? null : _hideSelected,
                 ),
               ] else ...[
+                if (profile != null)
+                  IconButton(
+                    tooltip: profile.aDesCategories
+                        ? 'Mes spécialités'
+                        : 'Spécialités manquantes — appuie pour les renseigner',
+                    onPressed: () => _editCategories(profile),
+                    icon: Icon(
+                      Icons.category_outlined,
+                      color: profile.aDesCategories ? null : Colors.amber,
+                    ),
+                  ),
                 if (profile != null)
                   IconButton(
                     tooltip: profile.aUnePosition
