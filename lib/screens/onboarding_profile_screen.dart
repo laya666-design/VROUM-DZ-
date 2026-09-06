@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
-import '../config/wilayas.dart';
-import '../services/location_service.dart';
-import '../services/store_service.dart';
-import '../services/vehicule_service.dart';
 import '../widgets/screen_background.dart';
 import 'home_screen.dart';
 
-/// Onboarding en 2 étapes, vu une seule fois avant l'accès au reste de
-/// l'app :
-///  1. Type de véhicule (voiture / moto / les deux) — pilote les onglets
-///     affichés dans HomeScreen (voir SettingsService.vehicleProfile).
-///  2. Téléphone + wilaya, obligatoires : ce sont les deux informations
-///     utilisées partout dans l'app (SOS, marketplace, contact) — les
-///     demander une seule fois ici évite de les redemander séparément à
-///     chaque fonctionnalité. La position GPS est aussi tentée en
-///     best-effort à cette étape (jamais bloquante si refusée).
+/// Onboarding en 1 seule étape, vue une seule fois avant l'accès au reste
+/// de l'app : type de véhicule (voiture / moto / les deux) — pilote les
+/// onglets affichés dans HomeScreen (voir SettingsService.vehicleProfile).
 /// Modifiable ensuite depuis l'onglet Profil.
+///
+/// Téléphone, wilaya et position GPS ne sont PLUS demandés ici : mode
+/// invité, on ne demande rien tant qu'un service qui en a besoin n'est
+/// pas utilisé. SOS collecte déjà téléphone + wilaya lui-même au moment
+/// de l'alerte (voir home_screen.dart, wilaya_picker_dialog /
+/// tel_picker_dialog) ; la position GPS est toujours récupérée à la
+/// volée par LocationService au moment de l'usage réel (SOS, magasins,
+/// demandes de pièces) — jamais mise en cache à l'avance ici.
 class OnboardingProfileScreen extends StatefulWidget {
   final AppConfig config;
   final ValueNotifier<bool> isAr;
@@ -40,47 +38,12 @@ class OnboardingProfileScreen extends StatefulWidget {
 }
 
 class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
-  int _step = 0;
   String? _selected;
-  final _telController = TextEditingController();
-  String? _wilaya;
-  String? _telErreur;
   bool _validating = false;
 
-  @override
-  void dispose() {
-    _telController.dispose();
-    super.dispose();
-  }
-
-  void _allerEtape2() {
-    if (_selected == null) return;
-    setState(() => _step = 1);
-    // Demande la position GPS dès l'arrivée sur cette étape : best-effort,
-    // ne bloque jamais "Continuer" si l'utilisateur refuse — voir
-    // LocationService (même logique que pour l'inscription magasin).
-    LocationService.getCurrentPosition().then((res) {
-      if (res.aUnePosition) {
-        SettingsService.setUserPosition(res.latitude!, res.longitude!);
-      }
-    });
-  }
-
   Future<void> _continuer() async {
-    if (_validating) return;
-    final numero = StoreService.normaliserNumeroLocal(_telController.text);
-    if (numero == null) {
-      setState(() => _telErreur = 'Numéro invalide. Format : 0556 65 32 20.');
-      return;
-    }
-    if (_wilaya == null) return;
-
-    setState(() {
-      _telErreur = null;
-      _validating = true;
-    });
-    await SettingsService.setUserTel(numero);
-    await SettingsService.setWilaya(_wilaya!);
+    if (_selected == null || _validating) return;
+    setState(() => _validating = true);
     await widget.onChosen(_selected!);
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
@@ -159,169 +122,86 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
               child: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: _step == 0
-                      ? _buildEtapeVehicule(t)
-                      : _buildEtapeContact(t),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Spacer(),
+                      Text(
+                        t('Qu\'est-ce que tu conduis ?', 'ماذا تقود؟'),
+                        style: const TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        t(
+                          'Ça nous permet de n\'afficher que ce qui te '
+                          'concerne. Tu pourras changer ça plus tard dans '
+                          'Profil.',
+                          'هذا يسمح لنا بعرض ما يهمك فقط. يمكنك تغيير هذا '
+                          'لاحقاً من الملف الشخصي.',
+                        ),
+                        style: const TextStyle(color: Colors.black54),
+                      ),
+                      const SizedBox(height: 32),
+                      _ProfileOption(
+                        icon: Icons.directions_car,
+                        label: t('Voiture', 'سيارة'),
+                        selected: _selected == 'voiture',
+                        accentColor: widget.config.primaryColor,
+                        onTap: () => setState(() => _selected = 'voiture'),
+                      ),
+                      const SizedBox(height: 12),
+                      _ProfileOption(
+                        icon: Icons.two_wheeler,
+                        label: t('Moto / Scooter', 'دراجة نارية / سكوتر'),
+                        selected: _selected == 'moto',
+                        accentColor: widget.config.primaryColor,
+                        onTap: () => setState(() => _selected = 'moto'),
+                      ),
+                      const SizedBox(height: 12),
+                      _ProfileOption(
+                        icon: Icons.sync_alt,
+                        label: t('Les deux', 'كلاهما'),
+                        selected: _selected == 'both',
+                        accentColor: widget.config.primaryColor,
+                        onTap: () => setState(() => _selected = 'both'),
+                      ),
+                      const Spacer(),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: widget.config.primaryColor,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          onPressed: (_selected == null || _validating)
+                              ? null
+                              : _continuer,
+                          child: _validating
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.black87,
+                                  ),
+                                )
+                              : Text(
+                                  t('Continuer', 'متابعة'),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildEtapeVehicule(String Function(String, String) t) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Spacer(),
-        Text(
-          t('Qu\'est-ce que tu conduis ?', 'ماذا تقود؟'),
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          t(
-            'Ça nous permet de n\'afficher que ce qui te '
-            'concerne. Tu pourras changer ça plus tard dans '
-            'Profil.',
-            'هذا يسمح لنا بعرض ما يهمك فقط. يمكنك تغيير هذا '
-            'لاحقاً من الملف الشخصي.',
-          ),
-          style: const TextStyle(color: Colors.black54),
-        ),
-        const SizedBox(height: 32),
-        _ProfileOption(
-          icon: Icons.directions_car,
-          label: t('Voiture', 'سيارة'),
-          selected: _selected == 'voiture',
-          accentColor: widget.config.primaryColor,
-          onTap: () => setState(() => _selected = 'voiture'),
-        ),
-        const SizedBox(height: 12),
-        _ProfileOption(
-          icon: Icons.two_wheeler,
-          label: t('Moto / Scooter', 'دراجة نارية / سكوتر'),
-          selected: _selected == 'moto',
-          accentColor: widget.config.primaryColor,
-          onTap: () => setState(() => _selected = 'moto'),
-        ),
-        const SizedBox(height: 12),
-        _ProfileOption(
-          icon: Icons.sync_alt,
-          label: t('Les deux', 'كلاهما'),
-          selected: _selected == 'both',
-          accentColor: widget.config.primaryColor,
-          onTap: () => setState(() => _selected = 'both'),
-        ),
-        const Spacer(),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: widget.config.primaryColor,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            onPressed: _selected == null ? null : _allerEtape2,
-            child: Text(
-              t('Continuer', 'متابعة'),
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEtapeContact(String Function(String, String) t) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Spacer(),
-        Text(
-          t('Encore une étape', 'خطوة أخيرة'),
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          t(
-            'Ton numéro et ta wilaya servent partout dans l\'app : SOS '
-            'dépanneuse, pièces détachées, contact avec les magasins. On '
-            'te les demande une seule fois, ici.',
-            'يُستخدم رقمك وولايتك في كل التطبيق: نجدة المصلح، قطع الغيار، '
-            'التواصل مع المتاجر. نطلبهما مرة واحدة فقط، هنا.',
-          ),
-          style: const TextStyle(color: Colors.black54),
-        ),
-        const SizedBox(height: 28),
-        TextField(
-          controller: _telController,
-          keyboardType: TextInputType.phone,
-          decoration: InputDecoration(
-            labelText: t('Ton numéro de téléphone', 'رقم هاتفك'),
-            hintText: '0556 65 32 20',
-            errorText: _telErreur,
-            filled: true,
-            fillColor: Colors.white,
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.phone_outlined),
-          ),
-        ),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<String>(
-          value: _wilaya,
-          isExpanded: true,
-          decoration: InputDecoration(
-            labelText: t('Ta wilaya', 'ولايتك'),
-            filled: true,
-            fillColor: Colors.white,
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.place_outlined),
-          ),
-          items: kWilayasAlgerie
-              .map((w) => DropdownMenuItem(value: w, child: Text(w)))
-              .toList(),
-          onChanged: (v) => setState(() => _wilaya = v),
-        ),
-        const Spacer(),
-        Row(
-          children: [
-            TextButton(
-              onPressed: _validating
-                  ? null
-                  : () => setState(() => _step = 0),
-              child: Text(t('Retour', 'رجوع')),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: widget.config.primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                onPressed: (_wilaya == null || _validating) ? null : _continuer,
-                child: _validating
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.black87,
-                        ),
-                      )
-                    : Text(
-                        t('Continuer', 'متابعة'),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87),
-                      ),
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }
