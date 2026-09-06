@@ -531,6 +531,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 24),
 
+                // Espace Pro — remonté ici (juste sous l'en-tête, avant
+                // Réglages) au lieu d'être tout en bas : l'accueil lance
+                // maintenant en mode invité sans choix de rôle imposé, donc
+                // Magasin/Dépanneuse doivent rester faciles à trouver.
+                Card(
+                  elevation: 0,
+                  color: AppColors.primaryLight,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    side: BorderSide(color: widget.config.primaryColor.withOpacity(0.25)),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 4),
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.storefront,
+                          color: widget.config.primaryColor, size: 20),
+                    ),
+                    title: Text(t('Espace Pro', 'مساحة الاحترافيين'),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 15)),
+                    subtitle: Text(
+                      t('Tu tiens un magasin ou une dépanneuse ? Rejoins-nous',
+                          'هل تملك متجرًا أو سطحة؟ انضم إلينا'),
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                    trailing:
+                        const Icon(Icons.chevron_right, color: Colors.grey),
+                    onTap: () => RoleRouter.changerDeProfil(
+                      context,
+                      config: widget.config,
+                      isAr: widget.isAr,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
                 // ── Réglages ─────────────────────────────────────────────
                 Text(
                   t('Réglages', 'الإعدادات'),
@@ -616,58 +659,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 8),
 
-                // Rappels SMS / Appel
-                Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    side: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(18),
-                    onTap: !isPremium
-                        ? () => _showPremiumSheet(context, t)
-                        : null,
-                    child: SwitchListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
-                      secondary: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryLight,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(Icons.notifications_active_outlined,
-                            color: widget.config.primaryColor, size: 20),
-                      ),
-                      title: Text(
-                        t('Rappels par SMS / Appel',
-                            'تذكيرات عبر SMS / مكالمة'),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 15),
-                      ),
-                      subtitle: Text(
-                        isPremium
-                            ? (SettingsService.smsRemindersEnabled
-                                ? t('Activés', 'مفعّلة')
-                                : t('Désactivés', 'معطّلة'))
-                            : t('Réservé aux comptes Premium',
-                                'حصري لحسابات Premium'),
-                        style: const TextStyle(fontSize: 12.5),
-                      ),
-                      value: SettingsService.smsRemindersEnabled,
-                      activeColor: widget.config.primaryColor,
-                      onChanged: isPremium
-                          ? (val) async {
-                              await SettingsService.setSmsRemindersEnabled(
-                                  val);
-                              setState(() {});
-                            }
+                // Rappels SMS / Appel — visible seulement pour les comptes
+                // Premium : pour un compte gratuit, ce réglage était affiché
+                // grisé/inutilisable et faisait doublon avec la carte
+                // "Passer en Premium" juste en dessous qui annonce déjà
+                // "Rappels SMS" comme avantage Premium.
+                if (isPremium)
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      side: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: !isPremium
+                          ? () => _showPremiumSheet(context, t)
                           : null,
+                      child: SwitchListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 4),
+                        secondary: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(Icons.notifications_active_outlined,
+                              color: widget.config.primaryColor, size: 20),
+                        ),
+                        title: Text(
+                          t('Rappels par SMS / Appel',
+                              'تذكيرات عبر SMS / مكالمة'),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 15),
+                        ),
+                        subtitle: Text(
+                          isPremium
+                              ? (SettingsService.smsRemindersEnabled
+                                  ? t('Activés', 'مفعّلة')
+                                  : t('Désactivés', 'معطّلة'))
+                              : t('Réservé aux comptes Premium',
+                                  'حصري لحسابات Premium'),
+                          style: const TextStyle(fontSize: 12.5),
+                        ),
+                        value: SettingsService.smsRemindersEnabled,
+                        activeColor: widget.config.primaryColor,
+                        onChanged: isPremium
+                            ? (val) async {
+                                await SettingsService.setSmsRemindersEnabled(
+                                    val);
+                                setState(() {});
+                              }
+                            : null,
+                      ),
                     ),
                   ),
-                ),
 
                 // ── Carte Premium (si non Premium) ───────────────────────
                 if (!isPremium) ...[
@@ -826,45 +874,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         builder: (_) =>
                             AdminLoginScreen(config: widget.config),
                       ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Changer de profil (conducteur / magasin / dépanneuse)
-                Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    side: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 4),
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.swap_horiz,
-                          color: Colors.black54, size: 20),
-                    ),
-                    title: Text(t('Changer de profil', 'تغيير الملف الشخصي'),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 15)),
-                    subtitle: Text(
-                      t('Conducteur, magasin ou dépanneuse',
-                          'سائق، متجر أو سطحة'),
-                      style: const TextStyle(fontSize: 12.5),
-                    ),
-                    trailing:
-                        const Icon(Icons.chevron_right, color: Colors.grey),
-                    onTap: () => RoleRouter.changerDeProfil(
-                      context,
-                      config: widget.config,
-                      isAr: widget.isAr,
                     ),
                   ),
                 ),
