@@ -128,7 +128,6 @@ class _BuyerPortalScreenState extends State<BuyerPortalScreen> {
     }
 
     final phoneLoggedIn = MarketplaceService.isPhoneLoggedIn;
-    final phone = MarketplaceService.clientId;
 
     return Scaffold(
       appBar: AppBar(
@@ -146,37 +145,49 @@ class _BuyerPortalScreenState extends State<BuyerPortalScreen> {
             onPressed: _openMesDemandes,
           ),
           if (phoneLoggedIn)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.account_circle_outlined),
-              tooltip: phone ?? _t('Mon compte', 'حسابي'),
-              onSelected: (value) async {
-                if (value == 'logout') {
-                  await MarketplaceService.signOut();
-                  if (!context.mounted) return;
-                  // Remplace pour que le retour ne garde pas l'ancien portail.
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BuyerPhoneLoginScreen(
-                          config: widget.config, isAr: widget.isAr),
+            IconButton(
+              tooltip: _t('Se déconnecter', 'تسجيل الخروج'),
+              icon: const Icon(Icons.logout),
+              onPressed: () async {
+                final confirme = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text(_t('Déconnexion', 'تسجيل الخروج')),
+                    content: Text(
+                      _t(
+                        'Voulez-vous vraiment vous déconnecter ?',
+                        'هل تريد تسجيل الخروج؟',
+                      ),
                     ),
-                  );
-                }
-              },
-              itemBuilder: (_) => [
-                PopupMenuItem(
-                  enabled: false,
-                  child: Text(
-                    phone ?? '',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w500, color: Colors.black87),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: Text(_t('Annuler', 'إلغاء')),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: Text(_t('Se déconnecter', 'تسجيل الخروج')),
+                      ),
+                    ],
                   ),
-                ),
-                PopupMenuItem(
-                  value: 'logout',
-                  child: Text(_t('Se déconnecter', 'تسجيل الخروج')),
-                ),
-              ],
+                );
+                if (confirme != true || !context.mounted) return;
+
+                await MarketplaceService.signOut();
+                if (!context.mounted) return;
+
+                // Vide toute la pile pour empêcher le retour vers l'ancien portail.
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BuyerPhoneLoginScreen(
+                      config: widget.config,
+                      isAr: widget.isAr,
+                    ),
+                  ),
+                  (route) => false,
+                );
+              },
             )
           else
             IconButton(
