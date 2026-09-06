@@ -45,7 +45,9 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
   final Set<String> _selected = {};
   Set<String> _hiddenIds = {};
   Set<String> _seenIds = {};
+  List<String> _storeCategories = [];
   StreamSubscription<List<PartRequest>>? _requestsSub;
+  StreamSubscription<StoreProfile?>? _profileSub;
   int _lastKnownCount = -1; // total visible (pour détecter nouvelles arrivées)
   int _unreadCount = 0; // badge = non consultées
 
@@ -53,11 +55,20 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
   void initState() {
     super.initState();
     _loadHiddenAndSeen();
+    // Garde les catégories à jour pour le badge / notif locales.
+    _profileSub = StoreService.myProfileStream().listen((p) {
+      if (!mounted) return;
+      setState(() => _storeCategories = p?.categories ?? const []);
+    });
     // Écoute dédiée pour badge + notification à l'arrivée d'une nouvelle demande
+    // (déjà filtrée par les catégories du magasin).
     _requestsSub = StoreService.openRequests().listen((all) async {
       final hidden = await StoreService.hiddenRequestIds();
       final seen = await StoreService.seenRequestIds();
-      final visible = all.where((r) => !hidden.contains(r.id)).toList();
+      final filtered =
+          StoreService.filtrerParCategories(all, _storeCategories);
+      final visible =
+          filtered.where((r) => !hidden.contains(r.id)).toList();
       final count = visible.length;
       final unread = visible.where((r) => !seen.contains(r.id)).length;
       if (_lastKnownCount >= 0 && count > _lastKnownCount) {
@@ -192,6 +203,7 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
   @override
   void dispose() {
     _requestsSub?.cancel();
+    _profileSub?.cancel();
     _player.dispose();
     super.dispose();
   }
@@ -997,11 +1009,19 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                                   }
 
                                   final all = snapshot.data ?? [];
-                                  final requests = all
+                                  // Filtre par spécialités du magasin, puis
+                                  // masquage local.
+                                  final filtered = StoreService.filtrerParCategories(
+                                    all,
+                                    profile?.categories ?? const [],
+                                  );
+                                  final requests = filtered
                                       .where((r) => !_hiddenIds.contains(r.id))
                                       .toList();
 
                                   if (requests.isEmpty) {
+                                    final noCategories =
+                                        (profile?.categories ?? const []).isEmpty;
                                     return Center(
                                       child: Padding(
                                         padding: const EdgeInsets.all(24),
@@ -1018,19 +1038,36 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                                               ),
                                             ],
                                           ),
-                                          child: const Column(
+                                          child: Column(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Icon(Icons.inbox_outlined,
-                                                  size: 36, color: Colors.black38),
-                                              SizedBox(height: 10),
+                                              Icon(
+                                                noCategories
+                                                    ? Icons.category_outlined
+                                                    : Icons.inbox_outlined,
+                                                size: 36,
+                                                color: Colors.black38,
+                                              ),
+                                              const SizedBox(height: 10),
                                               Text(
-                                                'Aucune commande pour le moment.',
+                                                noCategories
+                                                    ? 'Renseigne tes spécialités pour recevoir des demandes.'
+                                                    : 'Aucune commande pour le moment.',
                                                 textAlign: TextAlign.center,
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                     fontWeight: FontWeight.w600,
                                                     color: Colors.black87),
                                               ),
+                                              if (noCategories) ...[
+                                                const SizedBox(height: 8),
+                                                const Text(
+                                                  'Sans catégories, aucune demande ne t\'est affichée.',
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                      fontSize: 13,
+                                                      color: Colors.black54),
+                                                ),
+                                              ],
                                             ],
                                           ),
                                         ),
