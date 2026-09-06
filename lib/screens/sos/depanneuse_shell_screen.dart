@@ -39,6 +39,11 @@ class _DepanneuseShellScreenState extends State<DepanneuseShellScreen> {
 
   Future<void> _ensureAuth() async {
     await SosService.loadPhoneAsId();
+    // Même précaution que côté magasin : attendre que Firebase Auth ait
+    // fini de restaurer une éventuelle session persistée avant de
+    // conclure à une déconnexion (évite un aller-retour vers l'écran de
+    // connexion juste après un redémarrage de l'app).
+    await SosService.waitForAuthReady();
     if (!mounted) return;
     if (!SosService.isDepanneuseLoggedIn) {
       Navigator.of(context).pushReplacement(

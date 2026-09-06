@@ -115,12 +115,11 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
 
       // 2) OCR local (ML Kit) en repli uniquement si Gemini n'a pas pu
       // donner de date exploitable (hors-ligne, ou champ non reconnu).
-      // Repli imparfait : il prend la date la plus recente parmi TOUTES
-      // celles visibles sur la photo, donc a eviter si Gemini a reussi.
+      // Priorité à la date qui suit "VISITE PERIODIQUE LE" / "المراقبة اللاحقة",
+      // sinon retombe sur la date la plus récente.
       if (expiration == null) {
         final rawText = await _ocr.extractText(file);
-        final dates = OcrService.extractDates(rawText);
-        expiration = OcrService.mostRecentDate(dates);
+        expiration = OcrService.extractDateVisitePeriodique(rawText);
       }
 
       if (expiration != null) {

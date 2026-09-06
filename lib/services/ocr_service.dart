@@ -48,6 +48,42 @@ class OcrService {
     return dates.last;
   }
 
+  /// Pour le contrôle technique : cherche en priorité la date qui suit
+  /// explicitement "VISITE PERIODIQUE" / "PERIODIQUE" / "المراقبة اللاحقة".
+  /// Si trouvée, la retourne ; sinon retombe sur la date la plus récente.
+  static DateTime? extractDateVisitePeriodique(String rawText) {
+    final upper = rawText.toUpperCase();
+    // Patterns courants sur les PV algériens
+    final patterns = [
+      RegExp(r'VISITE\s*PERIODIQUE\s*(?:LE\s*)?(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{4})',
+          caseSensitive: false),
+      RegExp(r'PERIODIQUE\s*(?:LE\s*)?(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{4})',
+          caseSensitive: false),
+      RegExp(r'المراقبة\s*اللاحقة[^\d]*(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{4})'),
+      RegExp(r'طبيعة\s*وتاريخ[^\d]*(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{4})'),
+    ];
+
+    for (final re in patterns) {
+      final m = re.firstMatch(rawText);
+      if (m != null) {
+        final day = int.tryParse(m.group(1) ?? '');
+        final month = int.tryParse(m.group(2) ?? '');
+        final year = int.tryParse(m.group(3) ?? '');
+        if (day != null && month != null && year != null &&
+            month >= 1 && month <= 12 && day >= 1 && day <= 31 &&
+            year >= 2000 && year <= 2100) {
+          try {
+            return DateTime(year, month, day);
+          } catch (_) {}
+        }
+      }
+    }
+
+    // Fallback : date la plus récente (comportement historique)
+    final all = extractDates(rawText);
+    return mostRecentDate(all);
+  }
+
   void dispose() {
     _recognizer.close();
   }

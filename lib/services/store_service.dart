@@ -30,6 +30,19 @@ class StoreService {
   static User? get currentUser => FirebaseAuth.instance.currentUser;
   static bool get isLoggedIn => currentUser != null;
 
+  /// À appeler avant tout test de session au lancement d'un écran racine
+  /// (ex: MagasinShellScreen). Sans ça, juste après un redémarrage de
+  /// l'app (ex: l'OS a tué le process en arrière-plan puis l'utilisateur
+  /// revient dessus), `currentUser` peut valoir null pendant les
+  /// quelques millisecondes où Firebase Auth restaure encore la session
+  /// persistée depuis le disque — ce qui provoquait une déconnexion
+  /// visuelle (retour à l'écran de connexion) alors que la session
+  /// existait bel et bien. authStateChanges().first attend la première
+  /// valeur réelle (connecté ou non) avant de conclure.
+  static Future<void> waitForAuthReady() async {
+    await FirebaseAuth.instance.authStateChanges().first;
+  }
+
   /// Numéro sauvegardé localement comme identifiant du magasin connecté
   /// — indépendant de l'email Firebase Auth actuel du compte, qui peut
   /// changer (voir [demanderResetParEmail] : l'email technique

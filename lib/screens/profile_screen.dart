@@ -427,6 +427,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // ─── Build ───────────────────────────────────────────────────────────────
 
+  Widget _sectionLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 10, top: 4),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          fontWeight: FontWeight.w800,
+          fontSize: 11.5,
+          color: Colors.grey.shade500,
+          letterSpacing: 1.1,
+        ),
+      ),
+    );
+  }
+
+  Widget _settingTile({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(icon, color: iconColor, size: 21),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 15)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: TextStyle(
+                            fontSize: 12.5, color: Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
@@ -441,383 +511,395 @@ class _ProfileScreenState extends State<ProfileScreen> {
           accentColor: widget.config.primaryColor,
           child: SafeArea(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
               children: [
-                Text(
-                  t('Profil', 'الملف الشخصي'),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                const SizedBox(height: 16),
-
-                // ── Carte statut compte ──────────────────────────────────
+                // ── HERO HEADER ──────────────────────────────────────────
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFECFDF5), Color(0xFFD1FAE5)],
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: isPremium
+                          ? const [
+                              Color(0xFF0F172A),
+                              Color(0xFF1E293B),
+                              Color(0xFF334155),
+                            ]
+                          : [
+                              widget.config.primaryColor,
+                              widget.config.primaryColor.withOpacity(0.82),
+                              const Color(0xFF0F766E),
+                            ],
                     ),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFA7F3D0)),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: widget.config.primaryColor,
-                        child: const Icon(Icons.person,
-                            color: Colors.white, size: 30),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.config.appName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 17,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: isPremium
-                                    ? const Color(0xFFFBBF24)
-                                    : Colors.grey.shade200,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                isPremium
-                                    ? t('Compte Premium', 'حساب Premium')
-                                    : t('Compte gratuit', 'حساب مجاني'),
-                                style: TextStyle(
-                                  color: isPremium
-                                      ? const Color(0xFF78350F)
-                                      : Colors.grey.shade700,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              vehicleCount <= 1
-                                  ? t(
-                                      '$vehicleCount véhicule utilisé',
-                                      vehicleCount == 1
-                                          ? 'مركبة واحدة مستخدمة'
-                                          : 'لا توجد مركبة',
-                                    )
-                                  : t(
-                                      '$vehicleCount véhicules utilisés',
-                                      '$vehicleCount مركبات مستخدمة',
-                                    ),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
+                    borderRadius: BorderRadius.circular(26),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isPremium
+                                ? Colors.black
+                                : widget.config.primaryColor)
+                            .withOpacity(0.28),
+                        blurRadius: 22,
+                        offset: const Offset(0, 10),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 24),
-
-                // Espace Pro — remonté ici (juste sous l'en-tête, avant
-                // Réglages) au lieu d'être tout en bas : l'accueil lance
-                // maintenant en mode invité sans choix de rôle imposé, donc
-                // Magasin/Dépanneuse doivent rester faciles à trouver.
-                Card(
-                  elevation: 0,
-                  color: AppColors.primaryLight,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    side: BorderSide(color: widget.config.primaryColor.withOpacity(0.25)),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 4),
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(Icons.storefront,
-                          color: widget.config.primaryColor, size: 20),
-                    ),
-                    title: Text(t('Espace Pro', 'مساحة الاحترافيين'),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 15)),
-                    subtitle: Text(
-                      t('Tu tiens un magasin ou une dépanneuse ? Rejoins-nous',
-                          'هل تملك متجرًا أو سطحة؟ انضم إلينا'),
-                      style: const TextStyle(fontSize: 12.5),
-                    ),
-                    trailing:
-                        const Icon(Icons.chevron_right, color: Colors.grey),
-                    onTap: () => RoleRouter.changerDeProfil(
-                      context,
-                      config: widget.config,
-                      isAr: widget.isAr,
-                      afficherConducteur: false,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // ── Réglages ─────────────────────────────────────────────
-                Text(
-                  t('Réglages', 'الإعدادات'),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: Colors.grey.shade600,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Langue
-                Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    side: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  child: ListTile(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(Icons.language,
-                          color: widget.config.primaryColor, size: 20),
-                    ),
-                    title: Text(t('Langue', 'اللغة'),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 15)),
-                    subtitle: Text(isAr ? 'العربية' : 'Français',
-                        style: const TextStyle(fontSize: 12.5)),
-                    trailing: SegmentedButton<bool>(
-                      segments: const [
-                        ButtonSegment(value: false, label: Text('FR')),
-                        ButtonSegment(value: true, label: Text('AR')),
-                      ],
-                      selected: {isAr},
-                      onSelectionChanged: (s) => widget.isAr.value = s.first,
-                      style: ButtonStyle(
-                        visualDensity: VisualDensity.compact,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Type de véhicule
-                Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    side: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  child: ListTile(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(Icons.tune,
-                          color: widget.config.primaryColor, size: 20),
-                    ),
-                    title: Text(t('Type de véhicule', 'نوع المركبة'),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 15)),
-                    subtitle: Text(_vehicleProfileLabel(t),
-                        style: const TextStyle(fontSize: 12.5)),
-                    trailing: const Icon(Icons.chevron_right,
-                        color: Colors.grey),
-                    onTap: () => _showVehicleProfilePicker(context, t),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Rappels SMS / Appel — visible seulement pour les comptes
-                // Premium : pour un compte gratuit, ce réglage était affiché
-                // grisé/inutilisable et faisait doublon avec la carte
-                // "Passer en Premium" juste en dessous qui annonce déjà
-                // "Rappels SMS" comme avantage Premium.
-                if (isPremium)
-                  Card(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      side: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: !isPremium
-                          ? () => _showPremiumSheet(context, t)
-                          : null,
-                      child: SwitchListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 4),
-                        secondary: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryLight,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(Icons.notifications_active_outlined,
-                              color: widget.config.primaryColor, size: 20),
-                        ),
-                        title: Text(
-                          t('Rappels par SMS / Appel',
-                              'تذكيرات عبر SMS / مكالمة'),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 15),
-                        ),
-                        subtitle: Text(
-                          isPremium
-                              ? (SettingsService.smsRemindersEnabled
-                                  ? t('Activés', 'مفعّلة')
-                                  : t('Désactivés', 'معطّلة'))
-                              : t('Réservé aux comptes Premium',
-                                  'حصري لحسابات Premium'),
-                          style: const TextStyle(fontSize: 12.5),
-                        ),
-                        value: SettingsService.smsRemindersEnabled,
-                        activeColor: widget.config.primaryColor,
-                        onChanged: isPremium
-                            ? (val) async {
-                                await SettingsService.setSmsRemindersEnabled(
-                                    val);
-                                setState(() {});
-                              }
-                            : null,
-                      ),
-                    ),
-                  ),
-
-                // ── Carte Premium (si non Premium) ───────────────────────
-                if (!isPremium) ...[
-                  const SizedBox(height: 8),
-                  Card(
-                    elevation: 0,
-                    color: const Color(0xFF0F172A),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: () => _showPremiumSheet(context, t),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFFFEF3C7),
-                                    Color(0xFFFDE68A)
-                                  ],
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: Colors.white.withOpacity(0.35),
+                                  width: 2.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 12,
                                 ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(Icons.workspace_premium,
-                                  color: Color(0xFFD97706), size: 22),
+                              ],
                             ),
-                            const SizedBox(width: 14),
-                            Expanded(
+                            child: CircleAvatar(
+                              backgroundColor: Colors.white.withOpacity(0.2),
+                              child: Icon(
+                                isPremium
+                                    ? Icons.workspace_premium
+                                    : Icons.person,
+                                color: Colors.white,
+                                size: 32,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.config.appName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 20,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 11, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isPremium
+                                        ? const Color(0xFFFBBF24)
+                                        : Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    isPremium
+                                        ? t('Compte Premium', 'حساب Premium')
+                                        : t('Compte gratuit', 'حساب مجاني'),
+                                    style: TextStyle(
+                                      color: isPremium
+                                          ? const Color(0xFF78350F)
+                                          : Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                    color: Colors.white.withOpacity(0.18)),
+                              ),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    t('Passer en Premium',
-                                        'الترقية إلى Premium'),
+                                    '$vehicleCount',
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 22,
                                     ),
                                   ),
-                                  const SizedBox(height: 3),
+                                  const SizedBox(height: 2),
                                   Text(
-                                    t(
-                                      'Débloquez tout le potentiel de VROUM DZ',
-                                      'افتح كامل إمكانيات VROUM DZ',
-                                    ),
+                                    vehicleCount <= 1
+                                        ? t('véhicule', 'مركبة')
+                                        : t('véhicules', 'مركبات'),
                                     style: TextStyle(
-                                      color: Colors.grey.shade400,
-                                      fontSize: 12.5,
+                                      color: Colors.white.withOpacity(0.8),
+                                      fontSize: 12,
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Wrap(
-                                    spacing: 6,
-                                    runSpacing: 4,
-                                    children: [
-                                      _premiumTag(t(
-                                          'Véhicules illimités',
-                                          'مركبات غير محدودة')),
-                                      _premiumTag(
-                                          t('Rappels SMS', 'تذكيرات SMS')),
-                                      _premiumTag(t('Support prioritaire',
-                                          'دعم ذو أولوية')),
-                                    ],
                                   ),
                                 ],
                               ),
                             ),
-                          ],
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                    color: Colors.white.withOpacity(0.18)),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    isPremium
+                                        ? Icons.all_inclusive
+                                        : Icons.lock_outline,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    isPremium
+                                        ? t('Illimité', 'غير محدود')
+                                        : t('1 gratuit', '1 مجاني'),
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.85),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // ── ACTIONS RAPIDES ──────────────────────────────────────
+                _sectionLabel(t('Accès rapide', 'وصول سريع')),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _quickAction(
+                        icon: Icons.storefront_rounded,
+                        label: t('Espace Pro', 'مساحة برو'),
+                        color: widget.config.primaryColor,
+                        onTap: () => RoleRouter.changerDeProfil(
+                          context,
+                          config: widget.config,
+                          isAr: widget.isAr,
+                          afficherConducteur: false,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _quickAction(
+                        icon: Icons.language,
+                        label: isAr ? 'العربية' : 'Français',
+                        color: const Color(0xFF2563EB),
+                        onTap: () => widget.isAr.value = !isAr,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _quickAction(
+                        icon: Icons.tune_rounded,
+                        label: _vehicleProfileLabel(t),
+                        color: const Color(0xFF7C3AED),
+                        onTap: () => _showVehicleProfilePicker(context, t),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 22),
+
+                // ── RÉGLAGES ─────────────────────────────────────────────
+                _sectionLabel(t('Réglages', 'الإعدادات')),
+                _settingTile(
+                  icon: Icons.language,
+                  iconBg: const Color(0xFFEFF6FF),
+                  iconColor: const Color(0xFF2563EB),
+                  title: t('Langue', 'اللغة'),
+                  subtitle: isAr ? 'العربية' : 'Français',
+                  trailing: SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: false, label: Text('FR')),
+                      ButtonSegment(value: true, label: Text('AR')),
+                    ],
+                    selected: {isAr},
+                    onSelectionChanged: (s) => widget.isAr.value = s.first,
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _settingTile(
+                  icon: Icons.directions_car_filled_outlined,
+                  iconBg: AppColors.primaryLight,
+                  iconColor: widget.config.primaryColor,
+                  title: t('Type de véhicule', 'نوع المركبة'),
+                  subtitle: _vehicleProfileLabel(t),
+                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                  onTap: () => _showVehicleProfilePicker(context, t),
+                ),
+                if (isPremium) ...[
+                  const SizedBox(height: 8),
+                  _settingTile(
+                    icon: Icons.notifications_active_outlined,
+                    iconBg: const Color(0xFFFEF3C7),
+                    iconColor: const Color(0xFFD97706),
+                    title: t('Rappels SMS / Appel', 'تذكيرات SMS / مكالمة'),
+                    subtitle: SettingsService.smsRemindersEnabled
+                        ? t('Activés', 'مفعّلة')
+                        : t('Désactivés', 'معطّلة'),
+                    trailing: Switch(
+                      value: SettingsService.smsRemindersEnabled,
+                      activeColor: widget.config.primaryColor,
+                      onChanged: (val) async {
+                        await SettingsService.setSmsRemindersEnabled(val);
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 22),
+
+                // ── PREMIUM ──────────────────────────────────────────────
+                if (!isPremium) ...[
+                  _sectionLabel(t('Premium', 'بريميوم')),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(22),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF0F172A),
+                          Color(0xFF1E293B),
+                          Color(0xFF422006),
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(22),
+                        onTap: () => _showPremiumSheet(context, t),
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 46,
+                                    height: 46,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFFFDE68A),
+                                          Color(0xFFFBBF24),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: const Icon(Icons.workspace_premium,
+                                        color: Color(0xFF78350F), size: 24),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          t('Passer en Premium',
+                                              'الترقية إلى Premium'),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 16.5,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          t(
+                                            'Débloque tout le potentiel',
+                                            'افتح كامل الإمكانيات',
+                                          ),
+                                          style: TextStyle(
+                                            color: Colors.grey.shade400,
+                                            fontSize: 12.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(Icons.arrow_forward_ios,
+                                      color: Color(0xFFFBBF24), size: 16),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                children: [
+                                  _premiumTag(t('Véhicules illimités',
+                                      'مركبات غير محدودة')),
+                                  _premiumTag(
+                                      t('Rappels SMS', 'تذكيرات SMS')),
+                                  _premiumTag(t(
+                                      'Support prioritaire', 'دعم أولوية')),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
+                  const SizedBox(height: 22),
                 ],
 
-                const SizedBox(height: 24),
-
-                // ── Support ──────────────────────────────────────────────
-                Text(
-                  t('Support', 'الدعم'),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: Colors.grey.shade600,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // WhatsApp + Email
+                // ── SUPPORT ──────────────────────────────────────────────
+                _sectionLabel(t('Support', 'الدعم')),
                 Row(
                   children: [
                     Expanded(
                       child: _supportButton(
-                        icon: Icons.chat,
+                        icon: Icons.chat_rounded,
                         label: 'WhatsApp',
                         color: const Color(0xFF25D366),
                         onTap: _contactWhatsApp,
@@ -826,7 +908,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _supportButton(
-                        icon: Icons.mail_outline,
+                        icon: Icons.mail_outline_rounded,
                         label: 'Email',
                         color: const Color(0xFF2563EB),
                         onTap: _contactEmail,
@@ -834,48 +916,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-
-                // À propos
-                Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    side: BorderSide(color: Colors.grey.shade200),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onLongPress: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          AdminLoginScreen(config: widget.config),
+                    ),
                   ),
-                  child: ListTile(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.info_outline,
-                          color: Color(0xFF2563EB), size: 20),
+                  child: _settingTile(
+                    icon: Icons.info_outline_rounded,
+                    iconBg: const Color(0xFFEFF6FF),
+                    iconColor: const Color(0xFF2563EB),
+                    title: t('À propos', 'حول التطبيق'),
+                    subtitle: t(
+                      '${widget.config.appName} — véhicules & pièces',
+                      '${widget.config.appName} — مركبات وقطع غيار',
                     ),
-                    title: Text(t('À propos', 'حول التطبيق'),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 15)),
-                    subtitle: Text(
-                      t(
-                        '${widget.config.appName} — gestion véhicules & pièces',
-                        '${widget.config.appName} — إدارة المركبات وقطع الغيار',
-                      ),
-                      style: const TextStyle(fontSize: 12.5),
-                    ),
-                    trailing: const Icon(Icons.chevron_right,
-                        color: Colors.grey),
-                    // Accès admin caché
-                    onLongPress: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            AdminLoginScreen(config: widget.config),
-                      ),
-                    ),
+                    trailing:
+                        const Icon(Icons.chevron_right, color: Colors.grey),
                   ),
                 ),
               ],
@@ -883,6 +943,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _quickAction({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

@@ -39,7 +39,13 @@ class _MagasinShellScreenState extends State<MagasinShellScreen> {
   void initState() {
     super.initState();
     // Si pas connecté → login, puis retour ici.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Attend que Firebase Auth ait fini de restaurer une éventuelle
+      // session persistée (utile juste après un redémarrage de l'app,
+      // ex: process tué en arrière-plan par l'OS puis relancé), sinon
+      // isLoggedIn pourrait répondre "non" à tort pendant l'instant où
+      // currentUser vaut encore null.
+      await StoreService.waitForAuthReady();
       if (!StoreService.isLoggedIn && mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(

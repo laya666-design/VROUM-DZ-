@@ -128,22 +128,32 @@ Tu es un expert controle technique automobile pour l Algerie.
 REGLE CRITIQUE: Ne jamais inventer de nom de centre, adresse ou telephone.
 Analyse cette image d attestation de controle technique algerien (document
 bilingue arabe/francais, souvent intitule "Proces-verbal de controle
-technique des vehicules" / "محضر المراقبة التقنية للسيارات").
+technique des vehicules" / "محضر المراقبة التقنية للسيارات" ou "VISITE
+PERIODIQUE").
 
-ATTENTION: ce document contient PLUSIEURS dates differentes, il faut choisir
-la bonne :
-- la date d enregistrement/immatriculation du vehicule (pres du numero de
-  registration, ex "12/12/2023") -> CE N EST PAS la bonne date, ignore-la.
-- la date de la visite technique qui vient d etre effectuee (champ
-  "تاريخ المراقبة" / "DATE" en haut du tableau) -> ce n est pas non plus la
-  date a retourner.
-- la date de la PROCHAINE visite periodique programmee, generalement ecrite
-  plus bas sur le document, souvent apres la mention
-  "طبيعة وتاريخ المراقبة اللاحقة" / "VISITE PERIODIQUE LE" / "prochaine
-  visite" -> C EST CETTE DATE qu il faut mettre dans "date_prochain_controle".
-Cette date de prochaine visite est presque toujours la plus eloignee dans le
-futur parmi toutes les dates visibles sur le document (generalement 1 an
-apres la date de la visite actuelle).
+ATTENTION CRITIQUE SUR LES DATES — ce document contient PLUSIEURS dates :
+1. Date d enregistrement / immatriculation du vehicule (ex "12/12/2023" pres
+   du numero de registration ou "تاريخ وضع المركبة في السير") → IGNORE-LA.
+2. Date de la visite technique qui vient d etre effectuee (champ
+   "تاريخ المراقبة" / "DATE" / date du jour du controle en haut) → IGNORE-LA.
+3. Date de la PROCHAINE visite periodique (la seule date a retourner) :
+   - cherche explicitement la mention "VISITE PERIODIQUE LE" suivie d une date
+   - ou "طبيعة وتاريخ المراقبة اللاحقة" / "المراقبة اللاحقة"
+   - ou "prochaine visite" / "visite periodique"
+   - cette date est generalement en bas du document, dans un encadre ou apres
+     un libelle clair "VISITE PERIODIQUE LE dd/mm/yyyy"
+   → C EST CETTE DATE UNIQUEMENT qu il faut mettre dans "date_prochain_controle".
+
+Exemple typique : si tu lis "VISITE PERIODIQUE LE 11/12/2025", alors
+"date_prochain_controle" = "11/12/2025".
+
+Ne prends JAMAIS la date d enregistrement ni la date de la visite du jour.
+Si plusieurs dates futures existent, prends celle explicitement liee a
+"VISITE PERIODIQUE" / "المراقبة اللاحقة".
+
+Pour le centre : cherche "مركز المراقبة" / nom de l agence / "Z.A.C" / nom
+du controleur ou du centre (ex "MEHDAOUI", "HADJADJ").
+Pour le numero : le numero du proces-verbal (ex 6695729) en haut ou bas.
 
 Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
 
@@ -155,10 +165,8 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
   "jours_restants": 0
 }
 
-REGLE: ne jamais inventer d informations non visibles sur l image. Si tu
-hesites entre deux dates, prends celle qui correspond a la prochaine visite
-periodique (la plus recente/future), jamais la date d enregistrement du
-vehicule.
+REGLE: ne jamais inventer. Si la date "VISITE PERIODIQUE" n est pas lisible,
+mets null plutot que de prendre une autre date du document.
 ''';
 
       final raw = await _callGroq(prompt, file);
@@ -177,51 +185,79 @@ vehicule.
   Future<Map<String, dynamic>> analyzeCarteGrise(File file) async {
     try {
       final prompt = '''
-Tu es un expert en cartes grises automobiles algeriennes.
-REGLE CRITIQUE: Ne jamais inventer une information non visible sur l image.
-Si un champ n est pas lisible, mets null.
+Tu es un expert en cartes grises automobiles algeriennes (carte jaune).
+REGLE CRITIQUE ABSOLUE: Ne jamais inventer une information non visible sur l image.
+Si un champ n est pas clairement lisible, mets null. Aucune deduction gratuite.
 
-Ce document est majoritairement en ARABE ; les cases francaises
-(MARQUE, TYPE, GENRE...) sont parfois vides ou tres petites alors que la
-valeur reelle n est ecrite qu en arabe a cote. Tu dois donc lire et
-comprendre le texte arabe du document, pas seulement les libelles francais.
-Cherche la valeur du champ "الطراز" (marque/modele) et "النوع" (type) en
-arabe si la case francaise correspondante est vide.
+Ce document est majoritairement en ARABE. Les cases francaises (MARQUE, TYPE, GENRE...)
+sont souvent vides ou minuscules ; la valeur reelle est ecrite en arabe a cote
+ou en lettres latines majuscules dans la case de la marque.
 
-IMPORTANT sur l emplacement de la marque : dans le tableau d identification
-du vehicule (partie basse du document), la marque est tres souvent ecrite
-en LETTRES LATINES MAJUSCULES (ex "TOYOTA", "RENAULT", "PEUGEOT", "NISSAN"...)
-dans la case juste a cote/en dessous du libelle arabe "العلامة", generalement
-sur la meme ligne que le "النوع" (type/genre, ex "VP / VEHICULE PARTICULIER").
-Regarde precisement cette case en priorite : c est la source la plus fiable
-de la marque, plus fiable que toute deduction. Zoome mentalement sur cette
-zone precise avant de conclure, la photo etant souvent floue ou pale.
+PRIORITE ABSOLUE POUR LA MARQUE :
+Sur les cartes grises / quittances algeriennes, la marque se trouve dans la
+case intitulee "الصنف" (en arabe) avec le sous-libelle francais "MARQUE"
+juste en dessous. C est CETTE case-la qu il faut lire en priorite.
+(Ne confonds pas avec "العلامة" qui n est pas le champ standard ici.)
 
-Le champ "chassis"/numero dans la serie du type (ex: NCP92L..., JTD...,
-VF1..., JN1...) est un indice utile sur le constructeur reel, mais NE
-DEDUIS PAS la marque a partir de ce prefixe seul si le texte du document
-(arabe ou francais) indique clairement une autre marque, ou si aucune
-marque n est explicitement lisible : dans ce dernier cas mets "marque":
-null plutot que de deviner. Ne choisis jamais une marque uniquement parce
-qu elle "correspond" a la puissance fiscale ou au type de carrosserie.
+1. Localise la case "الصنف" / "MARQUE" dans le tableau d identification
+   (souvent a cote de "الطراز" / "TYPE").
+2. La valeur est le plus souvent ecrite en ARABE (ex: تويوتا, رينو, بيجو...).
+   TRADUIS-LA systematiquement en francais majuscules :
+   تويوتا → TOYOTA
+   رينو → RENAULT
+   بيجو → PEUGEOT
+   نيسان → NISSAN
+   هيونداي / هيونداى → HYUNDAI
+   كيا → KIA
+   فولكسفاغن / فولكس واجن → VOLKSWAGEN
+   داسيا → DACIA
+   سيتروين → CITROEN
+   فيات → FIAT
+   شيفروليه → CHEVROLET
+   سوزوكي → SUZUKI
+   ميتسوبيشي → MITSUBISHI
+   فورد → FORD
+   اوبل → OPEL
+   مازدا → MAZDA
+   هوندا → HONDA
+   مرسيدس → MERCEDES
+   بي ام دبليو → BMW
+3. Si la case contient deja du texte latin majuscule (TOYOTA, RENAULT...),
+   prends-le tel quel.
+4. Indices chassis (WMI) en verification secondaire uniquement :
+   NCP / JT / JTD / JTDB / JTN → TOYOTA
+   VF1 → RENAULT
+   VF3 → PEUGEOT
+   VF7 → CITROEN
+   WVW / WVG → VOLKSWAGEN
+   U5Y / KMH → HYUNDAI / KIA
+5. Si tu lis clairement "تويوتا" (ou TOYOTA) dans la case الصنف/MARQUE,
+   retourne "marque": "TOYOTA". Ne mets JAMAIS RENAULT a la place.
+6. Ne jamais inventer une marque si la case est illisible → null.
 
-Une fois les champs officiels extraits, deduis le code moteur et le type de
-carburant a partir de la marque/modele/type/puissance fiscale (connaissance
-generale du marche automobile, pas invente au hasard) ; si la marque elle
-meme est incertaine, mets aussi engine_code et fuel_type a null plutot que
-d inventer une combinaison plausible.
+Autres champs (meme tableau) :
+- "الطراز" / TYPE : code type / modele (ex NCP92LBEMRK).
+- "القوة" / PUISSANCE : puissance fiscale (ex 005).
+- "الطاقة" / ENERGIE : ES-GPL, diesel, essence...
+- Chassis / numero de serie du type si present ailleurs.
+- Immatriculation (N° D'IMMATRICULATION).
+- Annee si visible.
+
+Une fois marque + annee + puissance + chassis connus, deduis engine_code
+et fuel_type UNIQUEMENT s ils sont tres fiables pour ce couple marque/modele
+algerien. Sinon mets null.
 
 Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
 
 {
-  "marque": "string ou null",
+  "marque": "string ou null (en majuscules francaises, ex TOYOTA)",
   "modele": "string ou null",
   "type": "string ou null",
   "annee": "aaaa ou null",
   "chassis": "string ou null",
   "puissance_fiscale": "string ou null",
   "immatriculation": "string ou null",
-  "engine_code": "ex K9K, deduit ou null si incertain",
+  "engine_code": "ex K9K, 1KR, deduit ou null si incertain",
   "fuel_type": "diesel, essence ou gpl, deduit ou null si incertain"
 }
 ''';
@@ -229,9 +265,49 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
       final raw = await _callGroq(prompt, file);
       final json = _parseJson(raw);
       json.remove('magasins');
+      // Filet de sécurité : corrige une marque clairement incohérente avec le
+      // préfixe chassis (WMI) si le chassis est suffisamment long.
+      _correctMarqueFromChassis(json);
       return json;
     } catch (e) {
       return {'error': _friendlyOcrError(e)};
+    }
+  }
+
+  /// Si le chassis commence par un WMI connu et que la marque renvoyée
+  /// contredit ce WMI de façon évidente, on force la marque correcte.
+  void _correctMarqueFromChassis(Map<String, dynamic> json) {
+    final chassis = (json['chassis']?.toString() ?? '').toUpperCase().trim();
+    if (chassis.length < 3) return;
+    final prefix = chassis.substring(0, 3);
+    final marque = (json['marque']?.toString() ?? '').toUpperCase().trim();
+
+    String? expected;
+    // Toyota : JT... (VIN) ou codes type algeriens NCP / NSP / NZE...
+    if (prefix.startsWith('JT') ||
+        prefix == 'JTD' ||
+        prefix.startsWith('JTN') ||
+        prefix == 'NCP' ||
+        prefix == 'NSP' ||
+        prefix == 'NZE' ||
+        prefix == 'ZZE') {
+      expected = 'TOYOTA';
+    } else if (prefix == 'VF1') {
+      expected = 'RENAULT';
+    } else if (prefix == 'VF3') {
+      expected = 'PEUGEOT';
+    } else if (prefix == 'VF7') {
+      expected = 'CITROEN';
+    } else if (prefix.startsWith('WV')) {
+      expected = 'VOLKSWAGEN';
+    }
+
+    if (expected != null && marque.isNotEmpty && marque != expected) {
+      // Conflit clair → on fait confiance au chassis (plus fiable que l'OCR
+      // de la case marque quand la photo est floue).
+      json['marque'] = expected;
+    } else if (expected != null && marque.isEmpty) {
+      json['marque'] = expected;
     }
   }
 

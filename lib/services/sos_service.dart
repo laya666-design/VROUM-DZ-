@@ -103,6 +103,14 @@ class SosService {
       _phoneAsId!.isNotEmpty &&
       FirebaseAuth.instance.currentUser != null;
 
+  /// Même précaution que StoreService.waitForAuthReady : à appeler avant
+  /// de tester isDepanneuseLoggedIn au lancement de l'écran racine, pour
+  /// ne pas conclure à tort à une déconnexion pendant que Firebase Auth
+  /// restaure encore la session persistée après un redémarrage de l'app.
+  static Future<void> waitForAuthReady() async {
+    await FirebaseAuth.instance.authStateChanges().first;
+  }
+
   static Future<void> loadPhoneAsId() async {
     final prefs = await SharedPreferences.getInstance();
     _phoneAsId = prefs.getString(_phoneAsIdKey);

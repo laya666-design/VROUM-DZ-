@@ -109,16 +109,26 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
       return;
     }
 
-    // Mode mise à jour : complète la fiche existante sans écraser les
-    // valeurs déjà connues quand le nouveau scan ne les redétecte pas.
+    // Mode mise à jour : le scan de la carte grise fait foi.
+    // On écrase systématiquement les champs détectés (marque, châssis, etc.)
+    // pour corriger une identification précédente erronée (ex: Toyota lu
+    // comme Renault). Seuls les champs absents du nouveau scan sont conservés.
     final v = widget.vehicule!;
-    if (info.marque.isNotEmpty && v.marque.isEmpty) v.marque = info.marque;
+    if (info.marque.isNotEmpty) {
+      v.marque = info.marque;
+      // Met à jour aussi le nom affiché si on a une marque (et éventuellement modèle)
+      final nomDetecte = [info.marque, info.modele]
+          .where((s) => s.trim().isNotEmpty)
+          .join(' ')
+          .trim();
+      if (nomDetecte.isNotEmpty) v.nom = nomDetecte;
+    }
     if (info.chassis.isNotEmpty) v.chassisNumber = info.chassis;
     if (info.annee != null) v.year = info.annee;
     if (info.puissanceFiscale.isNotEmpty) {
       v.puissanceFiscale = info.puissanceFiscale;
     }
-    if (info.immatriculation.isNotEmpty && v.immatriculation.isEmpty) {
+    if (info.immatriculation.isNotEmpty) {
       v.immatriculation = info.immatriculation;
     }
     if (info.engineCode.isNotEmpty) v.engineCode = info.engineCode;
