@@ -3,6 +3,7 @@ import '../../config/app_config.dart';
 import '../../services/marketplace_service.dart';
 import '../../services/store_service.dart';
 import '../buyer_portal_screen.dart';
+import '../parts_portal_screen.dart';
 import 'buyer_login_screen.dart';
 import 'widgets/reset_password_email_dialog.dart';
 
@@ -128,14 +129,25 @@ class _BuyerPhoneLoginScreenState extends State<BuyerPhoneLoginScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Barre du haut : fermer + rien d'autre
+            // Croix = retour au choix Acheteur / Magasin (pas un pop).
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () => Navigator.maybePop(context),
+                    tooltip: 'Retour',
                     icon: const Icon(Icons.close, size: 22),
+                    onPressed: () {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder: (_) => PartsPortalScreen(
+                            config: widget.config,
+                            isAr: widget.isAr,
+                          ),
+                        ),
+                        (route) => false,
+                      );
+                    },
                   ),
                   const Spacer(),
                 ],

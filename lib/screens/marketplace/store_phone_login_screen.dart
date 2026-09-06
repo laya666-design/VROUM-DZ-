@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../services/store_service.dart';
+import '../parts_portal_screen.dart';
 import 'store_complete_profile_screen.dart';
-import 'store_dashboard_screen.dart';
 import 'magasin_shell_screen.dart';
 import 'store_login_screen.dart';
 import 'widgets/reset_password_email_dialog.dart';
@@ -125,14 +125,24 @@ class _StorePhoneLoginScreenState extends State<StorePhoneLoginScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Barre du haut : fermer + rien d'autre
+            // Croix = retour au choix Acheteur / Magasin (pas un pop :
+            // après déconnexion la pile est vide, un pop ne ferait rien).
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () => Navigator.maybePop(context),
+                    tooltip: 'Retour',
                     icon: const Icon(Icons.close, size: 22),
+                    onPressed: () {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              PartsPortalScreen(config: widget.config),
+                        ),
+                        (route) => false,
+                      );
+                    },
                   ),
                   const Spacer(),
                 ],
