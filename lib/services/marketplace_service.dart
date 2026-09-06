@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'cloudinary_service.dart';
 import 'marketplace_models.dart';
+import 'part_categories.dart';
 import 'store_service.dart';
 
 /// Marketplace pièces — côté demandeur (client / acheteur).
@@ -253,6 +254,8 @@ class MarketplaceService {
       }
     }
 
+    final categorie = detecterCategorie(pieceNom);
+
     final request = PartRequest(
       id: id,
       clientId: uid,
@@ -261,6 +264,7 @@ class MarketplaceService {
       compatibilite: compatibilite,
       photoUrl: photoUrl,
       noteVocaleUrl: noteVocaleUrl,
+      categorie: categorie,
       statut: 'open',
       dateCreation: DateTime.now(),
     );

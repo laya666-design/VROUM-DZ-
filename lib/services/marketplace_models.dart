@@ -12,6 +12,9 @@ class PartRequest {
   // magasin un détail que la photo seule ne montre pas (côté gauche/droit,
   // version moteur exacte...). Null si le client n'a pas enregistré de note.
   final String? noteVocaleUrl;
+  /// Catégorie de la pièce (voir [kPartCategories] / detecterCategorie).
+  /// Les anciennes demandes sans ce champ sont lues comme 'autre'.
+  final String categorie;
   final String statut; // 'open' | 'vendu' | 'closed'
   final DateTime dateCreation;
   final String? soldToStoreId;
@@ -26,6 +29,7 @@ class PartRequest {
     required this.compatibilite,
     required this.photoUrl,
     this.noteVocaleUrl,
+    this.categorie = 'autre',
     required this.statut,
     required this.dateCreation,
     this.soldToStoreId,
@@ -51,6 +55,7 @@ class PartRequest {
           const [],
       photoUrl: d['photoUrl']?.toString() ?? '',
       noteVocaleUrl: d['noteVocaleUrl']?.toString(),
+      categorie: d['categorie']?.toString() ?? 'autre',
       statut: d['statut']?.toString() ?? 'open',
       dateCreation: (d['dateCreation'] as Timestamp?)?.toDate() ??
           DateTime.now(),
@@ -67,6 +72,7 @@ class PartRequest {
         'compatibilite': compatibilite,
         'photoUrl': photoUrl,
         if (noteVocaleUrl != null) 'noteVocaleUrl': noteVocaleUrl,
+        'categorie': categorie,
         'statut': statut,
         'dateCreation': FieldValue.serverTimestamp(),
       };
@@ -194,6 +200,10 @@ class StoreProfile {
   // renseignée (permission refusée à l'inscription, par ex.).
   final double? latitude;
   final double? longitude;
+  /// Spécialités du magasin (ids de [kPartCategories]). Obligatoire ≥ 1.
+  final List<String> categories;
+  /// Précision libre si « autre » est coché. Null sinon.
+  final String? categorieAutre;
 
   StoreProfile({
     required this.uid,
@@ -208,9 +218,13 @@ class StoreProfile {
     this.currentPlanId,
     this.latitude,
     this.longitude,
+    this.categories = const [],
+    this.categorieAutre,
   });
 
   bool get aUnePosition => latitude != null && longitude != null;
+
+  bool get aDesCategories => categories.isNotEmpty;
 
   /// Identifiant court du magasin à afficher dans l'app (support/admin).
   String get idCourt => uid.length > 6 ? uid.substring(0, 6).toUpperCase() : uid.toUpperCase();
@@ -256,6 +270,11 @@ class StoreProfile {
       currentPlanId: d['currentPlanId']?.toString(),
       latitude: (d['latitude'] as num?)?.toDouble(),
       longitude: (d['longitude'] as num?)?.toDouble(),
+      categories: (d['categories'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      categorieAutre: d['categorieAutre']?.toString(),
     );
   }
 
@@ -273,6 +292,9 @@ class StoreProfile {
         if (currentPlanId != null) 'currentPlanId': currentPlanId,
         if (latitude != null) 'latitude': latitude,
         if (longitude != null) 'longitude': longitude,
+        'categories': categories,
+        if (categorieAutre != null && categorieAutre!.isNotEmpty)
+          'categorieAutre': categorieAutre,
       };
 }
 

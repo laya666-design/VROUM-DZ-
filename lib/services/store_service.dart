@@ -380,16 +380,34 @@ class StoreService {
     return true;
   }
 
-  /// Complète le profil (nom, adresse) juste après une première
+  /// Complète le profil (nom, adresse, catégories) juste après une première
   /// connexion par téléphone — le compte existe déjà (créé par
   /// [_ensureProfileAfterPhoneAuth]), on ne fait que mettre à jour.
+  /// [categories] doit contenir au moins une entrée. Si « autre » est
+  /// présent, [categorieAutre] est obligatoire.
   static Future<void> completerProfilApresTelephone({
     required String nom,
     required String adresse,
+    required List<String> categories,
+    String? categorieAutre,
   }) async {
     final docId = currentStoreDocId;
     if (docId == null) throw Exception('Non connecté.');
-    final update = <String, dynamic>{'nom': nom, 'adresse': adresse};
+    if (categories.isEmpty) {
+      throw Exception('Choisis au moins une catégorie de pièces.');
+    }
+    if (categories.contains('autre') &&
+        (categorieAutre == null || categorieAutre.trim().isEmpty)) {
+      throw Exception('Précise ta spécialité dans le champ « Autre ».');
+    }
+
+    final update = <String, dynamic>{
+      'nom': nom,
+      'adresse': adresse,
+      'categories': categories,
+      if (categorieAutre != null && categorieAutre.trim().isNotEmpty)
+        'categorieAutre': categorieAutre.trim(),
+    };
 
     // Si la position n'a pas pu être capturée à la création du compte
     // (permission pas encore accordée à ce moment-là), on retente ici :
@@ -413,6 +431,29 @@ class StoreService {
         .collection(_storesCollection)
         .doc(docId)
         .update(update);
+  }
+
+  /// Met à jour uniquement les catégories du magasin connecté
+  /// (paramètres / profil).
+  static Future<void> updateCategories({
+    required List<String> categories,
+    String? categorieAutre,
+  }) async {
+    final docId = currentStoreDocId;
+    if (docId == null) throw Exception('Non connecté.');
+    if (categories.isEmpty) {
+      throw Exception('Choisis au moins une catégorie de pièces.');
+    }
+    if (categories.contains('autre') &&
+        (categorieAutre == null || categorieAutre.trim().isEmpty)) {
+      throw Exception('Précise ta spécialité dans le champ « Autre ».');
+    }
+    await FirebaseFirestore.instance.collection(_storesCollection).doc(docId).update({
+      'categories': categories,
+      'categorieAutre': (categorieAutre != null && categorieAutre.trim().isNotEmpty)
+          ? categorieAutre.trim()
+          : FieldValue.delete(),
+    });
   }
 
   /// (Re)géolocalise le magasin connecté (bouton "Mettre à jour ma
@@ -590,9 +631,9 @@ class StoreService {
     return StoreProfile.fromDoc(doc);
   }
 
-  /// Demandes ouvertes, les plus récentes d'abord.
-  /// MVP : tous les magasins actifs voient toutes les demandes ouvertes
-  /// (pas de filtre par catégorie/proximité pour l'instant).
+  /// Demandes ouvertes (brutes), les plus récentes d'abord.
+  /// Le filtrage par catégories se fait côté UI via [filtrerParCategories],
+  /// pour ne pas recréer le stream Firestore à chaque changement de profil.
   static Stream<List<PartRequest>> openRequests() {
     return FirebaseFirestore.instance
         .collection('part_requests')
@@ -607,6 +648,18 @@ class StoreService {
       demandes.sort((a, b) => b.dateCreation.compareTo(a.dateCreation));
       return demandes;
     });
+  }
+
+  /// Ne garde que les demandes dont la catégorie est dans [storeCategories].
+  /// Si [storeCategories] est vide → liste vide (le magasin doit renseigner
+  /// ses spécialités à l'inscription / dans les paramètres).
+  static List<PartRequest> filtrerParCategories(
+    List<PartRequest> demandes,
+    List<String> storeCategories,
+  ) {
+    if (storeCategories.isEmpty) return const [];
+    final set = storeCategories.toSet();
+    return demandes.where((d) => set.contains(d.categorie)).toList();
   }
 
   /// IDs des demandes que CE magasin a choisi de masquer localement
