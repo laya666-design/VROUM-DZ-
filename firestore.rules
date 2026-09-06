@@ -89,9 +89,36 @@ service cloud.firestore {
         );
     }
 
+    // NOUVEAU — un compte magasin réel, quel que soit le mécanisme d'auth
+    // utilisé (uid direct, email technique, ou custom claim storeId).
+    // Sert à autoriser la navigation dans les demandes ouvertes sans pour
+    // autant laisser n'importe quel compte anonyme les lire : l'app
+    // utilise signInAnonymously() ailleurs (SOS, connexion acheteur), donc
+    // "request.auth != null" seul ne suffit pas à filtrer un scraper.
+    function isRegisteredStore() {
+      return request.auth != null
+        && (exists(/databases/$(database)/documents/stores/$(request.auth.uid))
+            || (numeroDepuisEmailTechnique() != null
+                && exists(/databases/$(database)/documents/stores/$(numeroDepuisEmailTechnique())))
+            || (storeIdFromClaim() != null
+                && exists(/databases/$(database)/documents/stores/$(storeIdFromClaim()))));
+    }
+
+    // NOUVEAU — même principe côté dépanneuse.
+    function isRegisteredDepanneuse() {
+      return request.auth != null
+        && (exists(/databases/$(database)/documents/depanneuses/$(request.auth.uid))
+            || (numeroDepanneuseDepuisEmail() != null
+                && exists(/databases/$(database)/documents/depanneuses/$(numeroDepanneuseDepuisEmail()))));
+    }
+
     // Demandes de pièces
     match /part_requests/{requestId} {
-      allow read: if true;
+      // AVANT : allow read: if true (n'importe qui, sans compte, pouvait
+      // tout lire, y compris les photos). Désormais : admin, le client
+      // propriétaire, ou un magasin enregistré (nécessaire tant qu'il n'y
+      // a pas de filtre catégorie/proximité côté requête).
+      allow read: if isAdmin() || isRequestOwnerData(resource.data) || isRegisteredStore();
       allow create: if request.auth!= null
                     && request.resource.data.statut == 'open'
                     && request.resource.data.clientId in currentUserIds();
@@ -103,7 +130,11 @@ service cloud.firestore {
       allow delete: if isAdmin() || isRequestOwnerData(resource.data);
 
       match /offers/{offerId} {
-        allow read: if true;
+        // AVANT : allow read: if true — exposait storeTel + prix de TOUS
+        // les magasins à tout le monde, sans compte. Désormais : la même
+        // logique que allow delete juste en dessous (admin, le magasin
+        // auteur de l'offre, ou le client propriétaire de la demande).
+        allow read: if isAdmin() || isOwner(offerId) || isParentRequestOwner(requestId);
         allow create, update: if isAdmin() || (isOwner(offerId) && subscriptionValide(offerId));
         allow delete: if isAdmin() || isOwner(offerId) || isParentRequestOwner(requestId);
       }
@@ -135,7 +166,17 @@ service cloud.firestore {
 
     // Alertes SOS (bouton panne)
     match /sos_alerts/{alertId} {
-      allow read: if true;
+      // AVANT : allow read: if true — exposait le téléphone ET la
+      // position GPS exacte de la personne en panne à n'importe qui, sans
+      // compte (le point le plus sensible de tout l'audit). Désormais :
+      // admin, le client auteur de l'alerte, toute dépanneuse enregistrée
+      // tant que l'alerte est 'ouverte' (nécessaire pour qu'elle apparaisse
+      // dans les dashboards), et la dépanneuse qui a accepté une fois le
+      // statut passé à 'acceptee'/'arrivee'.
+      allow read: if isAdmin()
+                  || isRequestOwnerData(resource.data)
+                  || (isRegisteredDepanneuse() && resource.data.statut == 'ouverte')
+                  || isDepanneuseOwner(resource.data.acceptedByDepanneuseId);
       allow create: if request.auth!= null
                     && request.resource.data.statut == 'ouverte'
                     && request.resource.data.clientId in currentUserIds();
