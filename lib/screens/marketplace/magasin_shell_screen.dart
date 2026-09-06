@@ -312,7 +312,11 @@ class _MagasinProfilTab extends StatelessWidget {
                 t('Conducteur, magasin ou dépanneuse', 'سائق، متجر أو سطحة'),
               ),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => RoleRouter.changerDeProfil(context),
+              onTap: () => RoleRouter.changerDeProfil(
+                context,
+                config: config,
+                isAr: ValueNotifier<bool>(isAr),
+              ),
             ),
           ),
           const SizedBox(height: 24),

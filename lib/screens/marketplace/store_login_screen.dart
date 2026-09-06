@@ -81,7 +81,11 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
         leading: IconButton(
           icon: const Icon(Icons.close),
           tooltip: 'Changer de profil',
-          onPressed: () => RoleRouter.changerDeProfil(context),
+          onPressed: () => RoleRouter.changerDeProfil(
+            context,
+            config: widget.config,
+            isAr: ValueNotifier<bool>(false),
+          ),
         ),
       ),
       body: SafeArea(
