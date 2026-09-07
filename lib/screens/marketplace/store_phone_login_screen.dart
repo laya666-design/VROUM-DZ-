@@ -6,6 +6,7 @@ import 'store_complete_profile_screen.dart';
 import 'magasin_shell_screen.dart';
 import 'store_login_screen.dart';
 import 'widgets/reset_password_email_dialog.dart';
+import '../../widgets/google_signin_button.dart';
 
 /// Connexion magasin — style moderne (téléphone + mot de passe).
 /// Le numéro est converti en email technique pour Firebase Auth.
@@ -25,6 +26,7 @@ class _StorePhoneLoginScreenState extends State<StorePhoneLoginScreen> {
   bool _modeInscription = false;
   bool _motDePasseVisible = false;
   String? _error;
+  bool _googleLoading = false;
 
   @override
   void dispose() {
@@ -83,6 +85,28 @@ class _StorePhoneLoginScreenState extends State<StorePhoneLoginScreen> {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _googleLoading = true;
+      _error = null;
+    });
+    try {
+      await StoreService.signInWithGoogle();
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MagasinShellScreen(config: widget.config),
+        ),
+      );
+    } catch (e) {
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
     }
   }
 
@@ -329,6 +353,12 @@ class _StorePhoneLoginScreenState extends State<StorePhoneLoginScreen> {
                       ),
                     ),
 
+                    const OrDivider(),
+                    GoogleSignInButton(
+                      onPressed: _googleLoading || busy ? null : _signInWithGoogle,
+                      isLoading: _googleLoading,
+                      accentColor: primary,
+                    ),
                     const SizedBox(height: 24),
 
                     // Lien email

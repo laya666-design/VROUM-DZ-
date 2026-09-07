@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'marketplace_models.dart';
 import 'sos_models.dart';
 
@@ -87,6 +88,29 @@ class AdminService {
   }
 
   static Future<void> signOut() => FirebaseAuth.instance.signOut();
+
+
+  static Future<void> signInWithGoogle() async {
+    final googleSignIn = GoogleSignIn(
+      serverClientId: '994131871524-dbn081ucefsf4vi4v0jl1m4gc11di90p.apps.googleusercontent.com',
+    );
+    final googleUser = await googleSignIn.signIn();
+    if (googleUser == null) {
+      throw Exception('Connexion Google annulée.');
+    }
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    await FirebaseAuth.instance.signInWithCredential(credential);
+    // Vérifie le claim admin après connexion Google
+    final isAdmin = await isCurrentUserAdmin(force: true);
+    if (!isAdmin) {
+      await FirebaseAuth.instance.signOut();
+      throw Exception('Ce compte Google n\'a pas les droits admin.');
+    }
+  }
 
   static Future<void> sendPasswordResetEmail(String email) async {
     await FirebaseAuth.instance.sendPasswordResetEmail(email: email);

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'location_service.dart';
 import 'sos_models.dart';
 import 'store_service.dart';
@@ -122,8 +123,10 @@ class SosService {
     _phoneAsId = numero;
   }
 
-  static String? get currentDepanneuseDocId =>
-      isDepanneuseLoggedIn ? _phoneAsId : null;
+  static String? get currentDepanneuseDocId {
+    if (_phoneAsId != null && _phoneAsId!.isNotEmpty) return _phoneAsId;
+    return FirebaseAuth.instance.currentUser?.uid;
+  }
 
   static String _emailTechniqueDepuisNumero(String numeroLocal) =>
       '$numeroLocal@vroumdep.local';
@@ -217,6 +220,52 @@ class SosService {
       throw Exception(_messageErreurAuth(e));
     }
   }
+
+
+  /// Connexion Google — pour dépanneuse
+  /// Crée le profil Firestore si première connexion (actif:false en attente admin)
+  static Future<void> signInWithGoogle({
+    String? wilaya,
+    String? nom,
+  }) async {
+    final googleSignIn = GoogleSignIn(
+      serverClientId: '994131871524-dbn081ucefsf4vi4v0jl1m4gc11di90p.apps.googleusercontent.com',
+    );
+    final googleUser = await googleSignIn.signIn();
+    if (googleUser == null) {
+      throw Exception('Connexion Google annulée.');
+    }
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+    final user = userCred.user;
+    if (user == null) throw Exception('Connexion Google impossible.');
+
+    final docRef = FirebaseFirestore.instance
+        .collection(_depanneusesCollection)
+        .doc(user.uid);
+    final doc = await docRef.get();
+    if (!doc.exists) {
+      // Première connexion Google : profil minimal, sera complété après
+      final profile = DepanneuseProfile(
+        uid: user.uid,
+        nom: nom ?? user.displayName ?? 'Dépanneuse',
+        tel: user.email ?? '',
+        wilaya: wilaya ?? '',
+        actif: false,
+        latitude: 36.7525,
+        longitude: 3.0420,
+      );
+      await docRef.set(profile.toMap());
+    }
+    await _savePhoneAsId(user.uid);
+  }
+
+  // Pour permettre aux comptes Google (uid) de passer le check isDepanneuseLoggedIn
+  // même sans numéro, on garde la logique actuelle mais _phoneAsId contient l'uid Google
 
   static Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();

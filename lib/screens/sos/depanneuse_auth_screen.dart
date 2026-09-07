@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../config/wilayas.dart';
+import '../../widgets/google_signin_button.dart';
 import '../../services/sos_service.dart';
 import '../role_router.dart';
 import 'depanneuse_dashboard_screen.dart';
@@ -26,6 +27,7 @@ class _DepanneuseAuthScreenState extends State<DepanneuseAuthScreen> {
   bool _modeInscription = false;
   bool _motDePasseVisible = false;
   String? _error;
+  bool _googleLoading = false;
   String? _wilaya;
 
   @override
@@ -83,6 +85,28 @@ class _DepanneuseAuthScreenState extends State<DepanneuseAuthScreen> {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _googleLoading = true;
+      _error = null;
+    });
+    try {
+      await SosService.signInWithGoogle(wilaya: _wilaya, nom: _nomController.text.trim());
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DepanneuseShellScreen(config: widget.config),
+        ),
+      );
+    } catch (e) {
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
     }
   }
 
@@ -284,6 +308,13 @@ class _DepanneuseAuthScreenState extends State<DepanneuseAuthScreen> {
                       ),
                     ),
 
+                    const OrDivider(),
+                    GoogleSignInButton(
+                      onPressed: _googleLoading || busy ? null : _signInWithGoogle,
+                      isLoading: _googleLoading,
+                      accentColor: sos,
+                      label: 'Continuer avec Google',
+                    ),
                     const SizedBox(height: 20),
 
                     Row(

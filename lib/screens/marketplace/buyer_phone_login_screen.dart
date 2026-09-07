@@ -6,6 +6,7 @@ import '../buyer_portal_screen.dart';
 import '../parts_portal_screen.dart';
 import 'buyer_login_screen.dart';
 import 'widgets/reset_password_email_dialog.dart';
+import '../../widgets/google_signin_button.dart';
 
 /// Connexion acheteur — panel identique à l'Espace Pro Magasin
 /// (téléphone + mot de passe). Le numéro est converti en email
@@ -31,6 +32,7 @@ class _BuyerPhoneLoginScreenState extends State<BuyerPhoneLoginScreen> {
   bool _modeInscription = false;
   bool _motDePasseVisible = false;
   String? _error;
+  bool _googleLoading = false;
 
   @override
   void dispose() {
@@ -88,6 +90,28 @@ class _BuyerPhoneLoginScreenState extends State<BuyerPhoneLoginScreen> {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _googleLoading = true;
+      _error = null;
+    });
+    try {
+      await MarketplaceService.signInWithGoogle();
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BuyerPortalScreen(config: widget.config, isAr: widget.isAr),
+        ),
+      );
+    } catch (e) {
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
     }
   }
 
@@ -332,6 +356,12 @@ class _BuyerPhoneLoginScreenState extends State<BuyerPhoneLoginScreen> {
                       ),
                     ),
 
+                    const OrDivider(),
+                    GoogleSignInButton(
+                      onPressed: _googleLoading || busy ? null : _signInWithGoogle,
+                      isLoading: _googleLoading,
+                      accentColor: primary,
+                    ),
                     const SizedBox(height: 24),
 
                     // Lien email

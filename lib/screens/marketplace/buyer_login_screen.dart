@@ -6,6 +6,7 @@ import '../buyer_portal_screen.dart';
 import 'buyer_forgot_password_screen.dart';
 import 'buyer_phone_login_screen.dart';
 import 'buyer_signup_screen.dart';
+import '../../widgets/google_signin_button.dart';
 
 /// Connexion acheteur par email + mot de passe — alternative au flux
 /// téléphone (voir BuyerPhoneLoginScreen), même structure que
@@ -28,6 +29,23 @@ class _BuyerLoginScreenState extends State<BuyerLoginScreen> {
   final _passwordController = TextEditingController();
   bool _loading = false;
   String? _error;
+  bool _googleLoading = false;
+
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _googleLoading = true;
+      _error = null;
+    });
+    try {
+      await MarketplaceService.signInWithGoogle();
+      _goToPortail();
+    } catch (e) {
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
+    }
+  }
 
   void _goToPortail() {
     if (!mounted) return;
@@ -121,6 +139,12 @@ class _BuyerLoginScreenState extends State<BuyerLoginScreen> {
                 const SizedBox(height: 8),
                 Text(_error!, style: const TextStyle(color: Colors.red)),
               ],
+              const OrDivider(),
+              GoogleSignInButton(
+                onPressed: _googleLoading || _loading ? null : _signInWithGoogle,
+                isLoading: _googleLoading,
+                accentColor: widget.config.primaryColor,
+              ),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: _loading ? null : _login,

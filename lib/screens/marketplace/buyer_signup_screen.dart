@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/google_signin_button.dart';
 import '../../config/app_config.dart';
 import '../../services/marketplace_service.dart';
 import '../buyer_portal_screen.dart';
@@ -23,6 +24,7 @@ class _BuyerSignupScreenState extends State<BuyerSignupScreen> {
   final _passwordController = TextEditingController();
   bool _loading = false;
   String? _error;
+  bool _googleLoading = false;
 
   Future<void> _signup() async {
     setState(() {
@@ -48,6 +50,23 @@ class _BuyerSignupScreenState extends State<BuyerSignupScreen> {
       setState(() => _error = 'Erreur : $e');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _googleLoading = true;
+      _error = null;
+    });
+    try {
+      await MarketplaceService.signInWithGoogle();
+      if (!mounted) return;
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => BuyerPortalScreen(config: widget.config, isAr: widget.isAr)));
+    } catch (e) {
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
     }
   }
 
@@ -81,6 +100,8 @@ class _BuyerSignupScreenState extends State<BuyerSignupScreen> {
                 const SizedBox(height: 12),
                 Text(_error!, style: const TextStyle(color: Colors.red)),
               ],
+              const OrDivider(),
+              GoogleSignInButton(onPressed: _googleLoading || _loading ? null : _signInWithGoogle, isLoading: _googleLoading, accentColor: widget.config.primaryColor),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: _loading ? null : _signup,

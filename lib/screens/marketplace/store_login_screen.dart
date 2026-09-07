@@ -8,6 +8,7 @@ import 'magasin_shell_screen.dart';
 import 'store_forgot_password_screen.dart';
 import 'store_phone_login_screen.dart';
 import 'store_signup_screen.dart';
+import '../../widgets/google_signin_button.dart';
 
 class StoreLoginScreen extends StatefulWidget {
   final AppConfig config;
@@ -23,6 +24,7 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
   bool _rememberMe = true;
   bool _loading = false;
   String? _error;
+  bool _googleLoading = false;
 
   void _goToDashboard() {
     if (!mounted) return;
@@ -52,6 +54,22 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
       setState(() => _error = 'Erreur : $e');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _googleLoading = true;
+      _error = null;
+    });
+    try {
+      await StoreService.signInWithGoogle(rememberMe: _rememberMe);
+      _goToDashboard();
+    } catch (e) {
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
     }
   }
 
@@ -138,6 +156,12 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
                 const SizedBox(height: 8),
                 Text(_error!, style: const TextStyle(color: Colors.red)),
               ],
+              const OrDivider(),
+              GoogleSignInButton(
+                onPressed: _googleLoading || _loading ? null : _signInWithGoogle,
+                isLoading: _googleLoading,
+                accentColor: widget.config.primaryColor,
+              ),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: _loading ? null : _login,

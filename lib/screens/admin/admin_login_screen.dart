@@ -4,6 +4,7 @@ import '../../config/app_config.dart';
 import '../../services/admin_service.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_forgot_password_screen.dart';
+import '../../widgets/google_signin_button.dart';
 
 /// Écran de connexion admin — accessible uniquement via l'appui long
 /// caché sur "À propos" dans l'onglet Profil (pas de bouton visible pour
@@ -22,6 +23,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   final _passwordController = TextEditingController();
   bool _loading = false;
   String? _error;
+  bool _googleLoading = false;
 
   /// true = connexion par téléphone (secours si l'email est bloqué),
   /// false = connexion par email (méthode principale).
@@ -56,6 +58,32 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       }
     }
     if (mounted) setState(() => _checkingSession = false);
+  }
+
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _loading = true;
+      _googleLoading = true;
+      _error = null;
+    });
+    try {
+      await AdminService.signInWithGoogle();
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AdminDashboardScreen(config: widget.config),
+        ),
+      );
+    } catch (e) {
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() {
+        _loading = false;
+        _googleLoading = false;
+      });
+    }
   }
 
   Future<void> _login() async {
@@ -196,7 +224,12 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                           ),
                         ),
                       const SizedBox(height: 4),
-                      FilledButton(
+                      GoogleSignInButton(
+                onPressed: _googleLoading || _loading ? null : _signInWithGoogle,
+                isLoading: _googleLoading,
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
                         onPressed: _loading ? null : _login,
                         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
                         child: _loading
