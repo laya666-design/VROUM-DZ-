@@ -49,11 +49,13 @@ class OcrService {
   }
 
   /// Pour le contrôle technique : cherche en priorité la date liée à la
-  /// PROCHAINE visite (mots-clés FR/AR), pas une date secondaire du doc.
-  /// Si aucune n'est trouvée, retombe sur la date la plus récente.
+  /// PROCHAINE visite (mots-clés FR/AR). Sur les PV algériens cette date
+  /// est souvent tamponnée en rose/rouge — le texte OCR peut la coller
+  /// juste après "VISITE PERIODIQUE" ou un peu plus loin sur la ligne.
+  /// Si plusieurs candidates, on prend la plus éloignée dans le futur
+  /// (vraie échéance), pas une date de visite déjà passée.
   static DateTime? extractDateVisitePeriodique(String rawText) {
     final patterns = [
-      // FR — formulations fréquentes sur les PV algériens
       RegExp(
         r'(?:VISITE\s*PERIODIQUE|PERIODIQUE|PROCHAINE\s*VISITE|PROCHAIN\s*CONTROLE|PROCHAIN\s*CONTR[OÔ]LE|RENDEZ[-\s]?VOUS|RDV|DATE\s*DE\s*LA\s*PROCHAINE)\s*(?:LE\s*|AU\s*|:)?\s*(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})',
         caseSensitive: false,
@@ -62,16 +64,15 @@ class OcrService {
         r'(?:VISITE|PERIODIQUE|PROCHAINE|RENDEZ|RDV)[^\d]{0,40}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})',
         caseSensitive: false,
       ),
-      // AR
       RegExp(r'المراقبة\s*اللاحقة[^\d]{0,30}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
       RegExp(r'طبيعة\s*وتاريخ[^\d]{0,30}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
       RegExp(r'الموعد\s*القادم[^\d]{0,30}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
       RegExp(r'زيارة\s*دورية[^\d]{0,30}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
     ];
 
+    final candidates = <DateTime>[];
     for (final re in patterns) {
-      final m = re.firstMatch(rawText);
-      if (m != null) {
+      for (final m in re.allMatches(rawText)) {
         final day = int.tryParse(m.group(1) ?? '');
         var month = int.tryParse(m.group(2) ?? '');
         var year = int.tryParse(m.group(3) ?? '');
@@ -80,10 +81,18 @@ class OcrService {
         if (month >= 1 && month <= 12 && day >= 1 && day <= 31 &&
             year >= 2000 && year <= 2100) {
           try {
-            return DateTime(year, month, day);
+            candidates.add(DateTime(year, month, day));
           } catch (_) {}
         }
       }
+    }
+
+    if (candidates.isNotEmpty) {
+      candidates.sort();
+      // La prochaine visite = la date la plus lointaine parmi les
+      // candidates liées aux mots-clés (évite de prendre une vieille date
+      // d'impression si une date tampon rose plus récente a aussi été lue).
+      return candidates.last;
     }
 
     final all = extractDates(rawText);
