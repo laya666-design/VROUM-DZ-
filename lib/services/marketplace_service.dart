@@ -162,20 +162,25 @@ class MarketplaceService {
 
   /// Connexion Google — pour acheteur (conducteur)
   /// Utilise le même serverClientId que côté magasin (projet Firebase unique)
-  
   static Future<void> signInWithGoogle() async {
-    final GoogleSignIn googleSignIn = GoogleSignIn.instance;
-    await googleSignIn.initialize(
+    final googleSignIn = GoogleSignIn(
       serverClientId: '994131871524-dbn081ucefsf4vi4v0jl1m4gc11di90p.apps.googleusercontent.com',
     );
-    final GoogleSignInAccount account = await googleSignIn.authenticate();
-    final String? idToken = account.authentication.idToken;
-    if (idToken == null) throw Exception('ID token manquant.');
-    final credential = GoogleAuthProvider.credential(idToken: idToken);
+    final googleUser = await googleSignIn.signIn();
+    if (googleUser == null) {
+      throw Exception('Connexion Google annulée.');
+    }
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
     await FirebaseAuth.instance.signInWithCredential(credential);
+    // Google = pas de numéro local, on nettoie le cache téléphone
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_phoneAsIdKey);
+    _phoneAsId = null;
   }
-
-
 
   static Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();

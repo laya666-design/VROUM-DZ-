@@ -224,20 +224,48 @@ class SosService {
 
   /// Connexion Google — pour dépanneuse
   /// Crée le profil Firestore si première connexion (actif:false en attente admin)
-  
-  static Future<void> signInWithGoogle() async {
-    final GoogleSignIn googleSignIn = GoogleSignIn.instance;
-    await googleSignIn.initialize(
+  static Future<void> signInWithGoogle({
+    String? wilaya,
+    String? nom,
+  }) async {
+    final googleSignIn = GoogleSignIn(
       serverClientId: '994131871524-dbn081ucefsf4vi4v0jl1m4gc11di90p.apps.googleusercontent.com',
     );
-    final GoogleSignInAccount account = await googleSignIn.authenticate();
-    final String? idToken = account.authentication.idToken;
-    if (idToken == null) throw Exception('ID token manquant.');
-    final credential = GoogleAuthProvider.credential(idToken: idToken);
-    await FirebaseAuth.instance.signInWithCredential(credential);
+    final googleUser = await googleSignIn.signIn();
+    if (googleUser == null) {
+      throw Exception('Connexion Google annulée.');
+    }
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+    final user = userCred.user;
+    if (user == null) throw Exception('Connexion Google impossible.');
+
+    final docRef = FirebaseFirestore.instance
+        .collection(_depanneusesCollection)
+        .doc(user.uid);
+    final doc = await docRef.get();
+    if (!doc.exists) {
+      // Première connexion Google : profil minimal, sera complété après
+      final profile = DepanneuseProfile(
+        uid: user.uid,
+        nom: nom ?? user.displayName ?? 'Dépanneuse',
+        tel: user.email ?? '',
+        wilaya: wilaya ?? '',
+        actif: false,
+        latitude: 36.7525,
+        longitude: 3.0420,
+      );
+      await docRef.set(profile.toMap());
+    }
+    await _savePhoneAsId(user.uid);
   }
 
-
+  // Pour permettre aux comptes Google (uid) de passer le check isDepanneuseLoggedIn
+  // même sans numéro, on garde la logique actuelle mais _phoneAsId contient l'uid Google
 
   static Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();

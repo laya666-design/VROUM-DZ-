@@ -526,51 +526,82 @@ class StoreService {
   /// Firestore, un profil minimal est créé avec `actif: false` — comme
   /// pour [signUp], une validation manuelle reste nécessaire ; le magasin
   /// peut ensuite compléter téléphone/adresse depuis son tableau de bord.
-  
   static Future<void> signInWithGoogle({bool rememberMe = true}) async {
-    final GoogleSignIn googleSignIn = GoogleSignIn.instance;
-    await googleSignIn.initialize(
-      serverClientId: '994131871524-dbn081ucefsf4vi4v0jl1m4gc11di90p.apps.googleusercontent.com',
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      serverClientId:
+          '994131871524-dbn081ucefsf4vi4v0jl1m4gc11di90p.apps.googleusercontent.com',
     );
-    try {
-      final GoogleSignInAccount account = await googleSignIn.authenticate();
-      final String? idToken = account.authentication.idToken;
-      if (idToken == null) {
-        throw Exception('ID token Google manquant.');
-      }
-      final credential = GoogleAuthProvider.credential(idToken: idToken);
-      final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
-      final user = userCred.user;
-      if (user == null) throw Exception('Connexion Google impossible.');
-      await _saveRememberMe(rememberMe);
-      final docRef = FirebaseFirestore.instance.collection(_storesCollection).doc(user.uid);
-      final doc = await docRef.get();
-      if (!doc.exists) {
-        await docRef.set({
-          'email': user.email,
-          'nom': user.displayName ?? 'Magasin',
-          'tel': '',
-          'adresse': '',
-          'actif': false,
-          'createdAt': FieldValue.serverTimestamp(),
-          'uid': user.uid,
-        });
-      }
-      if (rememberMe) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_phoneAsIdKey, user.uid);
-        _phoneAsId = user.uid;
-      }
-      await _saveFcmToken();
-    } catch (e) {
-      if (e.toString().contains('canceled') || e.toString().contains('annulée')) {
-        throw Exception('Connexion Google annulée.');
-      }
-      rethrow;
+
+    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+    if (googleUser == null) {
+      throw Exception('Connexion Google annulée.');
     }
+
+    final GoogleSignInAuthentication googleAuth =
+        await googleUser.authentication;
+
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    final userCred =
+        await FirebaseAuth.instance.signInWithCredential(credential);
+    final user = userCred.user;
+    if (user == null) {
+      throw Exception('Connexion Google impossible.');
+    }
+
+    await _saveRememberMe(rememberMe);
+
+    final docRef = FirebaseFirestore.instance
+        .collection(_storesCollection)
+        .doc(user.uid);
+    final doc = await docRef.get();
+    if (!doc.exists) {
+      final position = await LocationService.getCurrentPosition();
+      final profile = StoreProfile(
+        uid: user.uid,
+        nom: user.displayName ?? '',
+        tel: '',
+        adresse: '',
+        actif: false,
+        subscriptionStatus: SubscriptionStatus.essai,
+        trialEndDate:
+            DateTime.now().add(const Duration(days: kEssaiGratuitJours)),
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+      await docRef.set(profile.toMap());
+    }
+    await _registerFcmToken(user.uid);
   }
 
+  /// Envoie l'email Firebase de réinitialisation de mot de passe à
+  /// l'adresse fournie. Firebase gère l'envoi et la page de choix du
+  /// nouveau mot de passe ; rien d'autre à faire côté app une fois
+  /// l'appel terminé sans erreur.
+  static Future<void> sendPasswordResetEmail(String email) async {
+    await FirebaseAuth.instance.sendPasswordResetEmail(email: email.trim());
+  }
 
+  static Future<void> _saveRememberMe(bool rememberMe) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_rememberMeKey, rememberMe);
+  }
+
+  /// À appeler une fois au démarrage de l'app (avant d'afficher le portail
+  /// vendeur) : si le magasin s'était connecté sans cocher "Se souvenir de
+  /// moi", on force la déconnexion pour que la session ne survive pas au
+  /// redémarrage de l'app, même si Firebase Auth garde la session active
+  /// par défaut.
+  static Future<void> applyRememberMePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rememberMe = prefs.getBool(_rememberMeKey) ?? true;
+    if (!rememberMe && currentUser != null) {
+      await FirebaseAuth.instance.signOut();
+    }
+  }
 
   static Future<void> signOut() => FirebaseAuth.instance.signOut();
 
