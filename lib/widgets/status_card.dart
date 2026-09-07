@@ -3,9 +3,8 @@ import '../services/ocr_service.dart';
 
 class StatusCard extends StatelessWidget {
   final ExpiryStatus status;
-  final bool isAr;
 
-  const StatusCard({super.key, required this.status, this.isAr = false});
+  const StatusCard({super.key, required this.status});
 
   Color get _bgColor {
     switch (status.level) {
@@ -61,9 +60,7 @@ class StatusCard extends StatelessWidget {
               Icon(_icon, color: _fgColor, size: 28),
               const SizedBox(width: 8),
               Text(
-                isAr
-                    ? 'تاريخ الانتهاء: ${_fmt(status.expirationDate)}'
-                    : 'Expiration : ${_fmt(status.expirationDate)}',
+                'Expiration : ${_fmt(status.expirationDate)}',
                 style: TextStyle(
                   color: _fgColor,
                   fontSize: 14,
@@ -74,7 +71,7 @@ class StatusCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            status.labelFor(isAr),
+            status.label,
             style: TextStyle(
               color: _fgColor,
               fontSize: 24,

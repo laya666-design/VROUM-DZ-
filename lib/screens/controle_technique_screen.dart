@@ -13,20 +13,11 @@ import '../widgets/status_card.dart';
 class ControleTechniqueScreen extends StatefulWidget {
   final AppConfig config;
   final Vehicule? vehicule;
-  final bool isAr;
-
-  /// true quand ce widget est empilé dans la fiche véhicule à 3 sections
-  /// (Carte Grise / Assurance / Contrôle technique) plutôt qu'affiché seul
-  /// dans son propre onglet : supprime le titre et le SafeArea/scroll
-  /// propres, qui sont alors gérés par la fiche véhicule englobante.
-  final bool embedded;
 
   const ControleTechniqueScreen({
     super.key,
     required this.config,
     this.vehicule,
-    this.isAr = false,
-    this.embedded = false,
   });
 
   @override
@@ -45,8 +36,6 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
 
   ExpiryStatus? _status; // calculé localement via OCR -> fait foi
   ControleTechniqueInfo? _info; // détails structurés via Gemini -> complément
-
-  String _t(String fr, String ar) => widget.isAr ? ar : fr;
 
   @override
   void initState() {
@@ -99,46 +88,31 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
     });
 
     try {
-      // 1) Gemini d'abord : comprend le document (arabe/francais, plusieurs
-      // dates) et sait normalement distinguer la date de la PROCHAINE
-      // visite des autres dates du document.
-      ControleTechniqueInfo info = ControleTechniqueInfo();
-      DateTime? expiration;
-      try {
-        final json = await _gemini.analyzeControleTechnique(file);
-        info = ControleTechniqueInfo.fromJson(json);
-        expiration = info.dateProchainControleParsed;
-      } catch (_) {
-        // Gemini indisponible : on se rabat plus bas sur l'OCR local.
-      }
-      _info = info;
-
-      // 2) OCR local (ML Kit) en repli uniquement si Gemini n'a pas pu
-      // donner de date exploitable (hors-ligne, ou champ non reconnu).
-      // Priorité à la date qui suit "VISITE PERIODIQUE LE" / "المراقبة اللاحقة",
-      // sinon retombe sur la date la plus récente.
-      if (expiration == null) {
-        final rawText = await _ocr.extractText(file);
-        expiration = OcrService.extractDateVisitePeriodique(rawText);
-      }
+      // 1) OCR local -> fait foi pour le calcul (fonctionne sans internet)
+      final rawText = await _ocr.extractText(file);
+      final dates = OcrService.extractDates(rawText);
+      final expiration = OcrService.mostRecentDate(dates);
 
       if (expiration != null) {
         _status = ExpiryStatus(expirationDate: expiration);
       } else {
-        _error = _t(
-          'Aucune date reconnue sur cette photo. Cadre bien tout le '
-              'document, y compris la case en bas avec la date de la '
-              'PROCHAINE visite (pas seulement le haut du document), ou '
-              'vérifie manuellement.',
-          'لم يتم التعرف على أي تاريخ في هذه الصورة. أطّر الوثيقة كاملةً، '
-              'بما في ذلك الخانة السفلية التي تحمل تاريخ الزيارة القادمة '
-              '(وليس فقط أعلى الوثيقة)، أو تحقق يدويًا.',
-        );
+        _error =
+            'Aucune date reconnue sur cette photo. Reprends la photo bien '
+            'cadrée sur la date du prochain contrôle, ou vérifie manuellement.';
+      }
+
+      // 2) Gemini en complément pour les détails (centre, numéro...)
+      try {
+        final json = await _gemini.analyzeControleTechnique(file);
+        _info = ControleTechniqueInfo.fromJson(json);
+      } catch (_) {
+        // Le complément IA est optionnel : l'échec ne bloque pas le calcul.
+        _info = ControleTechniqueInfo();
       }
 
       await _saveToVehicule();
     } catch (e) {
-      _error = _t('Erreur de lecture de l\'image : $e', 'خطأ في قراءة الصورة: $e');
+      _error = 'Erreur de lecture de l\'image : $e';
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -168,133 +142,106 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (!widget.embedded) ...[
-          Text(
-            widget.vehicule != null
-                ? _t(
-                    'Contrôle technique — ${widget.vehicule!.nom}',
-                    'الفحص التقني — ${widget.vehicule!.nom}',
-                  )
-                : _t('Contrôle technique', 'الفحص التقني'),
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _t(
-              'Photographie l\'attestation de contrôle technique pour '
-                  'calculer les jours restants avant le prochain passage.',
-              'صوّر شهادة الفحص التقني لحساب الأيام المتبقية قبل الموعد القادم.',
-            ),
-            style: const TextStyle(color: Colors.black54),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _t(
-              '⚠️ Cadre bien TOUT le document, y compris la case en bas de '
-                  'page avec la date de la PROCHAINE visite périodique — pas '
-                  'seulement le tableau du haut.',
-              '⚠️ أطّر الوثيقة بالكامل، بما في ذلك الخانة أسفل الصفحة التي '
-                  'تحمل تاريخ الزيارة الدورية القادمة — وليس فقط الجدول '
-                  'العلوي.',
-            ),
-            style: const TextStyle(
-                color: Colors.black54,
-                fontSize: 12,
-                fontStyle: FontStyle.italic),
-          ),
-          const SizedBox(height: 16),
-        ],
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed:
-                    _loading ? null : () => _pickImage(ImageSource.camera),
-                icon: const Icon(Icons.camera_alt),
-                label: Text(_t('Caméra', 'الكاميرا')),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  backgroundColor: widget.config.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed:
-                    _loading ? null : () => _pickImage(ImageSource.gallery),
-                icon: const Icon(Icons.photo_library),
-                label: Text(_t('Galerie', 'المعرض')),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        if (_image != null)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.file(_image!, height: 180, fit: BoxFit.cover),
-          ),
-        const SizedBox(height: 16),
-        if (_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-        if (_error != null)
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEE2E2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(_error!,
-                style: const TextStyle(color: Color(0xFF991B1B))),
-          ),
-        if (_status != null) ...[
-          StatusCard(status: _status!, isAr: widget.isAr),
-          const SizedBox(height: 16),
-        ],
-        if (_info != null &&
-            (_info!.centre.isNotEmpty ||
-                _info!.numero.isNotEmpty ||
-                _info!.kilometrage.isNotEmpty))
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_t('Détails', 'التفاصيل'),
-                    style:
-                        const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                const SizedBox(height: 8),
-                _infoRow(_t('Centre', 'المركز'), _info!.centre),
-                _infoRow(_t('Numéro', 'الرقم'), _info!.numero),
-                _infoRow(_t('Kilométrage', 'عدد الكيلومترات'), _info!.kilometrage),
-              ],
-            ),
-          ),
-      ],
-    );
-
-    if (widget.embedded) return content;
-
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: content,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.vehicule != null
+                  ? 'Contrôle technique — ${widget.vehicule!.nom}'
+                  : 'Contrôle technique',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Photographie l\'attestation de contrôle technique pour '
+              'calculer les jours restants avant le prochain passage.',
+              style: TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed:
+                        _loading ? null : () => _pickImage(ImageSource.camera),
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text('Caméra'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      backgroundColor: widget.config.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed:
+                        _loading ? null : () => _pickImage(ImageSource.gallery),
+                    icon: const Icon(Icons.photo_library),
+                    label: const Text('Galerie'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (_image != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(_image!, height: 180, fit: BoxFit.cover),
+              ),
+            const SizedBox(height: 16),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            if (_error != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(_error!,
+                    style: const TextStyle(color: Color(0xFF991B1B))),
+              ),
+            if (_status != null) ...[
+              StatusCard(status: _status!),
+              const SizedBox(height: 16),
+            ],
+            if (_info != null &&
+                (_info!.centre.isNotEmpty ||
+                    _info!.numero.isNotEmpty ||
+                    _info!.kilometrage.isNotEmpty))
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Détails',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 15)),
+                    const SizedBox(height: 8),
+                    _infoRow('Centre', _info!.centre),
+                    _infoRow('Numéro', _info!.numero),
+                    _infoRow('Kilométrage', _info!.kilometrage),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

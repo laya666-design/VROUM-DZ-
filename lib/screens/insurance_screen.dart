@@ -17,19 +17,8 @@ class InsuranceScreen extends StatefulWidget {
   /// (Phase 1 — gestion multi-véhicules). Si null, l'écran fonctionne comme
   /// avant, sans persistance (compatibilité ascendante).
   final Vehicule? vehicule;
-  final bool isAr;
 
-  /// true quand ce widget est empilé dans la fiche véhicule à 3 sections
-  /// plutôt qu'affiché seul dans son propre onglet.
-  final bool embedded;
-
-  const InsuranceScreen({
-    super.key,
-    required this.config,
-    this.vehicule,
-    this.isAr = false,
-    this.embedded = false,
-  });
+  const InsuranceScreen({super.key, required this.config, this.vehicule});
 
   @override
   State<InsuranceScreen> createState() => _InsuranceScreenState();
@@ -46,8 +35,6 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
 
   ExpiryStatus? _status; // calculé localement via OCR -> fait foi
   InsuranceInfo? _info; // détails structurés via Gemini -> complément
-
-  String _t(String fr, String ar) => widget.isAr ? ar : fr;
 
   @override
   void initState() {
@@ -117,12 +104,9 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
       if (expiration != null) {
         _status = ExpiryStatus(expirationDate: expiration);
       } else {
-        _error = _t(
-          'Aucune date reconnue sur cette photo. Reprends la photo bien '
-              'cadrée sur les dates, ou vérifie manuellement.',
-          'لم يتم التعرف على أي تاريخ في هذه الصورة. أعد التقاط الصورة مع '
-              'تأطير جيد للتواريخ، أو تحقق يدويًا.',
-        );
+        _error =
+            'Aucune date reconnue sur cette photo. Reprends la photo bien '
+            'cadrée sur les dates, ou vérifie manuellement.';
       }
 
       // 2) Gemini en complément pour les détails (compagnie, nom, marque...)
@@ -136,7 +120,7 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
 
       await _saveToVehicule();
     } catch (e) {
-      _error = _t('Erreur de lecture de l\'image : $e', 'خطأ في قراءة الصورة: $e');
+      _error = 'Erreur de lecture de l\'image : $e';
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -166,119 +150,107 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (!widget.embedded) ...[
-          Text(
-            widget.vehicule != null
-                ? _t(
-                    'Assurance / Vignette — ${widget.vehicule!.nom}',
-                    'التأمين / البطاقة الضريبية — ${widget.vehicule!.nom}',
-                  )
-                : _t('Assurance / Vignette', 'التأمين / البطاقة الضريبية'),
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _t(
-              'Photographie la carte jaune pour calculer les jours restants.',
-              'صوّر البطاقة الصفراء لحساب الأيام المتبقية.',
-            ),
-            style: const TextStyle(color: Colors.black54),
-          ),
-          const SizedBox(height: 16),
-        ],
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed:
-                    _loading ? null : () => _pickImage(ImageSource.camera),
-                icon: const Icon(Icons.camera_alt),
-                label: Text(_t('Caméra', 'الكاميرا')),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  backgroundColor: widget.config.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed:
-                    _loading ? null : () => _pickImage(ImageSource.gallery),
-                icon: const Icon(Icons.photo_library),
-                label: Text(_t('Galerie', 'المعرض')),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        if (_image != null)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.file(_image!, height: 180, fit: BoxFit.cover),
-          ),
-        const SizedBox(height: 16),
-        if (_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-        if (_error != null)
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEE2E2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(_error!,
-                style: const TextStyle(color: Color(0xFF991B1B))),
-          ),
-        if (_status != null) ...[
-          StatusCard(status: _status!, isAr: widget.isAr),
-          const SizedBox(height: 16),
-        ],
-        if (_info != null &&
-            (_info!.compagnie.isNotEmpty ||
-                _info!.nom.isNotEmpty ||
-                _info!.marque.isNotEmpty))
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_t('Détails', 'التفاصيل'),
-                    style:
-                        const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                const SizedBox(height: 8),
-                _infoRow(_t('Compagnie', 'الشركة'), _info!.compagnie),
-                _infoRow(_t('Nom', 'الاسم'), _info!.nom),
-                _infoRow(_t('Véhicule', 'المركبة'), _info!.marque),
-                _infoRow(_t('Police', 'رقم البوليصة'), _info!.police),
-                _infoRow(_t('Début', 'تاريخ البداية'), _info!.debut),
-              ],
-            ),
-          ),
-      ],
-    );
-
-    if (widget.embedded) return content;
-
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: content,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.vehicule != null
+                  ? 'Assurance / Vignette — ${widget.vehicule!.nom}'
+                  : 'Assurance / Vignette',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Photographie la carte jaune pour calculer les jours restants.',
+              style: TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed:
+                        _loading ? null : () => _pickImage(ImageSource.camera),
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text('Caméra'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      backgroundColor: widget.config.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed:
+                        _loading ? null : () => _pickImage(ImageSource.gallery),
+                    icon: const Icon(Icons.photo_library),
+                    label: const Text('Galerie'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (_image != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(_image!, height: 180, fit: BoxFit.cover),
+              ),
+            const SizedBox(height: 16),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            if (_error != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(_error!,
+                    style: const TextStyle(color: Color(0xFF991B1B))),
+              ),
+            if (_status != null) ...[
+              StatusCard(status: _status!),
+              const SizedBox(height: 16),
+            ],
+            if (_info != null &&
+                (_info!.compagnie.isNotEmpty ||
+                    _info!.nom.isNotEmpty ||
+                    _info!.marque.isNotEmpty))
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Détails',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 15)),
+                    const SizedBox(height: 8),
+                    _infoRow('Compagnie', _info!.compagnie),
+                    _infoRow('Nom', _info!.nom),
+                    _infoRow('Véhicule', _info!.marque),
+                    _infoRow('Police', _info!.police),
+                    _infoRow('Début', _info!.debut),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -2,13 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../services/store_service.dart';
-import '../role_router.dart';
 import 'store_dashboard_screen.dart';
-import 'magasin_shell_screen.dart';
-import 'store_forgot_password_screen.dart';
-import 'store_phone_login_screen.dart';
 import 'store_signup_screen.dart';
-import '../../widgets/google_signin_button.dart';
 
 class StoreLoginScreen extends StatefulWidget {
   final AppConfig config;
@@ -24,14 +19,13 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
   bool _rememberMe = true;
   bool _loading = false;
   String? _error;
-  bool _googleLoading = false;
 
   void _goToDashboard() {
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => MagasinShellScreen(config: widget.config),
+        builder: (_) => StoreDashboardScreen(config: widget.config),
       ),
     );
   }
@@ -57,32 +51,19 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
     }
   }
 
-
-  Future<void> _signInWithGoogle() async {
+  Future<void> _loginWithGoogle() async {
     setState(() {
-      _googleLoading = true;
+      _loading = true;
       _error = null;
     });
     try {
       await StoreService.signInWithGoogle(rememberMe: _rememberMe);
       _goToDashboard();
     } catch (e) {
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      setState(() => _error = 'Erreur : $e');
     } finally {
-      if (mounted) setState(() => _googleLoading = false);
+      if (mounted) setState(() => _loading = false);
     }
-  }
-
-  void _goToForgotPassword() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => StoreForgotPasswordScreen(
-          config: widget.config,
-          initialEmail: _emailController.text.trim(),
-        ),
-      ),
-    );
   }
 
   @override
@@ -92,19 +73,6 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
         backgroundColor: widget.config.primaryColor,
         foregroundColor: Colors.white,
         title: const Text('Espace Pro — Magasin'),
-        // Cette écran est toujours atteint par un pushReplacement (choix
-        // du rôle, ou déconnexion) : jamais de route précédente à
-        // dépiler, donc la flèche retour par défaut ne s'affichait
-        // jamais. Une croix explicite ramène au choix de profil.
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          tooltip: 'Changer de profil',
-          onPressed: () => RoleRouter.changerDeProfil(
-            context,
-            config: widget.config,
-            isAr: ValueNotifier<bool>(false),
-          ),
-        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -132,18 +100,7 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
                 obscureText: true,
                 decoration: const InputDecoration(labelText: 'Mot de passe'),
               ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _loading ? null : _goToForgotPassword,
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(50, 30),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text('Mot de passe oublié ?'),
-                ),
-              ),
+              const SizedBox(height: 4),
               CheckboxListTile(
                 value: _rememberMe,
                 onChanged: (v) => setState(() => _rememberMe = v ?? true),
@@ -156,12 +113,6 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
                 const SizedBox(height: 8),
                 Text(_error!, style: const TextStyle(color: Colors.red)),
               ],
-              const OrDivider(),
-              GoogleSignInButton(
-                onPressed: _googleLoading || _loading ? null : _signInWithGoogle,
-                isLoading: _googleLoading,
-                accentColor: widget.config.primaryColor,
-              ),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: _loading ? null : _login,
@@ -179,6 +130,26 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
                     : const Text('Se connecter'),
               ),
               const SizedBox(height: 12),
+              Row(
+                children: const [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('ou', style: TextStyle(color: Colors.black45)),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _loading ? null : _loginWithGoogle,
+                icon: const Icon(Icons.g_mobiledata, size: 28),
+                label: const Text('Continuer avec Google'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                ),
+              ),
+              const SizedBox(height: 8),
               TextButton(
                 onPressed: () => Navigator.push(
                   context,
@@ -188,16 +159,6 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
                   ),
                 ),
                 child: const Text('Créer un compte magasin'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        StorePhoneLoginScreen(config: widget.config),
-                  ),
-                ),
-                child: const Text('Utiliser le téléphone à la place'),
               ),
             ],
           ),

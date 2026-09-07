@@ -9,11 +9,7 @@ class GeminiService {
   static const String _workerUrl =
       'https://tight-smoke-4dfa.laya666.workers.dev';
 
-  Future<String> _callGroq(
-    String prompt,
-    File file, {
-    String reasoningEffort = 'none',
-  }) async {
+  Future<String> _callGroq(String prompt, File file) async {
     final bytes = await file.readAsBytes();
     final base64Image = base64Encode(bytes);
 
@@ -32,11 +28,7 @@ class GeminiService {
         }
       ],
       "temperature": 0.2,
-      "reasoning_effort": reasoningEffort,
-      // Le mode reflexion ("default") genere du texte de raisonnement avant
-      // le JSON final : il faut assez de tokens pour ne pas couper la
-      // reponse avant qu elle n arrive au JSON.
-      "max_completion_tokens": reasoningEffort == 'none' ? 1024 : 4096,
+      "reasoning_effort": "none",
     };
 
     final response = await http.post(
@@ -56,19 +48,6 @@ class GeminiService {
       throw Exception('Reponse vide du serveur');
     }
     return content as String;
-  }
-
-  /// Transforme une erreur technique (JSON invalide, reponse tronquee,
-  /// contenant encore un bloc <think> non ferme, etc.) en message
-  /// comprehensible pour l utilisateur, plutot que d afficher la
-  /// FormatException brute dans l ecran.
-  String _friendlyOcrError(Object e) {
-    final msg = e.toString();
-    if (msg.contains('<think>') || msg.contains('FormatException')) {
-      return 'Analyse impossible (reponse invalide). Reessayez avec une '
-          'photo plus nette et bien eclairee.';
-    }
-    return msg;
   }
 
   Map<String, dynamic> _parseJson(String raw) {
@@ -117,7 +96,7 @@ REGLE: magasins doit toujours etre un tableau vide [].
       final raw = await _callGroq(prompt, file);
       return _parseJson(raw);
     } catch (e) {
-      return {'error': _friendlyOcrError(e), 'magasins': []};
+      return {'error': e.toString(), 'magasins': []};
     }
   }
 
@@ -126,35 +105,7 @@ REGLE: magasins doit toujours etre un tableau vide [].
       final prompt = '''
 Tu es un expert controle technique automobile pour l Algerie.
 REGLE CRITIQUE: Ne jamais inventer de nom de centre, adresse ou telephone.
-Analyse cette image d attestation de controle technique algerien (document
-bilingue arabe/francais, souvent intitule "Proces-verbal de controle
-technique des vehicules" / "محضر المراقبة التقنية للسيارات" ou "VISITE
-PERIODIQUE").
-
-ATTENTION CRITIQUE SUR LES DATES — ce document contient PLUSIEURS dates :
-1. Date d enregistrement / immatriculation du vehicule (ex "12/12/2023" pres
-   du numero de registration ou "تاريخ وضع المركبة في السير") → IGNORE-LA.
-2. Date de la visite technique qui vient d etre effectuee (champ
-   "تاريخ المراقبة" / "DATE" / date du jour du controle en haut) → IGNORE-LA.
-3. Date de la PROCHAINE visite periodique (la seule date a retourner) :
-   - cherche explicitement la mention "VISITE PERIODIQUE LE" suivie d une date
-   - ou "طبيعة وتاريخ المراقبة اللاحقة" / "المراقبة اللاحقة"
-   - ou "prochaine visite" / "visite periodique"
-   - cette date est generalement en bas du document, dans un encadre ou apres
-     un libelle clair "VISITE PERIODIQUE LE dd/mm/yyyy"
-   → C EST CETTE DATE UNIQUEMENT qu il faut mettre dans "date_prochain_controle".
-
-Exemple typique : si tu lis "VISITE PERIODIQUE LE 11/12/2025", alors
-"date_prochain_controle" = "11/12/2025".
-
-Ne prends JAMAIS la date d enregistrement ni la date de la visite du jour.
-Si plusieurs dates futures existent, prends celle explicitement liee a
-"VISITE PERIODIQUE" / "المراقبة اللاحقة".
-
-Pour le centre : cherche "مركز المراقبة" / nom de l agence / "Z.A.C" / nom
-du controleur ou du centre (ex "MEHDAOUI", "HADJADJ").
-Pour le numero : le numero du proces-verbal (ex 6695729) en haut ou bas.
-
+Analyse cette image d attestation/vignette de controle technique algerien.
 Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
 
 {
@@ -165,8 +116,7 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
   "jours_restants": 0
 }
 
-REGLE: ne jamais inventer. Si la date "VISITE PERIODIQUE" n est pas lisible,
-mets null plutot que de prendre une autre date du document.
+REGLE: ne jamais inventer d informations non visibles sur l image.
 ''';
 
       final raw = await _callGroq(prompt, file);
@@ -174,171 +124,16 @@ mets null plutot que de prendre une autre date du document.
       json.remove('magasins');
       return json;
     } catch (e) {
-      return {'error': _friendlyOcrError(e)};
+      return {'error': e.toString()};
     }
   }
 
-  /// Analyse une photo de carte grise algérienne (jaune) : extrait les
-  /// champs officiels (type, année, châssis, puissance) puis déduit le
-  /// code moteur et le carburant pour alimenter la compatibilité pièces
-  /// (voir Vehicule.engineCode / fuelType).
-  Future<Map<String, dynamic>> analyzeCarteGrise(File file) async {
+  Future<Map<String, dynamic>> analyzeCarPart(File file) async {
     try {
-      final prompt = '''
-Tu es un expert en cartes grises automobiles algeriennes (carte jaune).
-REGLE CRITIQUE ABSOLUE: Ne jamais inventer une information non visible sur l image.
-Si un champ n est pas clairement lisible, mets null. Aucune deduction gratuite.
-
-Ce document est majoritairement en ARABE. Les cases francaises (MARQUE, TYPE, GENRE...)
-sont souvent vides ou minuscules ; la valeur reelle est ecrite en arabe a cote
-ou en lettres latines majuscules dans la case de la marque.
-
-PRIORITE ABSOLUE POUR LA MARQUE :
-Sur les cartes grises / quittances algeriennes, la marque se trouve dans la
-case intitulee "الصنف" (en arabe) avec le sous-libelle francais "MARQUE"
-juste en dessous. C est CETTE case-la qu il faut lire en priorite.
-(Ne confonds pas avec "العلامة" qui n est pas le champ standard ici.)
-
-1. Localise la case "الصنف" / "MARQUE" dans le tableau d identification
-   (souvent a cote de "الطراز" / "TYPE").
-2. La valeur est le plus souvent ecrite en ARABE (ex: تويوتا, رينو, بيجو...).
-   TRADUIS-LA systematiquement en francais majuscules :
-   تويوتا → TOYOTA
-   رينو → RENAULT
-   بيجو → PEUGEOT
-   نيسان → NISSAN
-   هيونداي / هيونداى → HYUNDAI
-   كيا → KIA
-   فولكسفاغن / فولكس واجن → VOLKSWAGEN
-   داسيا → DACIA
-   سيتروين → CITROEN
-   فيات → FIAT
-   شيفروليه → CHEVROLET
-   سوزوكي → SUZUKI
-   ميتسوبيشي → MITSUBISHI
-   فورد → FORD
-   اوبل → OPEL
-   مازدا → MAZDA
-   هوندا → HONDA
-   مرسيدس → MERCEDES
-   بي ام دبليو → BMW
-3. Si la case contient deja du texte latin majuscule (TOYOTA, RENAULT...),
-   prends-le tel quel.
-4. Indices chassis (WMI) en verification secondaire uniquement :
-   NCP / JT / JTD / JTDB / JTN → TOYOTA
-   VF1 → RENAULT
-   VF3 → PEUGEOT
-   VF7 → CITROEN
-   WVW / WVG → VOLKSWAGEN
-   U5Y / KMH → HYUNDAI / KIA
-5. Si tu lis clairement "تويوتا" (ou TOYOTA) dans la case الصنف/MARQUE,
-   retourne "marque": "TOYOTA". Ne mets JAMAIS RENAULT a la place.
-6. Ne jamais inventer une marque si la case est illisible → null.
-
-Autres champs (meme tableau) :
-- "الطراز" / TYPE : code type / modele (ex NCP92LBEMRK).
-- "القوة" / PUISSANCE : puissance fiscale (ex 005).
-- "الطاقة" / ENERGIE : ES-GPL, diesel, essence...
-- Chassis / numero de serie du type si present ailleurs.
-- Immatriculation (N° D'IMMATRICULATION).
-- Annee si visible.
-
-Une fois marque + annee + puissance + chassis connus, deduis engine_code
-et fuel_type UNIQUEMENT s ils sont tres fiables pour ce couple marque/modele
-algerien. Sinon mets null.
-
-Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
-
-{
-  "marque": "string ou null (en majuscules francaises, ex TOYOTA)",
-  "modele": "string ou null",
-  "type": "string ou null",
-  "annee": "aaaa ou null",
-  "chassis": "string ou null",
-  "puissance_fiscale": "string ou null",
-  "immatriculation": "string ou null",
-  "engine_code": "ex K9K, 1KR, deduit ou null si incertain",
-  "fuel_type": "diesel, essence ou gpl, deduit ou null si incertain"
-}
-''';
-
-      final raw = await _callGroq(prompt, file);
-      final json = _parseJson(raw);
-      json.remove('magasins');
-      // Filet de sécurité : corrige une marque clairement incohérente avec le
-      // préfixe chassis (WMI) si le chassis est suffisamment long.
-      _correctMarqueFromChassis(json);
-      return json;
-    } catch (e) {
-      return {'error': _friendlyOcrError(e)};
-    }
-  }
-
-  /// Si le chassis commence par un WMI connu et que la marque renvoyée
-  /// contredit ce WMI de façon évidente, on force la marque correcte.
-  void _correctMarqueFromChassis(Map<String, dynamic> json) {
-    final chassis = (json['chassis']?.toString() ?? '').toUpperCase().trim();
-    if (chassis.length < 3) return;
-    final prefix = chassis.substring(0, 3);
-    final marque = (json['marque']?.toString() ?? '').toUpperCase().trim();
-
-    String? expected;
-    // Toyota : JT... (VIN) ou codes type algeriens NCP / NSP / NZE...
-    if (prefix.startsWith('JT') ||
-        prefix == 'JTD' ||
-        prefix.startsWith('JTN') ||
-        prefix == 'NCP' ||
-        prefix == 'NSP' ||
-        prefix == 'NZE' ||
-        prefix == 'ZZE') {
-      expected = 'TOYOTA';
-    } else if (prefix == 'VF1') {
-      expected = 'RENAULT';
-    } else if (prefix == 'VF3') {
-      expected = 'PEUGEOT';
-    } else if (prefix == 'VF7') {
-      expected = 'CITROEN';
-    } else if (prefix.startsWith('WV')) {
-      expected = 'VOLKSWAGEN';
-    }
-
-    if (expected != null && marque.isNotEmpty && marque != expected) {
-      // Conflit clair → on fait confiance au chassis (plus fiable que l'OCR
-      // de la case marque quand la photo est floue).
-      json['marque'] = expected;
-    } else if (expected != null && marque.isEmpty) {
-      json['marque'] = expected;
-    }
-  }
-
-  /// [vehicleContext] optionnel : résumé véhicule (ex: "Renault Clio 4 · K9K
-  /// · diesel") issu de la carte grise scannée. Quand renseigné, Gemini
-  /// identifie la piece en connaissant deja le moteur/la motorisation
-  /// au lieu de deviner uniquement sur la photo — moins d ambiguite sur
-  /// la reference et la compatibilite.
-  Future<Map<String, dynamic>> analyzeCarPart(
-    File file, {
-    String vehicleContext = '',
-  }) async {
-    try {
-      final contexteVehicule = vehicleContext.trim().isEmpty
-          ? ''
-          : '''
-Contexte vehicule connu (issu de la carte grise scannee par l utilisateur,
-fiable, ne pas ignorer) : $vehicleContext
-Ce vehicule EXACT doit apparaitre en PREMIER dans "compatibilite", avec son
-nom complet tel que donne ci-dessus (ex: si le contexte est "Renault Clio 4",
-la liste doit commencer par "Renault Clio 4", jamais un autre modele a la
-place). N ajoute d autres modeles compatibles qu apres celui-ci, et
-seulement s ils partagent vraiment la meme piece (meme plateforme/moteur) —
-n invente pas une liste generique de modeles de la meme marque.
-''';
-
       final prompt = '''
 Tu es un expert pieces auto pour l Algerie (Annaba).
 REGLE CRITIQUE: Ne jamais inventer de nom de magasin, adresse ou telephone.
 Identifie la piece auto sur la photo pour le marche Algerien.
-$contexteVehicule
 Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
 
 {
@@ -357,7 +152,7 @@ REGLE CRITIQUE: magasins = [] toujours vide. Ne jamais inventer de telephone.
       final raw = await _callGroq(prompt, file);
       return _parseJson(raw);
     } catch (e) {
-      return {'error': _friendlyOcrError(e), 'magasins': []};
+      return {'error': e.toString(), 'magasins': []};
     }
   }
 }
