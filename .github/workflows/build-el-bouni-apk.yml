@@ -76,6 +76,30 @@ jobs:
           echo "--- Empreinte SHA utilisée pour ce build ---"
           keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep -E "SHA1:|SHA256:"
 
+          # Force Gradle à signer avec le keystore du dépôt (SHA Firebase fixe).
+          if [ -f android/app/build.gradle.kts ]; then
+            cat >> android/app/build.gradle.kts << 'EOF'
+
+          // VROUM DZ — forcer le keystore debug du dépôt (SHA Firebase fixe)
+          android {
+              signingConfigs {
+                  getByName("debug") {
+                      storeFile = file("../keystore/debug.keystore")
+                      storePassword = "android"
+                      keyAlias = "androiddebugkey"
+                      keyPassword = "android"
+                  }
+              }
+              buildTypes {
+                  getByName("debug") {
+                      signingConfig = signingConfigs.getByName("debug")
+                  }
+              }
+          }
+          EOF
+            echo "OK : signingConfigs debug forcé dans build.gradle.kts"
+          fi
+
       - name: Get dependencies
         run: flutter pub get
 
