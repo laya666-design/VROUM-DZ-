@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'firebase_options.dart';
@@ -12,11 +13,47 @@ import 'services/notification_service.dart';
 import 'services/store_service.dart';
 import 'services/vehicule_service.dart';
 
+/// Handler obligatoire pour les push FCM quand l'app est en arrière-plan
+/// ou tuée. Doit être une fonction top-level (pas une méthode de classe).
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Firebase doit être initialisé dans ce isolate isolé.
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  // Le système Android affiche déjà la notification si le message
+  // contient un bloc `notification`. Rien d'autre à faire ici.
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Push FCM : magasin (nouvelles demandes) + dépanneuse (alertes SOS)
+  // même app fermée / téléphone en poche.
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+  // Affiche aussi les notifications quand l'app est au premier plan.
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    final n = message.notification;
+    if (n != null) {
+      NotificationService.showNow(
+        title: n.title ?? 'VROUM DZ',
+        body: n.body ?? '',
+      );
+    }
+  });
 
   // "Se souvenir de moi" côté magasin : déconnecte si l'utilisateur avait
   // décoché la case lors de sa dernière connexion.
