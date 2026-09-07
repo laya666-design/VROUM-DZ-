@@ -3,9 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'cloudinary_service.dart';
+import 'google_auth_helper.dart';
 import 'location_service.dart';
 import 'marketplace_models.dart';
 
@@ -527,26 +527,7 @@ class StoreService {
   /// pour [signUp], une validation manuelle reste nécessaire ; le magasin
   /// peut ensuite compléter téléphone/adresse depuis son tableau de bord.
   static Future<void> signInWithGoogle({bool rememberMe = true}) async {
-    final GoogleSignIn googleSignIn = GoogleSignIn(
-      serverClientId:
-          '994131871524-dbn081ucefsf4vi4v0jl1m4gc11di90p.apps.googleusercontent.com',
-    );
-
-    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-    if (googleUser == null) {
-      throw Exception('Connexion Google annulée.');
-    }
-
-    final GoogleSignInAuthentication googleAuth =
-        await googleUser.authentication;
-
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-
-    final userCred =
-        await FirebaseAuth.instance.signInWithCredential(credential);
+    final userCred = await GoogleAuthHelper.signIn();
     final user = userCred.user;
     if (user == null) {
       throw Exception('Connexion Google impossible.');

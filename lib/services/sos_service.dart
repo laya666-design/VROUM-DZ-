@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'google_auth_helper.dart';
 import 'location_service.dart';
 import 'sos_models.dart';
 import 'store_service.dart';
@@ -228,19 +228,7 @@ class SosService {
     String? wilaya,
     String? nom,
   }) async {
-    final googleSignIn = GoogleSignIn(
-      serverClientId: '994131871524-dbn081ucefsf4vi4v0jl1m4gc11di90p.apps.googleusercontent.com',
-    );
-    final googleUser = await googleSignIn.signIn();
-    if (googleUser == null) {
-      throw Exception('Connexion Google annulée.');
-    }
-    final googleAuth = await googleUser.authentication;
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-    final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+    final userCred = await GoogleAuthHelper.signIn();
     final user = userCred.user;
     if (user == null) throw Exception('Connexion Google impossible.');
 
@@ -249,7 +237,6 @@ class SosService {
         .doc(user.uid);
     final doc = await docRef.get();
     if (!doc.exists) {
-      // Première connexion Google : profil minimal, sera complété après
       final profile = DepanneuseProfile(
         uid: user.uid,
         nom: nom ?? user.displayName ?? 'Dépanneuse',

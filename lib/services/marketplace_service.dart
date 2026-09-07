@@ -3,8 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'cloudinary_service.dart';
+import 'google_auth_helper.dart';
 import 'marketplace_models.dart';
 import 'part_categories.dart';
 import 'store_service.dart';
@@ -161,21 +161,8 @@ class MarketplaceService {
 
 
   /// Connexion Google — pour acheteur (conducteur)
-  /// Utilise le même serverClientId que côté magasin (projet Firebase unique)
   static Future<void> signInWithGoogle() async {
-    final googleSignIn = GoogleSignIn(
-      serverClientId: '994131871524-dbn081ucefsf4vi4v0jl1m4gc11di90p.apps.googleusercontent.com',
-    );
-    final googleUser = await googleSignIn.signIn();
-    if (googleUser == null) {
-      throw Exception('Connexion Google annulée.');
-    }
-    final googleAuth = await googleUser.authentication;
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-    await FirebaseAuth.instance.signInWithCredential(credential);
+    await GoogleAuthHelper.signIn();
     // Google = pas de numéro local, on nettoie le cache téléphone
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_phoneAsIdKey);
