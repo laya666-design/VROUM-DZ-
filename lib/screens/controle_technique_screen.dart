@@ -99,41 +99,37 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
     });
 
     try {
-      // 1) Gemini d'abord : comprend le document (arabe/francais, plusieurs
-      // dates) et sait normalement distinguer la date de la PROCHAINE
-      // visite des autres dates du document.
+      // Règle métier CT : extraire TOUTES les dates (OCR local), prendre
+      // la plus récente = date de prochaine visite périodique.
+      // Gemini ne sert qu'au complément (centre, numéro, km).
+      final rawText = await _ocr.extractText(file);
+      final expiration = OcrService.extractDateVisitePeriodique(rawText);
+
       ControleTechniqueInfo info = ControleTechniqueInfo();
-      DateTime? expiration;
       try {
         final json = await _gemini.analyzeControleTechnique(file);
         info = ControleTechniqueInfo.fromJson(json);
-        expiration = info.dateProchainControleParsed;
       } catch (_) {
-        // Gemini indisponible : on se rabat plus bas sur l'OCR local.
+        // Complément IA optionnel.
       }
       _info = info;
-
-      // 2) OCR local (ML Kit) en repli uniquement si Gemini n'a pas pu
-      // donner de date exploitable (hors-ligne, ou champ non reconnu).
-      // Priorité à la date qui suit "VISITE PERIODIQUE LE" / "المراقبة اللاحقة",
-      // sinon retombe sur la date la plus récente.
-      if (expiration == null) {
-        final rawText = await _ocr.extractText(file);
-        expiration = OcrService.extractDateVisitePeriodique(rawText);
-      }
 
       if (expiration != null) {
         _status = ExpiryStatus(expirationDate: expiration);
       } else {
-        _error = _t(
-          'Aucune date reconnue sur cette photo. Cadre bien tout le '
-              'document, y compris la case en bas avec la date de la '
-              'PROCHAINE visite (pas seulement le haut du document), ou '
-              'vérifie manuellement.',
-          'لم يتم التعرف على أي تاريخ في هذه الصورة. أطّر الوثيقة كاملةً، '
-              'بما في ذلك الخانة السفلية التي تحمل تاريخ الزيارة القادمة '
-              '(وليس فقط أعلى الوثيقة)، أو تحقق يدويًا.',
-        );
+        // Dernier recours : date renvoyée par Gemini si l'OCR n'a rien vu.
+        final fromAi = info.dateProchainControleParsed;
+        if (fromAi != null) {
+          _status = ExpiryStatus(expirationDate: fromAi);
+        } else {
+          _error = _t(
+            'Aucune date reconnue sur cette photo. Cadre bien tout le '
+                'document (surtout la zone VISITE PERIODIQUE), ou vérifie '
+                'manuellement.',
+            'لم يتم التعرف على أي تاريخ في هذه الصورة. أطّر الوثيقة كاملةً '
+                '(خاصة منطقة الزيارة الدورية)، أو تحقق يدويًا.',
+          );
+        }
       }
 
       try {
