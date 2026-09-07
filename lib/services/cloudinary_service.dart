@@ -44,4 +44,30 @@ class CloudinaryService {
     final data = jsonDecode(response.body);
     return data['secure_url'] as String;
   }
+
+  /// Upload un fichier audio (note vocale) et retourne son URL publique.
+  /// Cloudinary classe l'audio sous resource_type "video" (pas d'API
+  /// audio dédiée) — c'est normal, pas une erreur de config.
+  static Future<String> uploadAudio(File audio,
+      {String folder = 'uploads'}) async {
+    final uri = Uri.parse(
+        'https://api.cloudinary.com/v1_1/$_cloudName/video/upload');
+
+    final request = http.MultipartRequest('POST', uri)
+      ..fields['upload_preset'] = _uploadPreset
+      ..fields['folder'] = folder
+      ..files.add(await http.MultipartFile.fromPath('file', audio.path));
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode != 200) {
+      final body = jsonDecode(response.body);
+      final message = body['error']?['message'] ?? 'Upload Cloudinary échoué';
+      throw Exception(message);
+    }
+
+    final data = jsonDecode(response.body);
+    return data['secure_url'] as String;
+  }
 }

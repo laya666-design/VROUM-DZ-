@@ -106,4 +106,25 @@ class NotificationService {
       await _plugin.cancel(_notificationId(vehiculeId, typeRappel, jours));
     }
   }
+
+  /// Notification immédiate (son + visuel), réutilisable partout
+  /// (nouvelles demandes magasin, nouvelles réponses acheteur, etc.).
+  static Future<void> showNow({
+    required String title,
+    required String body,
+    int id = 0,
+  }) async {
+    const androidDetails = AndroidNotificationDetails(
+      'instant_alerts',
+      'Alertes immédiates',
+      channelDescription:
+          'Nouvelles demandes, nouvelles réponses marketplace',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+    );
+    const details = NotificationDetails(android: androidDetails);
+    await _plugin.show(id, title, body, details);
+  }
 }

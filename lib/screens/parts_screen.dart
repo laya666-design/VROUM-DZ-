@@ -1,11 +1,16 @@
 import 'dart:io';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
 import '../services/gemini_service.dart';
 import '../services/marketplace_service.dart';
 import '../services/models.dart';
+import '../services/vehicule.dart';
+import '../services/vehicule_service.dart';
 import 'marketplace/mes_demandes_screen.dart';
 
 class PartsScreen extends StatefulWidget {
@@ -20,6 +25,8 @@ class PartsScreen extends StatefulWidget {
 class _PartsScreenState extends State<PartsScreen> {
   final _picker = ImagePicker();
   final _gemini = GeminiService();
+  final _recorder = AudioRecorder();
+  final _player = AudioPlayer();
 
   File? _image;
   bool _loading = false;
@@ -27,13 +34,117 @@ class _PartsScreenState extends State<PartsScreen> {
   String? _error;
   CarPartInfo? _part;
 
+  // Note vocale optionnelle : précise au magasin un détail que la photo
+  // seule ne montre pas ("le côté gauche", "version 1.5 dCi pas 1.2"...).
+  File? _noteVocale;
+  bool _enregistrement = false;
+  bool _lectureEnCours = false;
+  int _dureeEnregistrement = 0; // secondes, plafonné à 30s
+  DateTime? _debutEnregistrement;
+
+  List<Vehicule> _vehicules = [];
+  Vehicule? _vehiculeSelectionne;
+
   bool get _ar => widget.isAr;
   String _t(String fr, String ar) => _ar ? ar : fr;
+
+  @override
+  void initState() {
+    super.initState();
+    _vehicules = VehiculeService.getByTypes([TypeVehicule.voiture]);
+    if (_vehicules.isNotEmpty) _vehiculeSelectionne = _vehicules.first;
+  }
+
+  @override
+  void dispose() {
+    _recorder.dispose();
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _basculerEnregistrement() async {
+    if (_enregistrement) {
+      final path = await _recorder.stop();
+      setState(() {
+        _enregistrement = false;
+        _noteVocale = path != null ? File(path) : null;
+      });
+      return;
+    }
+
+    final autorise = await _recorder.hasPermission();
+    if (!autorise) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_t(
+            'Autorisation microphone refusée.',
+            'تم رفض إذن الميكروفون.',
+          )),
+        ),
+      );
+      return;
+    }
+
+    final dir = await getTemporaryDirectory();
+    final path =
+        '${dir.path}/note_vocale_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+    await _recorder.start(const RecordConfig(), path: path);
+    _debutEnregistrement = DateTime.now();
+    setState(() {
+      _enregistrement = true;
+      _dureeEnregistrement = 0;
+      _noteVocale = null;
+    });
+    _suivreDuree();
+  }
+
+  /// Se ré-appelle toutes les secondes tant que l'enregistrement est actif ;
+  /// coupe automatiquement à 30s pour rester une note courte et ciblée.
+  Future<void> _suivreDuree() async {
+    while (_enregistrement && mounted) {
+      await Future.delayed(const Duration(seconds: 1));
+      if (!_enregistrement || !mounted) return;
+      final ecoule = _debutEnregistrement == null
+          ? 0
+          : DateTime.now().difference(_debutEnregistrement!).inSeconds;
+      setState(() => _dureeEnregistrement = ecoule);
+      if (ecoule >= 30) {
+        await _basculerEnregistrement();
+        return;
+      }
+    }
+  }
+
+  Future<void> _ecouterApercu() async {
+    final f = _noteVocale;
+    if (f == null) return;
+    if (_lectureEnCours) {
+      await _player.stop();
+      setState(() => _lectureEnCours = false);
+      return;
+    }
+    setState(() => _lectureEnCours = true);
+    await _player.play(DeviceFileSource(f.path));
+    _player.onPlayerComplete.first.then((_) {
+      if (mounted) setState(() => _lectureEnCours = false);
+    });
+  }
+
+  void _supprimerNoteVocale() {
+    setState(() {
+      _noteVocale = null;
+      _dureeEnregistrement = 0;
+    });
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     setState(() {
       _error = null;
       _part = null;
+      _noteVocale = null;
+      _dureeEnregistrement = 0;
     });
 
     final picked = await _picker.pickImage(source: source, imageQuality: 90);
@@ -46,7 +157,10 @@ class _PartsScreenState extends State<PartsScreen> {
     });
 
     try {
-      final json = await _gemini.analyzeCarPart(file);
+      final json = await _gemini.analyzeCarPart(
+        file,
+        vehicleContext: _vehiculeSelectionne?.resumeMoteur ?? '',
+      );
       if (json.containsKey('error')) {
         _error = _t('Erreur : ${json['error']}', 'خطأ: ${json['error']}');
       } else {
@@ -99,6 +213,7 @@ class _PartsScreenState extends State<PartsScreen> {
         pieceNom: part.nom,
         reference: part.reference,
         compatibilite: part.compatibilite,
+        noteVocale: _noteVocale,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -141,7 +256,56 @@ class _PartsScreenState extends State<PartsScreen> {
               ),
               style: const TextStyle(color: Colors.black54),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            if (_vehicules.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<Vehicule?>(
+                    isExpanded: true,
+                    value: _vehiculeSelectionne,
+                    icon: const Icon(Icons.expand_more),
+                    hint: Text(_t(
+                        'Sans véhicule (identification générique)',
+                        'بدون مركبة (تحديد عام)')),
+                    items: [
+                      DropdownMenuItem<Vehicule?>(
+                        value: null,
+                        child: Text(_t(
+                            'Sans véhicule (identification générique)',
+                            'بدون مركبة (تحديد عام)')),
+                      ),
+                      ..._vehicules.map(
+                        (v) => DropdownMenuItem<Vehicule?>(
+                          value: v,
+                          child: Text(
+                            v.carteGriseRenseignee
+                                ? '${v.nom} — ${v.resumeMoteur}'
+                                : v.nom,
+                          ),
+                        ),
+                      ),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => _vehiculeSelectionne = v),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _t(
+                  'Scanne d\'abord la carte grise dans "Mes véhicules" pour '
+                  'une identification plus précise.',
+                  'امسح البطاقة الرمادية أولاً في "سياراتي" لتحديد أدق.',
+                ),
+                style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 12),
+            ],
             Row(
               children: [
                 Expanded(
@@ -177,6 +341,66 @@ class _PartsScreenState extends State<PartsScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: Image.file(_image!, height: 180, fit: BoxFit.cover),
               ),
+            if (_image != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _t(
+                  'Précise un détail à la voix si besoin (côté, version '
+                  'moteur...) — facultatif.',
+                  'أضف تفصيلاً بالصوت إذا احتجت (الجانب، نوع المحرك...) — اختياري.',
+                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
+              if (_noteVocale == null)
+                OutlinedButton.icon(
+                  onPressed: _basculerEnregistrement,
+                  icon: Icon(
+                    _enregistrement ? Icons.stop_circle : Icons.mic,
+                    color: _enregistrement ? Colors.red : null,
+                  ),
+                  label: Text(
+                    _enregistrement
+                        ? _t('Arrêter (${_dureeEnregistrement}s)',
+                            'إيقاف (${_dureeEnregistrement} ث)')
+                        : _t('Enregistrer une note vocale', 'تسجيل ملاحظة صوتية'),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                    side: _enregistrement
+                        ? const BorderSide(color: Colors.red)
+                        : null,
+                  ),
+                )
+              else
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: _ecouterApercu,
+                        icon: Icon(_lectureEnCours
+                            ? Icons.pause_circle
+                            : Icons.play_circle),
+                      ),
+                      Expanded(
+                        child: Text(_t(
+                            'Note vocale enregistrée (${_dureeEnregistrement}s)',
+                            'ملاحظة صوتية مسجلة (${_dureeEnregistrement} ث)')),
+                      ),
+                      IconButton(
+                        onPressed: _supprimerNoteVocale,
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
             const SizedBox(height: 16),
             if (_loading)
               const Padding(

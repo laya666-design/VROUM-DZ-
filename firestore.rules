@@ -2,83 +2,214 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Demandes de pièces : lecture publique (nécessaire pour que les
-    // magasins les voient sans compte dédié par demande), création libre
-    // (clients anonymes), mise à jour limitée aux champs de clôture
-    // (fermer sa propre demande, ou la marquer vendue depuis "Mes
-    // demandes").
-    match /part_requests/{requestId} {
-      allow read: if true;
-      allow create: if request.resource.data.statut == 'open';
-      allow update: if request.resource.data.diff(resource.data)
-                        .affectedKeys()
-                        .hasOnly(['statut', 'soldToStoreId', 'soldToStoreNom', 'dateVente'])
-                    && request.resource.data.statut in ['closed', 'vendu'];
-      allow delete: if false;
-
-      // Réponses des magasins : seul un magasin authentifié, à l'identité
-      // validée ET dont l'essai gratuit ou l'abonnement est toujours en
-      // cours, peut répondre — uniquement avec son propre uid comme id de
-      // document (empêche d'écraser la réponse d'un concurrent).
-      match /offers/{offerId} {
-        allow read: if true;
-        allow create, update: if request.auth != null
-                                && request.auth.uid == offerId
-                                && subscriptionValide(request.auth.uid);
-        allow delete: if false;
-      }
+    function isAdmin() {
+      return request.auth!= null && request.auth.token.admin == true;
     }
 
-    // Comptes magasins : un magasin ne voit/modifie que son propre
-    // profil, et ne peut jamais s'auto-activer ni modifier son propre
-    // statut d'abonnement (les champs "actif", "subscriptionStatus",
-    // "trialEndDate" et "subscriptionEndDate" ne peuvent changer que
-    // depuis la console Firebase / une Cloud Function admin — jamais via
-    // une requête client).
-    match /stores/{storeId} {
-      allow create: if request.auth != null
-                      && request.auth.uid == storeId
-                      && request.resource.data.actif == false
-                      && request.resource.data.subscriptionStatus == 'essai';
-      allow read: if request.auth != null && request.auth.uid == storeId;
-      allow update: if request.auth != null
-                      && request.auth.uid == storeId
-                      && request.resource.data.actif == resource.data.actif
-                      && request.resource.data.subscriptionStatus
-                          == resource.data.subscriptionStatus
-                      && request.resource.data.trialEndDate
-                          == resource.data.trialEndDate
-                      && request.resource.data.get('subscriptionEndDate', null)
-                          == resource.data.get('subscriptionEndDate', null)
-                      && request.resource.data.get('currentPlanId', null)
-                          == resource.data.get('currentPlanId', null);
-      allow delete: if false;
-
-      // Preuves de paiement envoyées par le magasin : il peut créer et
-      // lire les siennes, jamais les modifier ou les supprimer une fois
-      // envoyées (seule la validation manuelle change leur statut, côté
-      // "stores/{storeId}" directement).
-      match /payment_requests/{paymentId} {
-        allow create: if request.auth != null
-                        && request.auth.uid == storeId
-                        && request.resource.data.storeId == storeId
-                        && request.resource.data.statut == 'en_attente';
-        allow read: if request.auth != null && request.auth.uid == storeId;
-        allow update, delete: if false;
-      }
+    function numeroDepuisEmailTechnique() {
+      return (request.auth!= null
+              && 'email' in request.auth.token
+              && request.auth.token.email.split('@').size() == 2
+              && request.auth.token.email.split('@')[1] == 'elbouni.local')
+        ? request.auth.token.email.split('@')[0]
+        : null;
     }
 
-    // Un magasin a accès aux demandes si son identité est validée et que
-    // son essai gratuit ou son abonnement payé est toujours en cours.
-    function subscriptionValide(uid) {
-      let store = get(/databases/$(database)/documents/stores/$(uid)).data;
+    function numeroClientDepuisEmail() {
+      return (request.auth!= null
+              && 'email' in request.auth.token
+              && request.auth.token.email.split('@').size() == 2
+              && request.auth.token.email.split('@')[1] == 'vroumclient.local')
+        ? request.auth.token.email.split('@')[0]
+        : null;
+    }
+
+    function numeroDepanneuseDepuisEmail() {
+      return (request.auth!= null
+              && 'email' in request.auth.token
+              && request.auth.token.email.split('@').size() == 2
+              && request.auth.token.email.split('@')[1] == 'vroumdep.local')
+        ? request.auth.token.email.split('@')[0]
+        : null;
+    }
+
+    // Numéro rattaché via un custom claim (posé par la Cloud Function
+    // attacherEmailRecuperationTelephone au moment où l'email technique
+    // "@elbouni.local"/"@vroumclient.local" est remplacé par un vrai
+    // email de récupération). Sans ça, numeroDepuisEmailTechnique() et
+    // numeroClientDepuisEmail() ne matchent plus jamais après une
+    // récupération de mot de passe, car le domaine de l'email a changé —
+    // ce claim survit à ce changement d'email.
+    function storeIdFromClaim() {
+      return request.auth != null ? request.auth.token.get('storeId', null) : null;
+    }
+
+    function buyerIdFromClaim() {
+      return request.auth != null ? request.auth.token.get('buyerId', null) : null;
+    }
+
+    function currentUserIds() {
+      return [
+        request.auth.uid,
+        numeroDepuisEmailTechnique(),
+        numeroClientDepuisEmail(),
+        storeIdFromClaim(),
+        buyerIdFromClaim()
+      ];
+    }
+
+    function isDepanneuseOwner(depanneuseId) {
+      return request.auth!= null
+        && (request.auth.uid == depanneuseId
+            || numeroDepanneuseDepuisEmail() == depanneuseId);
+    }
+
+    function isOwner(storeId) {
+      return request.auth!= null
+        && (request.auth.uid == storeId
+            || numeroDepuisEmailTechnique() == storeId
+            || storeIdFromClaim() == storeId);
+    }
+
+    function isRequestOwnerData(data) {
+      return data.clientId in currentUserIds();
+    }
+
+    function isParentRequestOwner(requestId) {
+      let parent = get(/databases/$(database)/documents/part_requests/$(requestId)).data;
+      return parent.clientId in currentUserIds();
+    }
+
+    function subscriptionValide(storeId) {
+      let store = get(/databases/$(database)/documents/stores/$(storeId)).data;
       return store.actif == true
         && (
-          (store.subscriptionStatus == 'essai'
-            && store.trialEndDate > request.time)
-          || (store.subscriptionStatus == 'actif'
-            && store.get('subscriptionEndDate', request.time) > request.time)
+          (store.subscriptionStatus == 'essai' && store.trialEndDate > request.time)
+          || (store.subscriptionStatus == 'actif' && store.get('subscriptionEndDate', request.time) > request.time)
         );
+    }
+
+    // NOUVEAU — un compte magasin réel, quel que soit le mécanisme d'auth
+    // utilisé (uid direct, email technique, ou custom claim storeId).
+    // Sert à autoriser la navigation dans les demandes ouvertes sans pour
+    // autant laisser n'importe quel compte anonyme les lire : l'app
+    // utilise signInAnonymously() ailleurs (SOS, connexion acheteur), donc
+    // "request.auth != null" seul ne suffit pas à filtrer un scraper.
+    function isRegisteredStore() {
+      return request.auth != null
+        && (exists(/databases/$(database)/documents/stores/$(request.auth.uid))
+            || (numeroDepuisEmailTechnique() != null
+                && exists(/databases/$(database)/documents/stores/$(numeroDepuisEmailTechnique())))
+            || (storeIdFromClaim() != null
+                && exists(/databases/$(database)/documents/stores/$(storeIdFromClaim()))));
+    }
+
+    // NOUVEAU — même principe côté dépanneuse.
+    function isRegisteredDepanneuse() {
+      return request.auth != null
+        && (exists(/databases/$(database)/documents/depanneuses/$(request.auth.uid))
+            || (numeroDepanneuseDepuisEmail() != null
+                && exists(/databases/$(database)/documents/depanneuses/$(numeroDepanneuseDepuisEmail()))));
+    }
+
+    // Demandes de pièces
+    match /part_requests/{requestId} {
+      // AVANT : allow read: if true (n'importe qui, sans compte, pouvait
+      // tout lire, y compris les photos). Désormais : admin, le client
+      // propriétaire, ou un magasin enregistré (nécessaire tant qu'il n'y
+      // a pas de filtre catégorie/proximité côté requête).
+      allow read: if isAdmin() || isRequestOwnerData(resource.data) || isRegisteredStore();
+      allow create: if request.auth!= null
+                    && request.resource.data.statut == 'open'
+                    && request.resource.data.clientId in currentUserIds();
+      allow update: if isAdmin()
+                    || (isRequestOwnerData(resource.data)
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['statut', 'soldToStoreId', 'soldToStoreNom', 'dateVente'])
+                        && request.resource.data.statut in ['closed', 'vendu']);
+      allow delete: if isAdmin() || isRequestOwnerData(resource.data);
+
+      match /offers/{offerId} {
+        // AVANT : allow read: if true — exposait storeTel + prix de TOUS
+        // les magasins à tout le monde, sans compte. Désormais : la même
+        // logique que allow delete juste en dessous (admin, le magasin
+        // auteur de l'offre, ou le client propriétaire de la demande).
+        allow read: if isAdmin() || isOwner(offerId) || isParentRequestOwner(requestId);
+        allow create, update: if isAdmin() || (isOwner(offerId) && subscriptionValide(offerId));
+        allow delete: if isAdmin() || isOwner(offerId) || isParentRequestOwner(requestId);
+      }
+    }
+
+    // Comptes magasins
+    match /stores/{storeId} {
+      allow create: if isOwner(storeId)
+                      && request.resource.data.actif == false
+                      && request.resource.data.subscriptionStatus == 'essai';
+      allow read: if isAdmin() || isOwner(storeId);
+      allow update: if isAdmin()
+                    || (isOwner(storeId)
+                        && request.resource.data.actif == resource.data.actif
+                        && request.resource.data.subscriptionStatus == resource.data.subscriptionStatus
+                        && request.resource.data.trialEndDate == resource.data.trialEndDate
+                        && request.resource.data.get('subscriptionEndDate', null) == resource.data.get('subscriptionEndDate', null)
+                        && request.resource.data.get('currentPlanId', null) == resource.data.get('currentPlanId', null));
+      allow delete: if isAdmin();
+
+      match /payment_requests/{paymentId} {
+        allow create: if isOwner(storeId)
+                        && request.resource.data.storeId == storeId
+                        && request.resource.data.statut == 'en_attente';
+        allow read: if isAdmin() || isOwner(storeId);
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // Alertes SOS (bouton panne)
+    match /sos_alerts/{alertId} {
+      // AVANT : allow read: if true — exposait le téléphone ET la
+      // position GPS exacte de la personne en panne à n'importe qui, sans
+      // compte (le point le plus sensible de tout l'audit). Désormais :
+      // admin, le client auteur de l'alerte, toute dépanneuse enregistrée
+      // tant que l'alerte est 'ouverte' (nécessaire pour qu'elle apparaisse
+      // dans les dashboards), et la dépanneuse qui a accepté une fois le
+      // statut passé à 'acceptee'/'arrivee'.
+      allow read: if isAdmin()
+                  || isRequestOwnerData(resource.data)
+                  || (isRegisteredDepanneuse() && resource.data.statut == 'ouverte')
+                  || isDepanneuseOwner(resource.data.acceptedByDepanneuseId);
+      allow create: if request.auth!= null
+                    && request.resource.data.statut == 'ouverte'
+                    && request.resource.data.clientId in currentUserIds();
+      // Une dépanneuse active peut accepter une alerte ouverte : elle ne
+      // peut modifier que les champs d'acceptation, jamais en écraser une
+      // déjà acceptée par une autre dépanneuse. L'auteur de l'alerte peut
+      // seulement l'annuler. Une fois acceptée, seule la dépanneuse qui a
+      // accepté peut confirmer son arrivée sur place.
+      allow update: if isAdmin()
+                    || (isRequestOwnerData(resource.data)
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['statut'])
+                        && request.resource.data.statut == 'annulee')
+                    || (request.auth!= null
+                        && resource.data.statut == 'ouverte'
+                        && request.resource.data.statut == 'acceptee'
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['statut', 'acceptedByDepanneuseId', 'acceptedByDepanneuseNom', 'acceptedByDepanneuseTel', 'dateAcceptation']))
+                    || (isDepanneuseOwner(resource.data.acceptedByDepanneuseId)
+                        && resource.data.statut == 'acceptee'
+                        && request.resource.data.statut == 'arrivee'
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['statut', 'dateArrivee']));
+      allow delete: if isAdmin();
+    }
+
+    // Comptes dépanneuses (accès caché, même mécanisme que les magasins)
+    match /depanneuses/{depanneuseId} {
+      allow create: if isDepanneuseOwner(depanneuseId)
+                      && request.resource.data.actif == false;
+      allow read: if isAdmin() || isDepanneuseOwner(depanneuseId);
+      allow update: if isAdmin()
+                    || (isDepanneuseOwner(depanneuseId)
+                        && request.resource.data.actif == resource.data.actif);
+      allow delete: if isAdmin();
     }
   }
 }

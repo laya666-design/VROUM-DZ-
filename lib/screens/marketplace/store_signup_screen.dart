@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/google_signin_button.dart';
 import '../../config/app_config.dart';
 import '../../services/store_service.dart';
 
@@ -19,6 +20,7 @@ class _StoreSignupScreenState extends State<StoreSignupScreen> {
   final _passwordController = TextEditingController();
   bool _loading = false;
   String? _error;
+  bool _googleLoading = false;
 
   Future<void> _signup() async {
     setState(() {
@@ -63,6 +65,23 @@ class _StoreSignupScreenState extends State<StoreSignupScreen> {
     }
   }
 
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _googleLoading = true;
+      _error = null;
+    });
+    try {
+      await StoreService.signInWithGoogle();
+      if (!mounted) return;
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => MagasinShellScreen(config: widget.config)));
+    } catch (e) {
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,6 +111,15 @@ class _StoreSignupScreenState extends State<StoreSignupScreen> {
                 controller: _adresseController,
                 decoration: const InputDecoration(labelText: 'Adresse'),
               ),
+              const SizedBox(height: 4),
+              const Padding(
+                padding: EdgeInsets.only(left: 4),
+                child: Text(
+                  'On te demandera l\'accès à ta position pour situer ton '
+                  'magasin sur la carte auprès des clients.',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: _emailController,
@@ -109,6 +137,8 @@ class _StoreSignupScreenState extends State<StoreSignupScreen> {
                 const SizedBox(height: 12),
                 Text(_error!, style: const TextStyle(color: Colors.red)),
               ],
+              const OrDivider(),
+              GoogleSignInButton(onPressed: _googleLoading || _loading ? null : _signInWithGoogle, isLoading: _googleLoading, accentColor: widget.config.primaryColor),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: _loading ? null : _signup,

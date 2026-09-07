@@ -1,5 +1,5 @@
 name: el_bouni_pieces_auto
-description: El Bouni Pièces Auto. Assurance OCR + Pièces auto El Bouni.
+description: VROUM DZ. Assurance OCR + Pièces auto Annaba/El Bouni.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -28,12 +28,41 @@ dependencies:
     sdk: flutter
   google_mlkit_text_recognition: ^0.13.1
   image_picker: ^0.8.7+5
+  # Note vocale sur le scanner pièce : enregistrement (record) et
+  # lecture côté magasin (audioplayers).
+  record: ^5.1.2
+  audioplayers: ^6.1.0
+  path_provider: ^2.1.4
   url_launcher: ^6.1.14
+  # Géolocalisation réelle des magasins (position GPS à l'inscription) et
+  # calcul de distance côté acheteur.
+  geolocator: ^13.0.1
   cupertino_icons: ^1.0.6
+  video_player: ^2.9.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.3
+
+# record 5.x tire record_linux 0.7.2, incompatible avec
+# record_platform_interface (manque startStream / hasPermission).
+# Sans ce override, `flutter build apk` échoue même pour Android
+# car Flutter compile le code Dart de toutes les plateformes.
+dependency_overrides:
+  record_linux: ^1.1.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icon/
+    - assets/video/

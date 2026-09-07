@@ -5,6 +5,9 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'firebase_options.dart';
 import 'config/app_config.dart';
 import 'screens/home_screen.dart';
+import 'screens/onboarding_profile_screen.dart';
+import 'screens/splash_screen.dart';
+import 'theme/app_theme.dart';
 import 'services/notification_service.dart';
 import 'services/store_service.dart';
 import 'services/vehicule_service.dart';
@@ -32,6 +35,43 @@ void main() async {
   runApp(const AjalakApp());
 }
 
+/// Vide les SnackBars affichés à chaque changement d'écran.
+/// Sans ça, un SnackBar (ex: "Demande envoyée aux magasins.") reste visible
+/// et suit l'utilisateur sur les écrans suivants tant que son délai n'est
+/// pas écoulé, car un seul ScaffoldMessenger est partagé par toute l'app.
+class _ClearSnackBarsOnNavigate extends NavigatorObserver {
+  void _clear() {
+    final context = navigator?.context;
+    if (context != null) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+    }
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    _clear();
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    _clear();
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didRemove(route, previousRoute);
+    _clear();
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    _clear();
+  }
+}
+
 class AjalakApp extends StatefulWidget {
   const AjalakApp({super.key});
   @override
@@ -40,6 +80,13 @@ class AjalakApp extends StatefulWidget {
 
 class _AjalakAppState extends State<AjalakApp> {
   final ValueNotifier<bool> isAr = ValueNotifier(false);
+  late bool _profileChosen = SettingsService.hasChosenVehicleProfile;
+  final _navigatorObserver = _ClearSnackBarsOnNavigate();
+
+  Future<void> _chooseProfile(String value) async {
+    await SettingsService.setVehicleProfile(value);
+    setState(() => _profileChosen = true);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +97,7 @@ class _AjalakAppState extends State<AjalakApp> {
         return MaterialApp(
           title: config.appName,
           debugShowCheckedModeBanner: false,
+          navigatorObservers: [_navigatorObserver],
           // Bug corrigé : la locale n'était jamais transmise au MaterialApp,
           // donc seuls les libellés traduits à la main changeaient, pas les
           // widgets système (dates, etc.) ni la direction par défaut.
@@ -60,14 +108,10 @@ class _AjalakAppState extends State<AjalakApp> {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: const [Locale('fr'), Locale('ar')],
-          theme: ThemeData(
-            useMaterial3: true,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: config.primaryColor,
-              primary: config.primaryColor,
-            ),
-          ),
-          home: HomeScreen(config: config, isAr: isAr),
+          theme: AppTheme.light(config),
+          // Splash vidéo de la roue qui tourne (plein écran) au lancement,
+          // puis on enchaîne vers l'onboarding ou l'accueil selon le profil.
+          home: SplashScreen(config: config, isAr: isAr),
         );
       },
     );

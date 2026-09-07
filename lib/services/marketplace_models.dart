@@ -8,6 +8,13 @@ class PartRequest {
   final String reference;
   final List<String> compatibilite;
   final String photoUrl;
+  // Note vocale optionnelle enregistrée avec la photo, pour préciser au
+  // magasin un détail que la photo seule ne montre pas (côté gauche/droit,
+  // version moteur exacte...). Null si le client n'a pas enregistré de note.
+  final String? noteVocaleUrl;
+  /// Catégorie de la pièce (voir [kPartCategories] / detecterCategorie).
+  /// Les anciennes demandes sans ce champ sont lues comme 'autre'.
+  final String categorie;
   final String statut; // 'open' | 'vendu' | 'closed'
   final DateTime dateCreation;
   final String? soldToStoreId;
@@ -21,6 +28,8 @@ class PartRequest {
     required this.reference,
     required this.compatibilite,
     required this.photoUrl,
+    this.noteVocaleUrl,
+    this.categorie = 'autre',
     required this.statut,
     required this.dateCreation,
     this.soldToStoreId,
@@ -30,6 +39,8 @@ class PartRequest {
 
   bool get estVendue => statut == 'vendu';
   bool get estOuverte => statut == 'open';
+  bool get aUneNoteVocale =>
+      noteVocaleUrl != null && noteVocaleUrl!.isNotEmpty;
 
   factory PartRequest.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
@@ -43,6 +54,8 @@ class PartRequest {
               .toList() ??
           const [],
       photoUrl: d['photoUrl']?.toString() ?? '',
+      noteVocaleUrl: d['noteVocaleUrl']?.toString(),
+      categorie: d['categorie']?.toString() ?? 'autre',
       statut: d['statut']?.toString() ?? 'open',
       dateCreation: (d['dateCreation'] as Timestamp?)?.toDate() ??
           DateTime.now(),
@@ -58,6 +71,8 @@ class PartRequest {
         'reference': reference,
         'compatibilite': compatibilite,
         'photoUrl': photoUrl,
+        if (noteVocaleUrl != null) 'noteVocaleUrl': noteVocaleUrl,
+        'categorie': categorie,
         'statut': statut,
         'dateCreation': FieldValue.serverTimestamp(),
       };
@@ -72,6 +87,15 @@ class PartOffer {
   final num prix;
   final String stock; // ex: "En stock", "2-3 jours"
   final String message;
+  // Note vocale optionnelle jointe par le magasin (ex: précision sur
+  // l'état de la pièce, alternative disponible...). Null si absente.
+  final String? noteVocaleUrl;
+  // Position GPS réelle du magasin au moment de sa dernière mise à jour de
+  // position (recopiée depuis son StoreProfile), pour que l'acheteur voie
+  // où se trouve le magasin directement depuis la réponse, sans requête
+  // supplémentaire. Null si le magasin n'a pas encore de position connue.
+  final double? storeLat;
+  final double? storeLng;
   final DateTime dateReponse;
 
   PartOffer({
@@ -82,8 +106,16 @@ class PartOffer {
     required this.prix,
     required this.stock,
     required this.message,
+    this.noteVocaleUrl,
+    this.storeLat,
+    this.storeLng,
     required this.dateReponse,
   });
+
+  bool get aUnePosition => storeLat != null && storeLng != null;
+
+  bool get aUneNoteVocale =>
+      noteVocaleUrl != null && noteVocaleUrl!.isNotEmpty;
 
   factory PartOffer.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
@@ -95,6 +127,9 @@ class PartOffer {
       prix: (d['prix'] is num) ? d['prix'] as num : 0,
       stock: d['stock']?.toString() ?? '',
       message: d['message']?.toString() ?? '',
+      noteVocaleUrl: d['noteVocaleUrl']?.toString(),
+      storeLat: (d['storeLat'] as num?)?.toDouble(),
+      storeLng: (d['storeLng'] as num?)?.toDouble(),
       dateReponse:
           (d['dateReponse'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -107,6 +142,10 @@ class PartOffer {
         'prix': prix,
         'stock': stock,
         'message': message,
+        if (noteVocaleUrl != null && noteVocaleUrl!.isNotEmpty)
+          'noteVocaleUrl': noteVocaleUrl,
+        if (storeLat != null) 'storeLat': storeLat,
+        if (storeLng != null) 'storeLng': storeLng,
         'dateReponse': FieldValue.serverTimestamp(),
       };
 }
@@ -156,6 +195,15 @@ class StoreProfile {
   final DateTime? trialEndDate;
   final DateTime? subscriptionEndDate;
   final String? currentPlanId; // dernier forfait payé (voir kSubscriptionPlans)
+  // Position GPS réelle du magasin (capturée à l'inscription, ou mise à
+  // jour ensuite depuis le dashboard). Null tant qu'elle n'a jamais été
+  // renseignée (permission refusée à l'inscription, par ex.).
+  final double? latitude;
+  final double? longitude;
+  /// Spécialités du magasin (ids de [kPartCategories]). Obligatoire ≥ 1.
+  final List<String> categories;
+  /// Précision libre si « autre » est coché. Null sinon.
+  final String? categorieAutre;
 
   StoreProfile({
     required this.uid,
@@ -168,7 +216,15 @@ class StoreProfile {
     this.trialEndDate,
     this.subscriptionEndDate,
     this.currentPlanId,
+    this.latitude,
+    this.longitude,
+    this.categories = const [],
+    this.categorieAutre,
   });
+
+  bool get aUnePosition => latitude != null && longitude != null;
+
+  bool get aDesCategories => categories.isNotEmpty;
 
   /// Identifiant court du magasin à afficher dans l'app (support/admin).
   String get idCourt => uid.length > 6 ? uid.substring(0, 6).toUpperCase() : uid.toUpperCase();
@@ -212,6 +268,13 @@ class StoreProfile {
       trialEndDate: (d['trialEndDate'] as Timestamp?)?.toDate(),
       subscriptionEndDate: (d['subscriptionEndDate'] as Timestamp?)?.toDate(),
       currentPlanId: d['currentPlanId']?.toString(),
+      latitude: (d['latitude'] as num?)?.toDouble(),
+      longitude: (d['longitude'] as num?)?.toDouble(),
+      categories: (d['categories'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      categorieAutre: d['categorieAutre']?.toString(),
     );
   }
 
@@ -227,6 +290,11 @@ class StoreProfile {
         if (subscriptionEndDate != null)
           'subscriptionEndDate': Timestamp.fromDate(subscriptionEndDate!),
         if (currentPlanId != null) 'currentPlanId': currentPlanId,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+        'categories': categories,
+        if (categorieAutre != null && categorieAutre!.isNotEmpty)
+          'categorieAutre': categorieAutre,
       };
 }
 

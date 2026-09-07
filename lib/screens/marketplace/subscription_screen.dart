@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_config.dart';
@@ -311,6 +312,51 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ],
                   onChanged: (v) => setState(() => _methode = v ?? 'Baridimob'),
                 ),
+                if (_methode == 'Baridimob') ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.blue.shade100),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.phone_iphone, color: Colors.blueGrey),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Envoie le montant sur ce numéro BaridiMob :',
+                                style: TextStyle(fontSize: 12, color: Colors.black54),
+                              ),
+                              Text(
+                                widget.config.baridimobPhone,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.copy, size: 20),
+                          tooltip: 'Copier le numéro',
+                          onPressed: () async {
+                            await Clipboard.setData(
+                                ClipboardData(text: widget.config.baridimobPhone));
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Numéro copié.')),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: _choisirRecu,
