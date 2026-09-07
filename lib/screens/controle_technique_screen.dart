@@ -136,9 +136,19 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
         );
       }
 
-      await _saveToVehicule();
+      try {
+        await _saveToVehicule();
+      } catch (_) {
+        // Rappels locaux (exact alarms) ne doivent pas masquer un OCR réussi.
+      }
     } catch (e) {
-      _error = _t('Erreur de lecture de l\'image : $e', 'خطأ في قراءة الصورة: $e');
+      final msg = e.toString();
+      if (!msg.contains('exact_alarms') && !msg.contains('Exact alarms')) {
+        _error = _t(
+          'Erreur de lecture de l\'image. Reprends la photo bien cadrée.',
+          'خطأ في قراءة الصورة. أعد التقاط الصورة بإطار جيد.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

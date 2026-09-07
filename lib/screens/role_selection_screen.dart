@@ -187,18 +187,6 @@ class RoleSelectionScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      t(
-                        'Ce choix est définitif pour ce compte',
-                        'هذا الاختيار نهائي لهذا الحساب',
-                      ),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
                     const SizedBox(height: 8),
                   ],
                 ),

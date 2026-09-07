@@ -134,9 +134,21 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
         _info = InsuranceInfo();
       }
 
-      await _saveToVehicule();
+      try {
+        await _saveToVehicule();
+      } catch (_) {
+        // Sauvegarde / rappels locaux (exact alarms) ne doivent jamais
+        // afficher une erreur rouge si l'OCR a déjà réussi.
+      }
     } catch (e) {
-      _error = _t('Erreur de lecture de l\'image : $e', 'خطأ في قراءة الصورة: $e');
+      // N'affiche le bandeau rouge que pour une vraie échec de lecture OCR.
+      final msg = e.toString();
+      if (!msg.contains('exact_alarms') && !msg.contains('Exact alarms')) {
+        _error = _t(
+          'Erreur de lecture de l\'image. Reprends la photo bien cadrée.',
+          'خطأ في قراءة الصورة. أعد التقاط الصورة بإطار جيد.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

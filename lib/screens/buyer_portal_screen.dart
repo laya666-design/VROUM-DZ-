@@ -134,6 +134,17 @@ class _BuyerPortalScreenState extends State<BuyerPortalScreen> {
         backgroundColor: widget.config.primaryColor,
         foregroundColor: Colors.white,
         title: Text(_t('Portail acheteur', 'بوابة المشتري')),
+        leading: IconButton(
+          tooltip: _t('Menu principal', 'القائمة الرئيسية'),
+          icon: const Icon(Icons.home_outlined),
+          onPressed: () {
+            // Remonte vers le menu principal (Home) s'il est dans la pile,
+            // sinon ferme simplement cet écran.
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+          },
+        ),
         actions: [
           IconButton(
             tooltip: _t('Mes demandes', 'طلباتي'),
