@@ -3,7 +3,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_config.dart';
 import '../../services/sos_models.dart';
 import '../../services/sos_service.dart';
+import '../role_selection_screen.dart';
 import 'depanneuse_alert_accepted_screen.dart';
+import 'depanneuse_auth_screen.dart';
 
 /// Tableau de bord dépanneuse : liste des alertes SOS ouvertes dans sa
 /// wilaya, avec bouton "J'y vais" pour accepter (affiche alors le
@@ -115,10 +117,45 @@ class _DepanneuseDashboardScreenState
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(
-                  SosService.friendlyError(profileSnap.error!),
-                  style: const TextStyle(color: Colors.red),
-                  textAlign: TextAlign.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      SosService.friendlyError(profileSnap.error!),
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) => DepanneuseAuthScreen(
+                              config: widget.config,
+                            ),
+                          ),
+                          (_) => false,
+                        );
+                      },
+                      icon: const Icon(Icons.login),
+                      label: const Text('Se reconnecter'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) => RoleSelectionScreen(
+                              config: widget.config,
+                              isAr: ValueNotifier<bool>(false),
+                            ),
+                          ),
+                          (_) => false,
+                        );
+                      },
+                      child: const Text('Menu principal'),
+                    ),
+                  ],
                 ),
               ),
             );
