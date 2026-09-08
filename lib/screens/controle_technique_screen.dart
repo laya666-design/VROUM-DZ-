@@ -89,7 +89,11 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
       _info = null;
     });
 
-    final picked = await _picker.pickImage(source: source, imageQuality: 90);
+    final picked = await _picker.pickImage(
+      source: source,
+      imageQuality: 70,
+      maxWidth: 1600,
+    );
     if (picked == null) return;
 
     final file = File(picked.path);
@@ -99,8 +103,8 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
     });
 
     try {
-      // Règle métier CT : extraire TOUTES les dates (OCR local), prendre
-      // la plus récente = date de prochaine visite périodique.
+      // Règle métier CT : extraire TOUTES les dates + motifs VISITE
+      // PERIODIQUE, prendre la plus récente de l'ensemble.
       // Gemini ne sert qu'au complément (centre, numéro, km).
       final rawText = await _ocr.extractText(file);
       final expiration = OcrService.extractDateVisitePeriodique(rawText);

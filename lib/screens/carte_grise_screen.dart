@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../config/app_config.dart';
 import '../services/gemini_service.dart';
 import '../services/models.dart';
+import '../services/ocr_service.dart';
 import '../services/vehicule.dart';
 import '../services/vehicule_service.dart';
 
@@ -50,6 +51,7 @@ class CarteGriseScreen extends StatefulWidget {
 class _CarteGriseScreenState extends State<CarteGriseScreen> {
   final _picker = ImagePicker();
   final _gemini = GeminiService();
+  final _ocr = OcrService();
 
   File? _image;
   bool _loading = false;
@@ -59,6 +61,12 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   bool get _modeCreation => widget.vehicule == null;
 
   String _t(String fr, String ar) => widget.isAr ? ar : fr;
+
+  @override
+  void dispose() {
+    _ocr.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -79,15 +87,21 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     }
   }
 
+  String _nomDepuis(CarteGriseInfo info) {
+    final parts = <String>[];
+    if (info.marque.trim().isNotEmpty) parts.add(info.marque.trim());
+    final modele = info.modele.trim();
+    if (modele.isNotEmpty &&
+        modele.toLowerCase() != 'null' &&
+        modele.toLowerCase() != info.marque.toLowerCase()) {
+      parts.add(modele);
+    }
+    return parts.join(' ').trim();
+  }
+
   Future<void> _appliquerScan(CarteGriseInfo info) async {
     if (_modeCreation) {
-      // Mode création : construit et sauvegarde un nouveau véhicule à
-      // partir du scan. Le nom affiché = "Marque Modèle" si détectés,
-      // sinon un nom générique pour ne jamais bloquer l'utilisateur.
-      final nomDetecte = [info.marque, info.modele]
-          .where((s) => s.trim().isNotEmpty)
-          .join(' ')
-          .trim();
+      final nomDetecte = _nomDepuis(info);
       final v = Vehicule(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         nom: nomDetecte.isNotEmpty
@@ -109,18 +123,10 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
       return;
     }
 
-    // Mode mise à jour : le scan de la carte grise fait foi.
-    // On écrase systématiquement les champs détectés (marque, châssis, etc.)
-    // pour corriger une identification précédente erronée (ex: Toyota lu
-    // comme Renault). Seuls les champs absents du nouveau scan sont conservés.
     final v = widget.vehicule!;
     if (info.marque.isNotEmpty) {
       v.marque = info.marque;
-      // Met à jour aussi le nom affiché si on a une marque (et éventuellement modèle)
-      final nomDetecte = [info.marque, info.modele]
-          .where((s) => s.trim().isNotEmpty)
-          .join(' ')
-          .trim();
+      final nomDetecte = _nomDepuis(info);
       if (nomDetecte.isNotEmpty) v.nom = nomDetecte;
     }
     if (info.chassis.isNotEmpty) v.chassisNumber = info.chassis;
@@ -136,13 +142,61 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     await VehiculeService.update(v);
   }
 
+  /// Déduit la marque à partir du préfixe chassis (WMI / code type DZ).
+  String? _marqueFromChassis(String chassis) {
+    final c = chassis.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    if (c.length < 3) return null;
+    final p3 = c.substring(0, 3);
+    final p2 = c.substring(0, 2);
+    if (p2 == 'JT' || p3 == 'NCP' || p3 == 'NSP' || p3 == 'NZE' || p3 == 'ZZE') {
+      return 'TOYOTA';
+    }
+    if (p3 == 'VF1') return 'RENAULT';
+    if (p3 == 'VF3') return 'PEUGEOT';
+    if (p3 == 'VF7') return 'CITROEN';
+    if (p2 == 'WV' || p3 == 'WVW' || p3 == 'WVG') return 'VOLKSWAGEN';
+    if (p3 == 'WDB' || p3 == 'WDD' || p3 == 'WDC') return 'MERCEDES';
+    if (p3 == 'WBA' || p3 == 'WBS') return 'BMW';
+    if (p3 == 'KMH' || p3 == 'U5Y' || p3 == 'TMA') return 'HYUNDAI';
+    if (p3 == 'U5Z' || p2 == 'KN') return 'KIA';
+    if (p3 == 'UU1') return 'DACIA';
+    return null;
+  }
+
+  /// Secours local : OCR ML Kit + détection marque arabe/latin + WMI chassis.
+  Future<CarteGriseInfo?> _fallbackLocal(File file) async {
+    try {
+      final raw = await _ocr.extractText(file);
+      if (raw.trim().isEmpty) return null;
+      var marque = OcrService.detectMarqueLocale(raw) ?? '';
+      final chassisMatch = RegExp(r'\b([A-HJ-NPR-Z0-9]{11,17})\b')
+          .firstMatch(raw.toUpperCase());
+      final chassis = chassisMatch?.group(1) ?? '';
+      if (marque.isEmpty && chassis.isNotEmpty) {
+        marque = _marqueFromChassis(chassis) ?? '';
+      }
+      if (marque.isEmpty && chassis.isEmpty) return null;
+      return CarteGriseInfo(
+        marque: marque,
+        chassis: chassis,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     setState(() {
       _error = null;
       _info = null;
     });
 
-    final picked = await _picker.pickImage(source: source, imageQuality: 90);
+    // Image plus légère → moins de tokens ITPM Groq (rate limit).
+    final picked = await _picker.pickImage(
+      source: source,
+      imageQuality: 55,
+      maxWidth: 1280,
+    );
     if (picked == null) return;
 
     final file = File(picked.path);
@@ -154,15 +208,41 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     try {
       final json = await _gemini.analyzeCarteGrise(file);
       if (json.containsKey('error')) {
-        _error = _t('Erreur : ${json['error']}', 'خطأ: ${json['error']}');
+        // Secours OCR local si l'IA est saturée / en erreur.
+        final local = await _fallbackLocal(file);
+        if (local != null && !local.estVide) {
+          _info = local;
+          await _appliquerScan(local);
+          _error = null;
+        } else {
+          _error = _t('Erreur : ${json['error']}', 'خطأ: ${json['error']}');
+        }
       } else {
-        final info = CarteGriseInfo.fromJson(json);
+        var info = CarteGriseInfo.fromJson(json);
+        // Si l'IA n'a pas trouvé la marque, complète avec OCR local.
+        if (info.marque.isEmpty) {
+          final local = await _fallbackLocal(file);
+          if (local != null && local.marque.isNotEmpty) {
+            info = CarteGriseInfo(
+              marque: local.marque,
+              modele: info.modele,
+              type: info.type,
+              annee: info.annee,
+              chassis: info.chassis.isNotEmpty ? info.chassis : local.chassis,
+              puissanceFiscale: info.puissanceFiscale,
+              immatriculation: info.immatriculation,
+              engineCode: info.engineCode,
+              fuelType: info.fuelType,
+            );
+          }
+        }
         if (info.estVide) {
           _error = _t(
             'Aucune information reconnue sur cette photo. '
-                'Reprends la photo bien cadrée sur la carte grise.',
-            'لم يتم التعرف على أي معلومة في هذه الصورة. '
-                'أعد التقاط الصورة مع تأطير جيد للبطاقة الرمادية.',
+                'Reprends la photo bien cadrée sur le TABLEAU DU BAS '
+                '(case الصنف / MARQUE).',
+            'لم يتم التعرف على أي معلومة. أعد التقاط الصورة مع تأطير '
+                'الجدول السفلي (خانة الصنف / الماركة).',
           );
         } else {
           _info = info;
@@ -170,7 +250,13 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
         }
       }
     } catch (e) {
-      _error = _t('Erreur d\'analyse : $e', 'خطأ في التحليل: $e');
+      final local = await _fallbackLocal(file);
+      if (local != null && !local.estVide) {
+        _info = local;
+        await _appliquerScan(local);
+      } else {
+        _error = _t('Erreur d\'analyse : $e', 'خطأ في التحليل: $e');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
