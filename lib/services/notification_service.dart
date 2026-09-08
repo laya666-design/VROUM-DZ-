@@ -28,14 +28,38 @@ class NotificationService {
     await _plugin.initialize(settings);
 
     // Android 13+ : demande explicite de la permission de notifier.
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestExactAlarmsPermission();
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.requestNotificationsPermission();
+    await androidPlugin?.requestExactAlarmsPermission();
+
+    // Canal dédié SOS / dépanneuse : Importance.max + son + vibration.
+    // Sans ça, Android (surtout Xiaomi/Oppo/Huawei) peut silence ou
+    // retarder la notif quand le téléphone est en poche / écran éteint.
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'sos_alerts',
+        'Alertes SOS dépanneuse',
+        description:
+            'Alertes panne urgentes — doit sonner même téléphone en poche',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+        showBadge: true,
+      ),
+    );
+
+    // Canal générique pour les alertes marketplace (demandes de pièces).
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'instant_alerts',
+        'Alertes immédiates',
+        description: 'Nouvelles demandes, nouvelles réponses marketplace',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+      ),
+    );
   }
 
   /// ID déterministe et stable pour un couple (véhicule, type de rappel,
@@ -143,6 +167,29 @@ class NotificationService {
       priority: Priority.high,
       playSound: true,
       enableVibration: true,
+    );
+    const details = NotificationDetails(android: androidDetails);
+    await _plugin.show(id, title, body, details);
+  }
+
+  /// Alerte SOS urgente (dépanneuse) — Importance.max pour réveiller
+  /// le téléphone même en poche / Doze / optimisation batterie.
+  static Future<void> showSos({
+    required String title,
+    required String body,
+    int id = 99901,
+  }) async {
+    const androidDetails = AndroidNotificationDetails(
+      'sos_alerts',
+      'Alertes SOS dépanneuse',
+      channelDescription:
+          'Alertes panne urgentes — doit sonner même téléphone en poche',
+      importance: Importance.max,
+      priority: Priority.max,
+      playSound: true,
+      enableVibration: true,
+      fullScreenIntent: true, // tente d'afficher même écran verrouillé
+      category: AndroidNotificationCategory.alarm,
     );
     const details = NotificationDetails(android: androidDetails);
     await _plugin.show(id, title, body, details);
