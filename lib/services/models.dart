@@ -95,18 +95,28 @@ class CarteGriseInfo {
     this.fuelType = '',
   });
 
+  /// Nettoie les valeurs JSON null / "null" / "undefined" renvoyées
+  /// par le modèle IA (évite le nom affiché "TOYOTA null").
+  static String _clean(dynamic v) {
+    final s = v?.toString().trim() ?? '';
+    if (s.isEmpty) return '';
+    final lower = s.toLowerCase();
+    if (lower == 'null' || lower == 'undefined' || lower == 'none') return '';
+    return s;
+  }
+
   factory CarteGriseInfo.fromJson(Map<String, dynamic>? json) {
     if (json == null) return CarteGriseInfo();
     return CarteGriseInfo(
-      marque: json['marque']?.toString() ?? '',
-      modele: json['modele']?.toString() ?? '',
-      type: json['type']?.toString() ?? '',
-      annee: int.tryParse(json['annee']?.toString() ?? ''),
-      chassis: json['chassis']?.toString() ?? '',
-      puissanceFiscale: json['puissance_fiscale']?.toString() ?? '',
-      immatriculation: json['immatriculation']?.toString() ?? '',
-      engineCode: json['engine_code']?.toString() ?? '',
-      fuelType: json['fuel_type']?.toString() ?? '',
+      marque: _clean(json['marque']).toUpperCase(),
+      modele: _clean(json['modele']),
+      type: _clean(json['type']),
+      annee: int.tryParse(_clean(json['annee'])),
+      chassis: _clean(json['chassis']).toUpperCase(),
+      puissanceFiscale: _clean(json['puissance_fiscale']),
+      immatriculation: _clean(json['immatriculation']),
+      engineCode: _clean(json['engine_code']),
+      fuelType: _clean(json['fuel_type']),
     );
   }
 

@@ -14,6 +14,9 @@ class GeminiService {
     File file, {
     String reasoningEffort = 'none',
   }) async {
+    // Compresse / limite la taille pour rester sous le plafond ITPM Groq
+    // (7000 tokens/min en on_demand). Une photo 4K en base64 dépasse
+    // facilement 3000 tokens d'entrée à elle seule.
     final bytes = await file.readAsBytes();
     final base64Image = base64Encode(bytes);
 
@@ -33,42 +36,60 @@ class GeminiService {
       ],
       "temperature": 0.2,
       "reasoning_effort": reasoningEffort,
-      // Le mode reflexion ("default") genere du texte de raisonnement avant
-      // le JSON final : il faut assez de tokens pour ne pas couper la
-      // reponse avant qu elle n arrive au JSON.
-      // Limite OTPM Groq on_demand = 1000 pour ce modèle : 1024 était
-      // refusé (rate_limit_exceeded). On reste largement sous le plafond.
-      "max_completion_tokens": reasoningEffort == 'none' ? 800 : 3500,
+      // OTPM on_demand = 1000 ; on reste largement en dessous.
+      "max_completion_tokens": reasoningEffort == 'none' ? 600 : 2500,
     };
 
-    final response = await http.post(
-      Uri.parse(_workerUrl),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode(body),
-    );
+    // Retry automatique sur rate_limit (ITPM/OTPM) : attend ~16s puis 1 essai.
+    Object? lastError;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final response = await http.post(
+          Uri.parse(_workerUrl),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(body),
+        );
 
-    final data = jsonDecode(response.body);
+        final data = jsonDecode(response.body);
 
-    if (data['error'] != null) {
-      throw Exception(data['error'].toString());
+        if (data['error'] != null) {
+          final err = data['error'].toString();
+          if (err.contains('rate_limit') && attempt == 0) {
+            lastError = err;
+            await Future<void>.delayed(const Duration(seconds: 17));
+            continue;
+          }
+          throw Exception(err);
+        }
+
+        final content = data['choices']?[0]?['message']?['content'];
+        if (content == null) {
+          throw Exception('Reponse vide du serveur');
+        }
+        return content as String;
+      } catch (e) {
+        lastError = e;
+        final msg = e.toString();
+        if (msg.contains('rate_limit') && attempt == 0) {
+          await Future<void>.delayed(const Duration(seconds: 17));
+          continue;
+        }
+        rethrow;
+      }
     }
-
-    final content = data['choices']?[0]?['message']?['content'];
-    if (content == null) {
-      throw Exception('Reponse vide du serveur');
-    }
-    return content as String;
+    throw Exception(lastError?.toString() ?? 'Erreur inconnue Groq');
   }
 
-  /// Transforme une erreur technique (JSON invalide, reponse tronquee,
-  /// contenant encore un bloc <think> non ferme, etc.) en message
-  /// comprehensible pour l utilisateur, plutot que d afficher la
-  /// FormatException brute dans l ecran.
+  /// Transforme une erreur technique en message lisible pour l'utilisateur.
   String _friendlyOcrError(Object e) {
     final msg = e.toString();
+    if (msg.contains('rate_limit') || msg.contains('ITPM') || msg.contains('OTPM')) {
+      return 'Serveur momentanément saturé. Attends 20 secondes puis '
+          'réessaie avec la même photo.';
+    }
     if (msg.contains('<think>') || msg.contains('FormatException')) {
-      return 'Analyse impossible (reponse invalide). Reessayez avec une '
-          'photo plus nette et bien eclairee.';
+      return 'Analyse impossible (réponse invalide). Réessaie avec une '
+          'photo plus nette et bien éclairée.';
     }
     return msg;
   }
@@ -279,36 +300,50 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
   /// Si le chassis commence par un WMI connu et que la marque renvoyée
   /// contredit ce WMI de façon évidente, on force la marque correcte.
   void _correctMarqueFromChassis(Map<String, dynamic> json) {
-    final chassis = (json['chassis']?.toString() ?? '').toUpperCase().trim();
+    final chassis = (json['chassis']?.toString() ?? '')
+        .toUpperCase()
+        .replaceAll(RegExp(r'[^A-Z0-9]'), '');
     if (chassis.length < 3) return;
-    final prefix = chassis.substring(0, 3);
-    final marque = (json['marque']?.toString() ?? '').toUpperCase().trim();
-
-    String? expected;
-    // Toyota : JT... (VIN) ou codes type algeriens NCP / NSP / NZE...
-    if (prefix.startsWith('JT') ||
-        prefix == 'JTD' ||
-        prefix.startsWith('JTN') ||
-        prefix == 'NCP' ||
-        prefix == 'NSP' ||
-        prefix == 'NZE' ||
-        prefix == 'ZZE') {
-      expected = 'TOYOTA';
-    } else if (prefix == 'VF1') {
-      expected = 'RENAULT';
-    } else if (prefix == 'VF3') {
-      expected = 'PEUGEOT';
-    } else if (prefix == 'VF7') {
-      expected = 'CITROEN';
-    } else if (prefix.startsWith('WV')) {
-      expected = 'VOLKSWAGEN';
+    final prefix3 = chassis.substring(0, 3);
+    final prefix2 = chassis.substring(0, 2);
+    var marque = (json['marque']?.toString() ?? '').toUpperCase().trim();
+    if (marque == 'NULL' || marque == 'UNDEFINED' || marque == 'NONE') {
+      marque = '';
+      json['marque'] = null;
     }
 
-    if (expected != null && marque.isNotEmpty && marque != expected) {
-      // Conflit clair → on fait confiance au chassis (plus fiable que l'OCR
-      // de la case marque quand la photo est floue).
-      json['marque'] = expected;
-    } else if (expected != null && marque.isEmpty) {
+    String? expected;
+    // Toyota : JT... (VIN) ou codes type algériens NCP / NSP / NZE...
+    if (prefix2 == 'JT' ||
+        prefix3 == 'NCP' ||
+        prefix3 == 'NSP' ||
+        prefix3 == 'NZE' ||
+        prefix3 == 'ZZE' ||
+        prefix3 == 'SCP') {
+      expected = 'TOYOTA';
+    } else if (prefix3 == 'VF1') {
+      expected = 'RENAULT';
+    } else if (prefix3 == 'VF3') {
+      expected = 'PEUGEOT';
+    } else if (prefix3 == 'VF7') {
+      expected = 'CITROEN';
+    } else if (prefix2 == 'WV' || prefix3 == 'WVW' || prefix3 == 'WVG') {
+      expected = 'VOLKSWAGEN';
+    } else if (prefix3 == 'WDB' || prefix3 == 'WDD' || prefix3 == 'WDC') {
+      expected = 'MERCEDES';
+    } else if (prefix3 == 'WBA' || prefix3 == 'WBS') {
+      expected = 'BMW';
+    } else if (prefix3 == 'KMH' || prefix3 == 'U5Y' || prefix3 == 'TMA') {
+      expected = 'HYUNDAI';
+    } else if (prefix3 == 'U5Z' || prefix2 == 'KN') {
+      expected = 'KIA';
+    } else if (prefix3 == 'UU1') {
+      expected = 'DACIA';
+    }
+
+    if (expected != null && (marque.isEmpty || marque != expected)) {
+      // Chassis WMI fait foi quand la case marque est illisible / absente
+      // ou clairement en conflit.
       json['marque'] = expected;
     }
   }

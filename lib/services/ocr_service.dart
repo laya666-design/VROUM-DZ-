@@ -49,13 +49,95 @@ class OcrService {
     return dates.last;
   }
 
-  /// Contrôle technique — règle métier définitive :
-  /// extraire TOUTES les dates du document et prendre la plus récente.
-  /// (Les mots-clés VISITE PERIODIQUE / etc. ont trop souvent mené à
-  /// une mauvaise date tamponnée ou mal lue par l'OCR.)
+  /// Contrôle technique — règle métier :
+  /// 1) extraire TOUTES les dates du document
+  /// 2) aussi les dates proches des mots-clés VISITE PERIODIQUE / etc.
+  /// 3) prendre la plus récente de l'ensemble.
+  /// (Les tampons roses "11/12/2026" sont parfois mal lus par l'OCR
+  /// latin seul ; les motifs aident à les récupérer.)
   static DateTime? extractDateVisitePeriodique(String rawText) {
-    final all = extractDates(rawText);
-    return mostRecentDate(all);
+    final all = <DateTime>[...extractDates(rawText)];
+
+    final patterns = [
+      RegExp(
+        r'(?:VISITE\s*PERIODIQUE|PERIODIQUE|PROCHAINE\s*VISITE|PROCHAIN\s*CONTROLE|PROCHAIN\s*CONTR[OÔ]LE|RENDEZ[-\s]?VOUS|RDV)\s*(?:LE\s*|AU\s*|:)?\s*(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'(?:VISITE|PERIODIQUE|PROCHAINE|RENDEZ|RDV)[^\d]{0,40}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})',
+        caseSensitive: false,
+      ),
+      RegExp(r'المراقبة\s*اللاحقة[^\d]{0,40}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
+      RegExp(r'طبيعة\s*وتاريخ[^\d]{0,40}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
+      RegExp(r'الموعد\s*القادم[^\d]{0,40}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
+      RegExp(r'زيارة\s*دورية[^\d]{0,40}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
+    ];
+
+    for (final re in patterns) {
+      for (final m in re.allMatches(rawText)) {
+        final day = int.tryParse(m.group(1) ?? '');
+        final month = int.tryParse(m.group(2) ?? '');
+        var year = int.tryParse(m.group(3) ?? '');
+        if (day == null || month == null || year == null) continue;
+        if (year < 100) year += 2000;
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31 &&
+            year >= 2000 && year <= 2100) {
+          try {
+            all.add(DateTime(year, month, day));
+          } catch (_) {}
+        }
+      }
+    }
+
+    if (all.isEmpty) return null;
+    all.sort();
+    return all.last;
+  }
+
+  /// Détecte une marque connue dans un texte OCR brut (arabe ou latin).
+  /// Utile en secours si l'IA Groq échoue (rate limit) ou renvoie null.
+  static String? detectMarqueLocale(String rawText) {
+    final t = rawText.toUpperCase();
+    // Latin d'abord (plus fiable si déjà en majuscules sur le document)
+    const latin = [
+      'TOYOTA', 'RENAULT', 'PEUGEOT', 'NISSAN', 'HYUNDAI', 'KIA',
+      'VOLKSWAGEN', 'DACIA', 'CITROEN', 'CITROËN', 'FIAT', 'CHEVROLET',
+      'SUZUKI', 'MITSUBISHI', 'FORD', 'OPEL', 'MAZDA', 'HONDA',
+      'MERCEDES', 'BMW', 'SEAT', 'SKODA', 'AUDI',
+    ];
+    for (final m in latin) {
+      if (t.contains(m)) {
+        return m == 'CITROËN' ? 'CITROEN' : m;
+      }
+    }
+    // Arabe → latin
+    const arabe = <String, String>{
+      'تويوتا': 'TOYOTA',
+      'رينو': 'RENAULT',
+      'بيجو': 'PEUGEOT',
+      'نيسان': 'NISSAN',
+      'هيونداي': 'HYUNDAI',
+      'هيونداى': 'HYUNDAI',
+      'كيا': 'KIA',
+      'فولكسفاغن': 'VOLKSWAGEN',
+      'فولكس واجن': 'VOLKSWAGEN',
+      'داسيا': 'DACIA',
+      'سيتروين': 'CITROEN',
+      'فيات': 'FIAT',
+      'شيفروليه': 'CHEVROLET',
+      'سوزوكي': 'SUZUKI',
+      'ميتسوبيشي': 'MITSUBISHI',
+      'فورد': 'FORD',
+      'اوبل': 'OPEL',
+      'مازدا': 'MAZDA',
+      'هوندا': 'HONDA',
+      'مرسيدس': 'MERCEDES',
+      'بي ام دبليو': 'BMW',
+    };
+    for (final entry in arabe.entries) {
+      if (rawText.contains(entry.key)) return entry.value;
+    }
+    return null;
   }
 
   void dispose() {
