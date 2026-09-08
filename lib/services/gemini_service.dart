@@ -154,25 +154,29 @@ bilingue arabe/francais, souvent intitule "Proces-verbal de controle
 technique des vehicules" / "محضر المراقبة التقنية للسيارات" ou "VISITE
 PERIODIQUE").
 
-ATTENTION CRITIQUE SUR LES DATES — ce document contient PLUSIEURS dates :
-1. Date d enregistrement / immatriculation du vehicule (ex "12/12/2023" pres
-   du numero de registration ou "تاريخ وضع المركبة في السير") → IGNORE-LA.
-2. Date de la visite technique qui vient d etre effectuee (champ
-   "تاريخ المراقبة" / "DATE" / date du jour du controle en haut) → IGNORE-LA.
-3. Date de la PROCHAINE visite periodique (la seule date a retourner) :
-   - cherche explicitement la mention "VISITE PERIODIQUE LE" suivie d une date
-   - ou "طبيعة وتاريخ المراقبة اللاحقة" / "المراقبة اللاحقة"
-   - ou "prochaine visite" / "visite periodique"
-   - cette date est generalement en bas du document, dans un encadre ou apres
-     un libelle clair "VISITE PERIODIQUE LE dd/mm/yyyy"
-   → C EST CETTE DATE UNIQUEMENT qu il faut mettre dans "date_prochain_controle".
+REGLE SUR LA DATE D EXPIRATION — ce document contient PLUSIEURS dates
+(date d enregistrement/immatriculation, date de la visite du jour, date
+de la PROCHAINE visite periodique, parfois tamponnee ou surlignee).
+Repere TOUTES les dates lisibles sur le document, au format JJ/MM/AAAA,
+quel que soit leur libelle ou emplacement, par exemple pres de :
+- "تاريخ وضع المركبة في السير" (immatriculation)
+- "تاريخ المراقبة" / date du jour du controle
+- "VISITE PERIODIQUE LE", "طبيعة وتاريخ المراقبة اللاحقة",
+  "المراقبة اللاحقة", "prochaine visite"
+- toute autre date visible sur le document, tamponnee ou surlignee
 
-Exemple typique : si tu lis "VISITE PERIODIQUE LE 11/12/2025", alors
-"date_prochain_controle" = "11/12/2025".
+La date a retourner dans "date_prochain_controle" est TOUJOURS LA PLUS
+RECENTE (la plus loin dans le futur) parmi TOUTES ces dates : sur ce
+type de document, la date de la prochaine visite periodique est
+structurellement posterieure a toutes les autres dates presentes.
+Compare les ANNEES en priorite (ex: 2026 est plus recent que 2025) et
+relis bien le chiffre de l annee avant de trancher si un reflet ou un
+surlignage le rend ambigu — ne te fie pas a la position sur la page,
+uniquement a la valeur des dates elles-memes.
 
-Ne prends JAMAIS la date d enregistrement ni la date de la visite du jour.
-Si plusieurs dates futures existent, prends celle explicitement liee a
-"VISITE PERIODIQUE" / "المراقبة اللاحقة".
+Exemple : si tu lis "12/12/2023" (immatriculation) et "VISITE PERIODIQUE
+LE 11/12/2026", alors "date_prochain_controle" = "11/12/2026" (la plus
+recente des deux).
 
 Pour le centre : cherche "مركز المراقبة" / nom de l agence / "Z.A.C" / nom
 du controleur ou du centre (ex "MEHDAOUI", "HADJADJ").
@@ -188,8 +192,8 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
   "jours_restants": 0
 }
 
-REGLE: ne jamais inventer. Si la date "VISITE PERIODIQUE" n est pas lisible,
-mets null plutot que de prendre une autre date du document.
+REGLE: ne jamais inventer. Si aucune date n est lisible sur le document,
+mets null.
 ''';
 
       final raw = await _callGroq(prompt, file);
