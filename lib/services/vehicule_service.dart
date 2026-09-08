@@ -131,6 +131,32 @@ class SettingsService {
     await _box.put(_userTelKey, value);
   }
 
+  // --- Nom d'affichage + avatar (onglet Profil) ---
+  static const String _userNameKey = 'userName';
+  static const String _avatarPathKey = 'avatarPath';
+
+  static String? get userName => _box.get(_userNameKey) as String?;
+
+  static Future<void> setUserName(String value) async {
+    final v = value.trim();
+    if (v.isEmpty) {
+      await _box.delete(_userNameKey);
+    } else {
+      await _box.put(_userNameKey, v);
+    }
+  }
+
+  /// Chemin local (fichier) ou URL http(s) (ex: photo Google).
+  static String? get avatarPath => _box.get(_avatarPathKey) as String?;
+
+  static Future<void> setAvatarPath(String? value) async {
+    if (value == null || value.trim().isEmpty) {
+      await _box.delete(_avatarPathKey);
+    } else {
+      await _box.put(_avatarPathKey, value.trim());
+    }
+  }
+
   // --- Position GPS de l'utilisateur ---
   // Best-effort : demandée à l'onboarding pour les fonctionnalités de
   // proximité (magasins/dépanneuses les plus proches), jamais bloquante
