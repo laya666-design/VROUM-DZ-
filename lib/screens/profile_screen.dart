@@ -1,6 +1,12 @@
+import 'dart:io';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
+import '../services/google_auth_helper.dart';
 import '../services/vehicule_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/screen_background.dart';
@@ -497,6 +503,204 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ─── Avatar + connexion ─────────────────────────────────────────────────
+
+  ImageProvider? _avatarImage(String? path) {
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return NetworkImage(path);
+    }
+    final file = File(path);
+    if (file.existsSync()) return FileImage(file);
+    return null;
+  }
+
+  Future<void> _pickAvatar() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 512,
+    );
+    if (picked == null) return;
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final dest = File('${dir.path}/avatar_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await File(picked.path).copy(dest.path);
+      await SettingsService.setAvatarPath(dest.path);
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Impossible d\'enregistrer la photo : $e')),
+      );
+    }
+  }
+
+  Future<void> _showLoginSheet(
+      BuildContext context, String Function(String, String) t) async {
+    final nameCtrl = TextEditingController(text: SettingsService.userName ?? '');
+    var loading = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModal) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                child: SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        t('Se connecter', 'تسجيل الدخول'),
+                        style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        t(
+                          'Choisis un nom affiché et optionnellement connecte-toi avec Google.',
+                          'اختر اسمًا للعرض ويمكنك الاتصال بحساب Google.',
+                        ),
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: nameCtrl,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          labelText: t('Nom affiché', 'الاسم المعروض'),
+                          prefixIcon: const Icon(Icons.person_outline),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: loading
+                            ? null
+                            : () async {
+                                final name = nameCtrl.text.trim();
+                                if (name.isEmpty) return;
+                                await SettingsService.setUserName(name);
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                if (mounted) setState(() {});
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: widget.config.primaryColor,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text(t('Enregistrer le nom', 'حفظ الاسم')),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: loading
+                            ? null
+                            : () async {
+                                setModal(() => loading = true);
+                                try {
+                                  final cred = await GoogleAuthHelper.signIn();
+                                  final user = cred.user;
+                                  final name = user?.displayName?.trim();
+                                  final photo = user?.photoURL;
+                                  if (name != null && name.isNotEmpty) {
+                                    await SettingsService.setUserName(name);
+                                    nameCtrl.text = name;
+                                  }
+                                  if (photo != null && photo.isNotEmpty) {
+                                    await SettingsService.setAvatarPath(photo);
+                                  }
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  if (mounted) setState(() {});
+                                } catch (e) {
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      SnackBar(content: Text('$e')),
+                                    );
+                                  }
+                                } finally {
+                                  if (ctx.mounted) {
+                                    setModal(() => loading = false);
+                                  }
+                                }
+                              },
+                        icon: loading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.g_mobiledata, size: 28),
+                        label: Text(t(
+                          'Continuer avec Google',
+                          'المتابعة مع Google',
+                        )),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      if (FirebaseAuth.instance.currentUser != null ||
+                          (SettingsService.userName?.isNotEmpty ?? false)) ...[
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: loading
+                              ? null
+                              : () async {
+                                  try {
+                                    await FirebaseAuth.instance.signOut();
+                                  } catch (_) {}
+                                  await SettingsService.setUserName('');
+                                  await SettingsService.setAvatarPath(null);
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  if (mounted) setState(() {});
+                                },
+                          child: Text(
+                            t('Se déconnecter', 'تسجيل الخروج'),
+                            style: TextStyle(color: Colors.red.shade600),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
@@ -549,30 +753,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       Row(
                         children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: Colors.white.withOpacity(0.35),
-                                  width: 2.5),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 12,
+                          // Avatar cliquable
+                          GestureDetector(
+                            onTap: _pickAvatar,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  width: 64,
+                                  height: 64,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: Colors.white.withOpacity(0.35),
+                                        width: 2.5),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 12,
+                                      ),
+                                    ],
+                                  ),
+                                  child: CircleAvatar(
+                                    backgroundColor:
+                                        Colors.white.withOpacity(0.2),
+                                    backgroundImage: _avatarImage(
+                                        SettingsService.avatarPath),
+                                    child: _avatarImage(
+                                                SettingsService.avatarPath) ==
+                                            null
+                                        ? Icon(
+                                            isPremium
+                                                ? Icons.workspace_premium
+                                                : Icons.person,
+                                            color: Colors.white,
+                                            size: 32,
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                                Positioned(
+                                  right: -2,
+                                  bottom: -2,
+                                  child: Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.15),
+                                          blurRadius: 4,
+                                        ),
+                                      ],
+                                    ),
+                                    child: Icon(
+                                      Icons.camera_alt,
+                                      size: 13,
+                                      color: widget.config.primaryColor,
+                                    ),
+                                  ),
                                 ),
                               ],
-                            ),
-                            child: CircleAvatar(
-                              backgroundColor: Colors.white.withOpacity(0.2),
-                              child: Icon(
-                                isPremium
-                                    ? Icons.workspace_premium
-                                    : Icons.person,
-                                color: Colors.white,
-                                size: 32,
-                              ),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -581,36 +824,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  widget.config.appName,
+                                  (SettingsService.userName?.isNotEmpty ?? false)
+                                      ? SettingsService.userName!
+                                      : widget.config.appName,
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 20,
                                     letterSpacing: -0.3,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 11, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: isPremium
-                                        ? const Color(0xFFFBBF24)
-                                        : Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    isPremium
-                                        ? t('Compte Premium', 'حساب Premium')
-                                        : t('Compte gratuit', 'حساب مجاني'),
-                                    style: TextStyle(
-                                      color: isPremium
-                                          ? const Color(0xFF78350F)
-                                          : Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12,
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 11, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isPremium
+                                            ? const Color(0xFFFBBF24)
+                                            : Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        isPremium
+                                            ? t('Compte Premium', 'حساب Premium')
+                                            : t('Compte gratuit', 'حساب مجاني'),
+                                        style: TextStyle(
+                                          color: isPremium
+                                              ? const Color(0xFF78350F)
+                                              : Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    const SizedBox(width: 8),
+                                    GestureDetector(
+                                      onTap: () =>
+                                          _showLoginSheet(context, t),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.22),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          border: Border.all(
+                                              color: Colors.white
+                                                  .withOpacity(0.35)),
+                                        ),
+                                        child: Text(
+                                          (SettingsService.userName
+                                                      ?.isNotEmpty ??
+                                                  false)
+                                              ? t('Modifier', 'تعديل')
+                                              : t('Se connecter',
+                                                  'تسجيل الدخول'),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
