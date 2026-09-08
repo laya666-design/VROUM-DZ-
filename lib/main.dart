@@ -47,7 +47,17 @@ void main() async {
   );
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     final n = message.notification;
-    if (n != null) {
+    if (n == null) return;
+    // Alerte SOS (dépanneuse) → canal max importance (sonne en poche).
+    final isSos = message.data.containsKey('alertId') ||
+        (n.title?.toLowerCase().contains('alerte') ?? false) ||
+        (n.title?.toLowerCase().contains('panne') ?? false);
+    if (isSos) {
+      NotificationService.showSos(
+        title: n.title ?? 'Alerte panne',
+        body: n.body ?? '',
+      );
+    } else {
       NotificationService.showNow(
         title: n.title ?? 'VROUM DZ',
         body: n.body ?? '',
