@@ -7,6 +7,17 @@ import 'location_service.dart';
 import 'sos_models.dart';
 import 'store_service.dart';
 
+/// Levée par [SosService.signInWithGoogle] quand c'est la première
+/// connexion Google d'une dépanneuse : l'écran d'appel doit collecter
+/// nom + téléphone + wilaya puis appeler [SosService.completeGoogleProfile]
+/// avant que le compte soit utilisable (sans quoi la wilaya resterait
+/// vide et le compte ne recevrait jamais aucune alerte).
+class NeedsDepanneuseProfileException implements Exception {
+  final String uid;
+  final String nomSuggere;
+  NeedsDepanneuseProfileException({required this.uid, required this.nomSuggere});
+}
+
 /// Bouton SOS : diffusion d'une alerte de panne aux dépanneuses de la
 /// même wilaya, et espace dépanneuse (compte séparé, accès caché — un
 /// appui long sur le bouton SOS, pas de menu visible).
@@ -222,12 +233,16 @@ class SosService {
   }
 
 
-  /// Connexion Google — pour dépanneuse
-  /// Crée le profil Firestore si première connexion (actif:false en attente admin)
-  static Future<void> signInWithGoogle({
-    String? wilaya,
-    String? nom,
-  }) async {
+  /// Connexion Google — pour dépanneuse.
+  ///
+  /// NE crée PLUS le profil Firestore automatiquement avec des champs
+  /// vides : si c'est la première connexion (aucun doc `depanneuses`
+  /// existant pour cet uid), lève [NeedsDepanneuseProfileException] pour
+  /// que l'écran d'appel collecte nom + téléphone + wilaya (obligatoires,
+  /// sinon la dépanneuse ne recevra jamais aucune alerte — la wilaya vide
+  /// ne matche aucune alerte réelle) avant d'appeler
+  /// [completeGoogleProfile]. Si le profil existe déjà, connexion directe.
+  static Future<void> signInWithGoogle() async {
     final userCred = await GoogleAuthHelper.signIn();
     final user = userCred.user;
     if (user == null) throw Exception('Connexion Google impossible.');
@@ -237,18 +252,68 @@ class SosService {
         .doc(user.uid);
     final doc = await docRef.get();
     if (!doc.exists) {
-      final profile = DepanneuseProfile(
+      throw NeedsDepanneuseProfileException(
         uid: user.uid,
-        nom: nom ?? user.displayName ?? 'Dépanneuse',
-        tel: user.email ?? '',
-        wilaya: wilaya ?? '',
-        actif: false,
-        latitude: 36.7525,
-        longitude: 3.0420,
+        nomSuggere: user.displayName ?? '',
       );
-      await docRef.set(profile.toMap());
     }
     await _savePhoneAsId(user.uid);
+  }
+
+  /// Finalise la création d'un profil dépanneuse après une première
+  /// connexion Google (voir [signInWithGoogle]) : téléphone et wilaya
+  /// sont ici obligatoires et validés, contrairement à l'ancien
+  /// comportement qui pouvait les laisser vides.
+  static Future<void> completeGoogleProfile({
+    required String uid,
+    required String nom,
+    required String telephone,
+    required String wilaya,
+  }) async {
+    final numero = StoreService.normaliserNumeroLocal(telephone);
+    if (numero == null) {
+      throw Exception('Numéro invalide. Utilise le format 0556 65 32 20.');
+    }
+    if (wilaya.isEmpty) {
+      throw Exception('Choisis ta wilaya.');
+    }
+    final position = await LocationService.getCurrentPosition();
+    final profile = DepanneuseProfile(
+      uid: uid,
+      nom: nom.trim().isEmpty ? 'Dépanneuse' : nom.trim(),
+      tel: numero,
+      wilaya: wilaya,
+      actif: false,
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+    await FirebaseFirestore.instance
+        .collection(_depanneusesCollection)
+        .doc(uid)
+        .set(profile.toMap());
+    await _savePhoneAsId(uid);
+  }
+
+  /// Répare un profil existant dont la wilaya (et/ou le téléphone) est
+  /// vide — cas des comptes créés avant ce correctif, ou modifiés à la
+  /// main dans la console Firestore. Ne touche pas à `actif`.
+  static Future<void> updateMyProfile({
+    required String telephone,
+    required String wilaya,
+  }) async {
+    final docId = currentDepanneuseDocId;
+    if (docId == null) throw Exception('Session introuvable.');
+    final numero = StoreService.normaliserNumeroLocal(telephone);
+    if (numero == null) {
+      throw Exception('Numéro invalide. Utilise le format 0556 65 32 20.');
+    }
+    if (wilaya.isEmpty) {
+      throw Exception('Choisis ta wilaya.');
+    }
+    await FirebaseFirestore.instance
+        .collection(_depanneusesCollection)
+        .doc(docId)
+        .update({'tel': numero, 'wilaya': wilaya});
   }
 
   // Pour permettre aux comptes Google (uid) de passer le check isDepanneuseLoggedIn

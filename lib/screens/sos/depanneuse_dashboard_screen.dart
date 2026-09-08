@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_config.dart';
+import '../../config/wilayas.dart';
 import '../../services/sos_models.dart';
 import '../../services/sos_service.dart';
+import '../../services/store_service.dart';
 import '../role_selection_screen.dart';
 import 'depanneuse_alert_accepted_screen.dart';
 import 'depanneuse_auth_screen.dart';
@@ -87,6 +89,93 @@ class _DepanneuseDashboardScreenState
       );
     } finally {
       if (mounted) setState(() => _enCoursAcceptation.remove(alerte.id));
+    }
+  }
+
+  Future<void> _completerProfil(DepanneuseProfile profile) async {
+    final telCtrl = TextEditingController(text: profile.tel);
+    String? wilayaChoisie;
+    String? erreurTel;
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) => AlertDialog(
+            title: const Text('Compléter mon profil'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: telCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
+                    labelText: 'Téléphone',
+                    hintText: '0556 65 32 20',
+                    errorText: erreurTel,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: wilayaChoisie,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Wilaya',
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: kWilayasAlgerie
+                      .map((w) => DropdownMenuItem(value: w, child: Text(w)))
+                      .toList(),
+                  onChanged: (v) => setStateDialog(() => wilayaChoisie = v),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  final numero =
+                      StoreService.normaliserNumeroLocal(telCtrl.text);
+                  if (numero == null) {
+                    setStateDialog(() =>
+                        erreurTel = 'Numéro invalide. Ex : 0556 65 32 20.');
+                    return;
+                  }
+                  if (wilayaChoisie == null) return;
+                  try {
+                    await SosService.updateMyProfile(
+                      telephone: numero,
+                      wilaya: wilayaChoisie!,
+                    );
+                    if (ctx.mounted) Navigator.pop(ctx, true);
+                  } catch (e) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(content: Text(SosService.friendlyError(e))),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Valider'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profil mis à jour.')),
+      );
     }
   }
 
@@ -200,6 +289,45 @@ class _DepanneuseDashboardScreenState
                       '${profile.nom} — ${profile.wilaya}\nTon compte sera activé manuellement avant de recevoir les alertes.',
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // Auto-réparation : compte créé (ex: via Google, avant ce
+          // correctif) ou modifié à la main sans wilaya renseignée — sans
+          // ça la requête ci-dessous cherche 'wilaya == ""' et ne trouve
+          // jamais aucune alerte réelle, silencieusement ("Aucune alerte
+          // en attente"), sans jamais expliquer pourquoi.
+          if (profile.wilaya.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.location_off, size: 48, color: sos),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Profil incomplet',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Ta wilaya n\'est pas renseignée : tu ne peux recevoir '
+                      'aucune alerte tant qu\'elle n\'est pas complétée.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.black54),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(backgroundColor: sos),
+                      onPressed: () => _completerProfil(profile),
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Compléter mon profil'),
                     ),
                   ],
                 ),

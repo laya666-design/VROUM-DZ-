@@ -1,11 +1,22 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../config/wilayas.dart';
 import '../../widgets/google_signin_button.dart';
 import '../../services/sos_service.dart';
+import '../../services/store_service.dart';
 import '../role_router.dart';
 import 'depanneuse_dashboard_screen.dart';
 import 'depanneuse_shell_screen.dart';
+
+/// Résultat du dialog de complétion de profil après une première
+/// connexion Google (voir _showCompleterProfilGoogleDialog).
+class _ProfilGoogleInfos {
+  final String nom;
+  final String tel;
+  final String wilaya;
+  _ProfilGoogleInfos({required this.nom, required this.tel, required this.wilaya});
+}
 
 /// Connexion / inscription dépanneuse — accès caché (appui long sur le
 /// bouton SOS), même mécanisme téléphone + mot de passe que l'Espace Pro
@@ -95,7 +106,7 @@ class _DepanneuseAuthScreenState extends State<DepanneuseAuthScreen> {
       _error = null;
     });
     try {
-      await SosService.signInWithGoogle(wilaya: _wilaya, nom: _nomController.text.trim());
+      await SosService.signInWithGoogle();
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -103,11 +114,143 @@ class _DepanneuseAuthScreenState extends State<DepanneuseAuthScreen> {
           builder: (_) => DepanneuseShellScreen(config: widget.config),
         ),
       );
+    } on NeedsDepanneuseProfileException catch (e) {
+      // Première connexion Google : nom + téléphone + wilaya sont
+      // obligatoires avant de créer le compte, sinon la wilaya resterait
+      // vide et le compte ne recevrait jamais aucune alerte SOS.
+      final infos = await _showCompleterProfilGoogleDialog(
+        nomSuggere: e.nomSuggere,
+      );
+      if (infos == null) {
+        // Annulé : on déconnecte pour ne pas laisser une session Google
+        // à moitié configurée (sans profil Firestore) trainer.
+        await FirebaseAuth.instance.signOut();
+        if (mounted) setState(() => _googleLoading = false);
+        return;
+      }
+      try {
+        await SosService.completeGoogleProfile(
+          uid: e.uid,
+          nom: infos.nom,
+          telephone: infos.tel,
+          wilaya: infos.wilaya,
+        );
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DepanneuseShellScreen(config: widget.config),
+          ),
+        );
+      } catch (e2) {
+        setState(() => _error = e2.toString().replaceFirst('Exception: ', ''));
+      }
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _googleLoading = false);
     }
+  }
+
+  /// Dialog non annulable par erreur (bouton Valider désactivé tant que
+  /// les 3 champs ne sont pas remplis) qui collecte nom + téléphone +
+  /// wilaya après une première connexion Google.
+  Future<_ProfilGoogleInfos?> _showCompleterProfilGoogleDialog({
+    required String nomSuggere,
+  }) {
+    final nomCtrl = TextEditingController(text: nomSuggere);
+    final telCtrl = TextEditingController();
+    String? wilayaChoisie;
+    String? erreurTel;
+    return showDialog<_ProfilGoogleInfos>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) => AlertDialog(
+            title: const Text('Complète ton profil'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Nécessaire pour recevoir les alertes de panne de ta wilaya.',
+                    style: TextStyle(color: Colors.black54, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nomCtrl,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: 'Nom de la dépanneuse',
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: telCtrl,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      labelText: 'Téléphone',
+                      hintText: '0556 65 32 20',
+                      errorText: erreurTel,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: wilayaChoisie,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: 'Wilaya',
+                      contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                    ),
+                    items: kWilayasAlgerie
+                        .map((w) => DropdownMenuItem(value: w, child: Text(w)))
+                        .toList(),
+                    onChanged: (v) =>
+                        setStateDialog(() => wilayaChoisie = v),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final numero =
+                      StoreService.normaliserNumeroLocal(telCtrl.text);
+                  if (numero == null) {
+                    setStateDialog(() =>
+                        erreurTel = 'Numéro invalide. Ex : 0556 65 32 20.');
+                    return;
+                  }
+                  if (wilayaChoisie == null) return;
+                  Navigator.pop(
+                    ctx,
+                    _ProfilGoogleInfos(
+                      nom: nomCtrl.text.trim(),
+                      tel: numero,
+                      wilaya: wilayaChoisie!,
+                    ),
+                  );
+                },
+                child: const Text('Valider'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   InputDecoration _fieldDecoration({
