@@ -78,6 +78,17 @@ exports.notifyStoresOnNewRequest = functions.firestore
       },
       data: {
         requestId: snap.id,
+        type: 'part_request',
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'instant_alerts',
+          sound: 'default',
+          defaultSound: true,
+          defaultVibrateTimings: true,
+          priority: 'high',
+        },
       },
       tokens,
     };
@@ -119,6 +130,9 @@ exports.notifyDepanneusesOnNewSos = functions.firestore
       return null;
     }
 
+    // Priorité HAUTE + channel dédié "sos_alerts" :
+    // indispensable pour que la notif sonne quand le téléphone est
+    // en poche / écran éteint / Doze (surtout OEM chinois).
     const message = {
       notification: {
         title: 'Alerte panne',
@@ -126,6 +140,26 @@ exports.notifyDepanneusesOnNewSos = functions.firestore
       },
       data: {
         alertId: snap.id,
+        type: 'sos',
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'sos_alerts',
+          sound: 'default',
+          defaultSound: true,
+          defaultVibrateTimings: true,
+          priority: 'high',
+          visibility: 'public',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            contentAvailable: true,
+          },
+        },
       },
       tokens,
     };
