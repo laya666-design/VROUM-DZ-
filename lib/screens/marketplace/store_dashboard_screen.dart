@@ -51,16 +51,26 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
   StreamSubscription<StoreProfile?>? _profileSub;
   int _lastKnownCount = -1; // total visible (pour détecter nouvelles arrivées)
   int _unreadCount = 0; // badge = non consultées
-  bool _dialogSpecialitesForceeOuverte = false; // une seule fois par session
+  bool _specialtyPromptShown = false;
 
   @override
   void initState() {
     super.initState();
     _loadHiddenAndSeen();
     // Garde les catégories à jour pour le badge / notif locales.
+    // Juste après connexion : si aucune spécialité, force le dialogue
+    // (le magasin ne doit pas pouvoir rester sans catégories).
     _profileSub = StoreService.myProfileStream().listen((p) {
       if (!mounted) return;
       setState(() => _storeCategories = p?.categories ?? const []);
+      if (p != null &&
+          !p.aDesCategories &&
+          !_specialtyPromptShown) {
+        _specialtyPromptShown = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _editCategories(p, force: true);
+        });
+      }
     });
     // Écoute dédiée pour badge + notification à l'arrivée d'une nouvelle demande
     // (déjà filtrée par les catégories du magasin).
@@ -252,7 +262,7 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
     }
   }
 
-  Future<void> _editCategories(StoreProfile profile, {bool forced = false}) async {
+  Future<void> _editCategories(StoreProfile profile, {bool force = false}) async {
     final selected = Set<String>.from(profile.categories);
     final autreCtrl =
         TextEditingController(text: profile.categorieAutre ?? '');
@@ -260,102 +270,96 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
 
     final ok = await showDialog<bool>(
       context: context,
-      // Juste après la connexion, si le magasin n'a encore renseigné
-      // aucune spécialité, la boîte de dialogue est obligatoire : on
-      // l'empêche de la fermer sans choisir (ni appui en dehors, ni
-      // bouton Annuler), sinon il reste bloqué avec un dashboard vide
-      // ("Renseigne tes spécialités pour recevoir des demandes.") sans
-      // comprendre pourquoi.
-      barrierDismissible: !forced,
+      barrierDismissible: !force,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setLocal) {
             return PopScope(
-              canPop: !forced,
+              canPop: !force,
               child: AlertDialog(
-              title: Text(forced ? 'Choisis tes spécialités' : 'Mes spécialités'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        forced
-                            ? 'Avant de recevoir des demandes, indique les types de pièces que tu vends. Tu ne verras que les demandes correspondantes.'
-                            : 'Coche les types de pièces que tu vends. Tu ne verras que les demandes correspondantes.',
-                        style: const TextStyle(fontSize: 13, color: Colors.black54),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final cat in kPartCategories)
-                            FilterChip(
-                              label: Text(cat.labelFr),
-                              selected: selected.contains(cat.id),
-                              onSelected: (_) {
-                                setLocal(() {
-                                  if (selected.contains(cat.id)) {
-                                    selected.remove(cat.id);
-                                  } else {
-                                    selected.add(cat.id);
-                                  }
-                                  error = null;
-                                });
-                              },
-                              selectedColor:
-                                  widget.config.primaryColor.withOpacity(0.2),
-                              checkmarkColor: widget.config.primaryColor,
-                            ),
-                        ],
-                      ),
-                      if (selected.contains(kCategorieAutre)) ...[
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: autreCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Précise ta spécialité *',
-                            hintText:
-                                'Ex. pièces poids lourds, climatisation…',
-                          ),
+                title: const Text('Mes spécialités'),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          force
+                              ? 'Choisis au moins une spécialité pour recevoir des demandes. Obligatoire après connexion.'
+                              : 'Coche les types de pièces que tu vends. Tu ne verras que les demandes correspondantes.',
+                          style: const TextStyle(fontSize: 13, color: Colors.black54),
                         ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final cat in kPartCategories)
+                              FilterChip(
+                                label: Text(cat.labelFr),
+                                selected: selected.contains(cat.id),
+                                onSelected: (_) {
+                                  setLocal(() {
+                                    if (selected.contains(cat.id)) {
+                                      selected.remove(cat.id);
+                                    } else {
+                                      selected.add(cat.id);
+                                    }
+                                    error = null;
+                                  });
+                                },
+                                selectedColor:
+                                    widget.config.primaryColor.withOpacity(0.2),
+                                checkmarkColor: widget.config.primaryColor,
+                              ),
+                          ],
+                        ),
+                        if (selected.contains(kCategorieAutre)) ...[
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: autreCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Précise ta spécialité *',
+                              hintText:
+                                  'Ex. pièces poids lourds, climatisation…',
+                            ),
+                          ),
+                        ],
+                        if (error != null) ...[
+                          const SizedBox(height: 8),
+                          Text(error!,
+                              style: const TextStyle(color: Colors.red, fontSize: 13)),
+                        ],
                       ],
-                      if (error != null) ...[
-                        const SizedBox(height: 8),
-                        Text(error!,
-                            style: const TextStyle(color: Colors.red, fontSize: 13)),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              actions: [
-                if (!forced)
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Annuler'),
+                actions: [
+                  if (!force)
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Annuler'),
+                    ),
+                  FilledButton(
+                    onPressed: () {
+                      if (selected.isEmpty) {
+                        setLocal(() =>
+                            error = 'Choisis au moins une catégorie.');
+                        return;
+                      }
+                      if (selected.contains(kCategorieAutre) &&
+                          autreCtrl.text.trim().isEmpty) {
+                        setLocal(() => error =
+                            'Précise ta spécialité dans le champ « Autre ».');
+                        return;
+                      }
+                      Navigator.pop(ctx, true);
+                    },
+                    child: const Text('Enregistrer'),
                   ),
-                FilledButton(
-                  onPressed: () {
-                    if (selected.isEmpty) {
-                      setLocal(() =>
-                          error = 'Choisis au moins une catégorie.');
-                      return;
-                    }
-                    if (selected.contains(kCategorieAutre) &&
-                        autreCtrl.text.trim().isEmpty) {
-                      setLocal(() => error =
-                          'Précise ta spécialité dans le champ « Autre ».');
-                      return;
-                    }
-                    Navigator.pop(ctx, true);
-                  },
-                  child: const Text('Enregistrer'),
-                ),
-              ],
+                ],
               ),
             );
           },
@@ -364,6 +368,9 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
     );
 
     if (ok != true || !mounted) {
+      // Si forcé et non enregistré, permettre de re-proposer au prochain
+      // rebuild / écoute profil.
+      if (force) _specialtyPromptShown = false;
       autreCtrl.dispose();
       return;
     }
@@ -383,6 +390,7 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
         const SnackBar(content: Text('Spécialités mises à jour.')),
       );
     } catch (e) {
+      if (force) _specialtyPromptShown = false;
       messenger.showSnackBar(SnackBar(content: Text('$e')));
     } finally {
       autreCtrl.dispose();
@@ -925,17 +933,6 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
               backgroundColor: widget.config.primaryColor,
               foregroundColor: Colors.white,
               title: const Text('Espace Pro'),
-              // Avant, cet écran d'erreur n'avait aucun bouton retour
-              // explicite : si canPop() était false (selectRole vide la
-              // pile de navigation), il n'y avait strictement aucun moyen
-              // de quitter cet écran d'erreur. popUntil(isFirst) revient
-              // toujours à l'écran racine, quel que soit l'état de la pile.
-              leading: IconButton(
-                tooltip: 'Menu principal',
-                icon: const Icon(Icons.home_outlined),
-                onPressed: () =>
-                    Navigator.of(context).popUntil((route) => route.isFirst),
-              ),
               actions: [IconButton(onPressed: _logout, icon: const Icon(Icons.logout))],
             ),
             body: Center(
@@ -965,21 +962,6 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
         }
         final profile = profileSnap.data;
 
-        // Juste après la connexion, si le magasin n'a jamais choisi de
-        // spécialité, on l'oblige à le faire immédiatement (sinon son
-        // dashboard reste vide sans qu'il comprenne pourquoi, puisque
-        // filtrerParCategories() renvoie [] tant que categories est vide).
-        // addPostFrameCallback : on ne peut pas ouvrir un dialog pendant
-        // build() lui-même.
-        if (profile != null &&
-            !profile.aDesCategories &&
-            !_dialogSpecialitesForceeOuverte) {
-          _dialogSpecialitesForceeOuverte = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _editCategories(profile, forced: true);
-          });
-        }
-
         return Scaffold(
           appBar: AppBar(
             backgroundColor: widget.config.primaryColor,
@@ -992,17 +974,7 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                     icon: const Icon(Icons.close),
                     onPressed: _toggleSelectionMode,
                   )
-                // Bouton maison toujours présent : après la connexion, la
-                // pile de navigation peut être vide (canPop() == false),
-                // ce qui masquait la flèche retour automatique et laissait
-                // cet écran sans aucune sortie. popUntil(isFirst) revient
-                // toujours à l'écran racine.
-                : IconButton(
-                    tooltip: 'Menu principal',
-                    icon: const Icon(Icons.home_outlined),
-                    onPressed: () => Navigator.of(context)
-                        .popUntil((route) => route.isFirst),
-                  ),
+                : null,
             actions: [
               if (_selectionMode) ...[
                 IconButton(

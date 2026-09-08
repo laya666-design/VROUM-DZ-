@@ -138,11 +138,18 @@ class _BuyerPortalScreenState extends State<BuyerPortalScreen> {
           tooltip: _t('Menu principal', 'القائمة الرئيسية'),
           icon: const Icon(Icons.home_outlined),
           onPressed: () {
-            // popUntil((route) => route.isFirst) revient toujours à l'écran
-            // racine de la pile, quel que soit le nombre d'écrans empilés
-            // entre-temps. Avant, un simple pop() ne faisait rien du tout
-            // si canPop() était déjà false (bouton mort).
-            Navigator.of(context).popUntil((route) => route.isFirst);
+            // Toujours tenter de revenir : d'abord la pile locale,
+            // puis le root navigator si besoin (ex. portail ouvert
+            // hors onglet Home).
+            final nav = Navigator.of(context);
+            if (nav.canPop()) {
+              nav.pop();
+              return;
+            }
+            final root = Navigator.of(context, rootNavigator: true);
+            if (root.canPop()) {
+              root.pop();
+            }
           },
         ),
         actions: [

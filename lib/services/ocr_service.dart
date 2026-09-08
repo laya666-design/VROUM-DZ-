@@ -14,18 +14,19 @@ class OcrService {
     return result.text;
   }
 
-  /// Extrait toutes les dates au format JJ/MM/AAAA ou J/M/AAAA trouvées
-  /// dans le texte OCR d'une carte jaune / attestation d'assurance.
+  /// Extrait toutes les dates au format JJ/MM/AAAA, J/M/AAAA, JJ.MM.AAAA
+  /// ou JJ-MM-AAAA trouvées dans le texte OCR (cartes jaunes, CT, etc.).
   static List<DateTime> extractDates(String rawText) {
-    final regex = RegExp(r'(\d{1,2})\/(\d{1,2})\/(\d{4})');
+    final regex = RegExp(r'(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})');
     final matches = regex.allMatches(rawText);
     final dates = <DateTime>[];
 
     for (final m in matches) {
       final day = int.tryParse(m.group(1) ?? '');
       final month = int.tryParse(m.group(2) ?? '');
-      final year = int.tryParse(m.group(3) ?? '');
+      var year = int.tryParse(m.group(3) ?? '');
       if (day == null || month == null || year == null) continue;
+      if (year < 100) year += 2000;
       if (month < 1 || month > 12) continue;
       if (day < 1 || day > 31) continue;
       if (year < 2000 || year > 2100) continue;
@@ -48,53 +49,11 @@ class OcrService {
     return dates.last;
   }
 
-  /// Pour le contrôle technique : cherche en priorité la date liée à la
-  /// PROCHAINE visite (mots-clés FR/AR). Sur les PV algériens cette date
-  /// est souvent tamponnée en rose/rouge — le texte OCR peut la coller
-  /// juste après "VISITE PERIODIQUE" ou un peu plus loin sur la ligne.
-  /// Si plusieurs candidates, on prend la plus éloignée dans le futur
-  /// (vraie échéance), pas une date de visite déjà passée.
+  /// Contrôle technique — règle métier définitive :
+  /// extraire TOUTES les dates du document et prendre la plus récente.
+  /// (Les mots-clés VISITE PERIODIQUE / etc. ont trop souvent mené à
+  /// une mauvaise date tamponnée ou mal lue par l'OCR.)
   static DateTime? extractDateVisitePeriodique(String rawText) {
-    final patterns = [
-      RegExp(
-        r'(?:VISITE\s*PERIODIQUE|PERIODIQUE|PROCHAINE\s*VISITE|PROCHAIN\s*CONTROLE|PROCHAIN\s*CONTR[OÔ]LE|RENDEZ[-\s]?VOUS|RDV|DATE\s*DE\s*LA\s*PROCHAINE)\s*(?:LE\s*|AU\s*|:)?\s*(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})',
-        caseSensitive: false,
-      ),
-      RegExp(
-        r'(?:VISITE|PERIODIQUE|PROCHAINE|RENDEZ|RDV)[^\d]{0,40}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})',
-        caseSensitive: false,
-      ),
-      RegExp(r'المراقبة\s*اللاحقة[^\d]{0,30}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
-      RegExp(r'طبيعة\s*وتاريخ[^\d]{0,30}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
-      RegExp(r'الموعد\s*القادم[^\d]{0,30}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
-      RegExp(r'زيارة\s*دورية[^\d]{0,30}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
-    ];
-
-    final candidates = <DateTime>[];
-    for (final re in patterns) {
-      for (final m in re.allMatches(rawText)) {
-        final day = int.tryParse(m.group(1) ?? '');
-        var month = int.tryParse(m.group(2) ?? '');
-        var year = int.tryParse(m.group(3) ?? '');
-        if (day == null || month == null || year == null) continue;
-        if (year < 100) year += 2000;
-        if (month >= 1 && month <= 12 && day >= 1 && day <= 31 &&
-            year >= 2000 && year <= 2100) {
-          try {
-            candidates.add(DateTime(year, month, day));
-          } catch (_) {}
-        }
-      }
-    }
-
-    if (candidates.isNotEmpty) {
-      candidates.sort();
-      // La prochaine visite = la date la plus lointaine parmi les
-      // candidates liées aux mots-clés (évite de prendre une vieille date
-      // d'impression si une date tampon rose plus récente a aussi été lue).
-      return candidates.last;
-    }
-
     final all = extractDates(rawText);
     return mostRecentDate(all);
   }

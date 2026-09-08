@@ -284,6 +284,42 @@ class _MesDemandesScreenState extends State<MesDemandesScreen> {
     await MarketplaceService.markAsSold(requestId: r.id, offer: o);
   }
 
+  Future<void> _relancerDemande(PartRequest r) async {
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Relancer la demande'),
+        content: const Text(
+          'La demande remontera en tête chez les magasins '
+          'pour maximiser les chances d\'obtenir une réponse.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Relancer'),
+          ),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+    try {
+      await MarketplaceService.relancerRequest(r.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Demande relancée.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur : $e')),
+      );
+    }
+  }
+
   String _statutLabel(PartRequest r) {
     switch (r.statut) {
       case 'open':
@@ -372,12 +408,30 @@ class _MesDemandesScreenState extends State<MesDemandesScreen> {
       );
     }
     if (offers.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text(
-          'Pas encore de réponse. Les magasins sont '
-          'notifiés, reviens un peu plus tard.',
-          style: TextStyle(fontSize: 13, color: Colors.black54),
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Pas encore de réponse. Les magasins sont '
+              'notifiés, reviens un peu plus tard.',
+              style: TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+            if (r.estOuverte) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => _relancerDemande(r),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Relancer la demande'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: widget.config.primaryColor,
+                  side: BorderSide(
+                      color: widget.config.primaryColor.withOpacity(0.5)),
+                ),
+              ),
+            ],
+          ],
         ),
       );
     }

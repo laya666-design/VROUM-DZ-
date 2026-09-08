@@ -142,7 +142,20 @@ class _DepanneuseAuthScreenState extends State<DepanneuseAuthScreen> {
     final sos = widget.config.sosColor;
     final busy = _loading;
 
-    return Scaffold(
+    void retourProfil() {
+      RoleRouter.changerDeProfil(
+        context,
+        config: widget.config,
+        isAr: ValueNotifier<bool>(false),
+      );
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) retourProfil();
+      },
+      child: Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
@@ -155,14 +168,11 @@ class _DepanneuseAuthScreenState extends State<DepanneuseAuthScreen> {
                     // Cet écran est toujours atteint par un pushReplacement
                     // (accès caché SOS, ou déconnexion) : il n'y a jamais de
                     // route précédente à dépiler, donc Navigator.maybePop ne
-                    // faisait rien. La croix ramène explicitement au choix
-                    // de profil (les 3 cartes).
-                    onPressed: () => RoleRouter.changerDeProfil(
-                      context,
-                      config: widget.config,
-                      isAr: ValueNotifier<bool>(false),
-                    ),
-                    icon: const Icon(Icons.close, size: 22),
+                    // faisait rien. La croix + le bouton retour système
+                    // ramènent explicitement au choix de profil (les 3 cartes).
+                    onPressed: retourProfil,
+                    icon: const Icon(Icons.arrow_back, size: 22),
+                    tooltip: 'Retour',
                   ),
                   const Spacer(),
                 ],
@@ -352,6 +362,7 @@ class _DepanneuseAuthScreenState extends State<DepanneuseAuthScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

@@ -155,21 +155,31 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     }
 
     if (!mounted) return;
-    final cree = await Navigator.push<bool>(
-      context,
+    final cree = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => Scaffold(
+        builder: (routeContext) => Scaffold(
           appBar: AppBar(
             backgroundColor: widget.config.primaryColor,
             foregroundColor: Colors.white,
             title: Text(_t('Ajouter un véhicule', 'إضافة مركبة')),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              tooltip: _t('Retour', 'رجوع'),
+              onPressed: () {
+                if (Navigator.of(routeContext).canPop()) {
+                  Navigator.of(routeContext).pop(false);
+                }
+              },
+            ),
           ),
           body: CarteGriseScreen(
             config: widget.config,
             typeVehicule: selectedType,
             isAr: widget.isAr,
             onVehiculeCree: (_) {
-              if (Navigator.canPop(context)) Navigator.pop(context, true);
+              if (Navigator.of(routeContext).canPop()) {
+                Navigator.of(routeContext).pop(true);
+              }
             },
           ),
         ),
@@ -413,14 +423,22 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     // affichée uniquement pour les voitures (pas motos/scooters).
     final showCarteGrise = v.type == TypeVehicule.voiture;
 
-    await Navigator.push(
-      context,
+    await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => Scaffold(
+        builder: (routeContext) => Scaffold(
           appBar: AppBar(
             backgroundColor: widget.config.primaryColor,
             foregroundColor: Colors.white,
             title: Text(v.nom),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              tooltip: _t('Retour', 'رجوع'),
+              onPressed: () {
+                if (Navigator.of(routeContext).canPop()) {
+                  Navigator.of(routeContext).pop();
+                }
+              },
+            ),
           ),
           // Une seule page, 3 sections dans l'ordre logique (identité du
           // véhicule d'abord, puis les deux documents à renouveler) —

@@ -50,7 +50,12 @@ class _DepanneuseDashboardScreenState
   Future<void> _logout() async {
     await SosService.signOut();
     if (!mounted) return;
-    Navigator.of(context).popUntil((r) => r.isFirst);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => DepanneuseAuthScreen(config: widget.config),
+      ),
+      (_) => false,
+    );
   }
 
   // Alertes en cours d'acceptation : désactive le bouton pendant l'appel
@@ -102,17 +107,6 @@ class _DepanneuseDashboardScreenState
         backgroundColor: sos,
         foregroundColor: Colors.white,
         title: const Text('Alertes SOS'),
-        // Bouton maison toujours présent : cet écran est atteint via
-        // pushReplacement/pushAndRemoveUntil (changement de rôle), donc
-        // canPop() est souvent false et aucune flèche retour n'apparaît
-        // automatiquement — sans ce bouton, impossible de quitter l'Espace
-        // Dépanneuse. popUntil(isFirst) revient toujours à l'écran racine.
-        leading: IconButton(
-          tooltip: 'Menu principal',
-          icon: const Icon(Icons.home_outlined),
-          onPressed: () =>
-              Navigator.of(context).popUntil((route) => route.isFirst),
-        ),
         actions: [
           IconButton(
             tooltip: 'Déconnexion',

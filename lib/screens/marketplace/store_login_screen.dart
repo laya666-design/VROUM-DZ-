@@ -85,25 +85,35 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
     );
   }
 
+  void _retourProfil() {
+    RoleRouter.changerDeProfil(
+      context,
+      config: widget.config,
+      isAr: ValueNotifier<bool>(false),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _retourProfil();
+      },
+      child: Scaffold(
       appBar: AppBar(
         backgroundColor: widget.config.primaryColor,
         foregroundColor: Colors.white,
         title: const Text('Espace Pro — Magasin'),
-        // Cette écran est toujours atteint par un pushReplacement (choix
+        // Cet écran est toujours atteint par un pushReplacement (choix
         // du rôle, ou déconnexion) : jamais de route précédente à
         // dépiler, donc la flèche retour par défaut ne s'affichait
-        // jamais. Une croix explicite ramène au choix de profil.
+        // jamais. Une flèche explicite + le bouton retour système
+        // ramènent au choix de profil.
         leading: IconButton(
-          icon: const Icon(Icons.close),
-          tooltip: 'Changer de profil',
-          onPressed: () => RoleRouter.changerDeProfil(
-            context,
-            config: widget.config,
-            isAr: ValueNotifier<bool>(false),
-          ),
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Retour',
+          onPressed: _retourProfil,
         ),
       ),
       body: SafeArea(
@@ -203,6 +213,7 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

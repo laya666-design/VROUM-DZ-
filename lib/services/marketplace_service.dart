@@ -324,6 +324,20 @@ class MarketplaceService {
         .update({'statut': 'closed'});
   }
 
+  /// Relance une demande sans réponse : remet la date de création à
+  /// maintenant pour qu'elle remonte en tête chez les magasins, et
+  /// s'assure que le statut reste `open`.
+  static Future<void> relancerRequest(String requestId) async {
+    await FirebaseFirestore.instance
+        .collection(_requestsCollection)
+        .doc(requestId)
+        .update({
+      'statut': 'open',
+      'dateCreation': FieldValue.serverTimestamp(),
+      'relanceAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   static Future<void> markAsSold({
     required String requestId,
     required PartOffer offer,

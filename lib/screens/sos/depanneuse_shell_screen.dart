@@ -152,12 +152,6 @@ class _HistoriqueTab extends StatelessWidget {
       appBar: AppBar(
         title: Text(t('Historique', 'السجل')),
         automaticallyImplyLeading: false,
-        leading: IconButton(
-          tooltip: t('Menu principal', 'القائمة الرئيسية'),
-          icon: const Icon(Icons.home_outlined),
-          onPressed: () =>
-              Navigator.of(context).popUntil((route) => route.isFirst),
-        ),
       ),
       body: StreamBuilder<List<SosAlert>>(
         stream: SosService.myAcceptedAlertsStream(),
@@ -263,12 +257,6 @@ class _DepanneuseProfilTab extends StatelessWidget {
       appBar: AppBar(
         title: Text(t('Profil dépanneuse', 'ملف السطحّة')),
         automaticallyImplyLeading: false,
-        leading: IconButton(
-          tooltip: t('Menu principal', 'القائمة الرئيسية'),
-          icon: const Icon(Icons.home_outlined),
-          onPressed: () =>
-              Navigator.of(context).popUntil((route) => route.isFirst),
-        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
