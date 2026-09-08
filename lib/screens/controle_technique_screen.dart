@@ -103,11 +103,12 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
     });
 
     try {
-      // Règle métier CT : extraire TOUTES les dates + motifs VISITE
-      // PERIODIQUE, prendre la plus récente de l'ensemble.
-      // Gemini ne sert qu'au complément (centre, numéro, km).
+      // Règle métier CT :
+      // 1) OCR local → toutes les dates + motifs VISITE PERIODIQUE
+      // 2) Gemini → date_prochain_controle (souvent mieux sur tampon rose)
+      // 3) On prend la PLUS RÉCENTE des deux sources.
       final rawText = await _ocr.extractText(file);
-      final expiration = OcrService.extractDateVisitePeriodique(rawText);
+      final fromOcr = OcrService.extractDateVisitePeriodique(rawText);
 
       ControleTechniqueInfo info = ControleTechniqueInfo();
       try {
@@ -118,22 +119,24 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
       }
       _info = info;
 
+      final fromAi = info.dateProchainControleParsed;
+      DateTime? expiration;
+      if (fromOcr != null && fromAi != null) {
+        expiration = fromOcr.isAfter(fromAi) ? fromOcr : fromAi;
+      } else {
+        expiration = fromOcr ?? fromAi;
+      }
+
       if (expiration != null) {
         _status = ExpiryStatus(expirationDate: expiration);
       } else {
-        // Dernier recours : date renvoyée par Gemini si l'OCR n'a rien vu.
-        final fromAi = info.dateProchainControleParsed;
-        if (fromAi != null) {
-          _status = ExpiryStatus(expirationDate: fromAi);
-        } else {
-          _error = _t(
-            'Aucune date reconnue sur cette photo. Cadre bien tout le '
-                'document (surtout la zone VISITE PERIODIQUE), ou vérifie '
-                'manuellement.',
-            'لم يتم التعرف على أي تاريخ في هذه الصورة. أطّر الوثيقة كاملةً '
-                '(خاصة منطقة الزيارة الدورية)، أو تحقق يدويًا.',
-          );
-        }
+        _error = _t(
+          'Aucune date reconnue sur cette photo. Cadre bien tout le '
+              'document (surtout la zone VISITE PERIODIQUE en bas), ou '
+              'vérifie manuellement.',
+          'لم يتم التعرف على أي تاريخ في هذه الصورة. أطّر الوثيقة كاملةً '
+              '(خاصة منطقة الزيارة الدورية أسفل الصفحة)، أو تحقق يدويًا.',
+        );
       }
 
       try {

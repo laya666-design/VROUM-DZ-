@@ -206,10 +206,12 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     });
 
     try {
+      // OCR local d'abord (marque arabe/latin dans case الصنف) — prioritaire
+      // sur l'IA qui hallucine parfois (ex: فيات lu TOYOTA).
+      final local = await _fallbackLocal(file);
       final json = await _gemini.analyzeCarteGrise(file);
+
       if (json.containsKey('error')) {
-        // Secours OCR local si l'IA est saturée / en erreur.
-        final local = await _fallbackLocal(file);
         if (local != null && !local.estVide) {
           _info = local;
           await _appliquerScan(local);
@@ -219,22 +221,33 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
         }
       } else {
         var info = CarteGriseInfo.fromJson(json);
-        // Si l'IA n'a pas trouvé la marque, complète avec OCR local.
-        if (info.marque.isEmpty) {
-          final local = await _fallbackLocal(file);
-          if (local != null && local.marque.isNotEmpty) {
-            info = CarteGriseInfo(
-              marque: local.marque,
-              modele: info.modele,
-              type: info.type,
-              annee: info.annee,
-              chassis: info.chassis.isNotEmpty ? info.chassis : local.chassis,
-              puissanceFiscale: info.puissanceFiscale,
-              immatriculation: info.immatriculation,
-              engineCode: info.engineCode,
-              fuelType: info.fuelType,
-            );
-          }
+        // La marque lue localement dans le document FAIT FOI si présente.
+        if (local != null && local.marque.isNotEmpty) {
+          info = CarteGriseInfo(
+            marque: local.marque,
+            modele: info.modele,
+            type: info.type,
+            annee: info.annee,
+            chassis: info.chassis.isNotEmpty ? info.chassis : local.chassis,
+            puissanceFiscale: info.puissanceFiscale,
+            immatriculation: info.immatriculation,
+            engineCode: info.engineCode,
+            fuelType: info.fuelType,
+          );
+        } else if (info.marque.isEmpty &&
+            local != null &&
+            local.chassis.isNotEmpty) {
+          info = CarteGriseInfo(
+            marque: info.marque,
+            modele: info.modele,
+            type: info.type,
+            annee: info.annee,
+            chassis: local.chassis,
+            puissanceFiscale: info.puissanceFiscale,
+            immatriculation: info.immatriculation,
+            engineCode: info.engineCode,
+            fuelType: info.fuelType,
+          );
         }
         if (info.estVide) {
           _error = _t(
