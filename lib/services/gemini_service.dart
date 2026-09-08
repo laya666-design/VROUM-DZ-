@@ -39,23 +39,44 @@ class GeminiService {
       "max_completion_tokens": reasoningEffort == 'none' ? 1024 : 4096,
     };
 
-    final response = await http.post(
-      Uri.parse(_workerUrl),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode(body),
-    );
+    // Relance automatique en cas d erreur temporaire (quota/rate limit
+    // Groq depasse, coupure reseau, reponse serveur vide) : jusqu a 3
+    // tentatives avec un petit delai croissant, avant d abandonner et de
+    // remonter l erreur a l ecran. Avant ce correctif, une seule erreur
+    // (ex "rate_limit_exceeded") faisait directement echouer l analyse.
+    const maxTentatives = 3;
+    Object? derniereErreur;
+    for (var tentative = 1; tentative <= maxTentatives; tentative++) {
+      try {
+        final response = await http.post(
+          Uri.parse(_workerUrl),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(body),
+        );
 
-    final data = jsonDecode(response.body);
+        final data = jsonDecode(response.body);
 
-    if (data['error'] != null) {
-      throw Exception(data['error'].toString());
+        if (data['error'] != null) {
+          throw Exception(data['error'].toString());
+        }
+
+        final content = data['choices']?[0]?['message']?['content'];
+        if (content == null) {
+          throw Exception('Reponse vide du serveur');
+        }
+        return content as String;
+      } catch (e) {
+        derniereErreur = e;
+        final msg = e.toString().toLowerCase();
+        // Erreurs qui ne se resoudront jamais en reessayant (image
+        // invalide, prompt refuse...) : pas la peine de perdre du temps.
+        final definitivementInutile =
+            msg.contains('image') && msg.contains('invalid');
+        if (definitivementInutile || tentative == maxTentatives) break;
+        await Future.delayed(Duration(milliseconds: 700 * tentative));
+      }
     }
-
-    final content = data['choices']?[0]?['message']?['content'];
-    if (content == null) {
-      throw Exception('Reponse vide du serveur');
-    }
-    return content as String;
+    throw derniereErreur ?? Exception('Echec de la requete');
   }
 
   /// Transforme une erreur technique (JSON invalide, reponse tronquee,
@@ -131,25 +152,24 @@ bilingue arabe/francais, souvent intitule "Proces-verbal de controle
 technique des vehicules" / "محضر المراقبة التقنية للسيارات" ou "VISITE
 PERIODIQUE").
 
-ATTENTION CRITIQUE SUR LES DATES — ce document contient PLUSIEURS dates :
-1. Date d enregistrement / immatriculation du vehicule (ex "12/12/2023" pres
-   du numero de registration ou "تاريخ وضع المركبة في السير") → IGNORE-LA.
-2. Date de la visite technique qui vient d etre effectuee (champ
-   "تاريخ المراقبة" / "DATE" / date du jour du controle en haut) → IGNORE-LA.
-3. Date de la PROCHAINE visite periodique (la seule date a retourner) :
-   - cherche explicitement la mention "VISITE PERIODIQUE LE" suivie d une date
-   - ou "طبيعة وتاريخ المراقبة اللاحقة" / "المراقبة اللاحقة"
-   - ou "prochaine visite" / "visite periodique"
-   - cette date est generalement en bas du document, dans un encadre ou apres
-     un libelle clair "VISITE PERIODIQUE LE dd/mm/yyyy"
-   → C EST CETTE DATE UNIQUEMENT qu il faut mettre dans "date_prochain_controle".
+METHODE OBLIGATOIRE POUR LA DATE (ce document contient PLUSIEURS dates,
+imprimees ou manuscrites, parfois peu nettes) :
+ETAPE 1 — Repere et lis TOUTES les dates presentes sur le document, sans
+exception, ou qu elles soient (haut, bas, tableaux, mentions manuscrites en
+couleur), et liste-les toutes au format dd/MM/yyyy dans le champ
+"toutes_les_dates".
+ETAPE 2 — Parmi ces dates, identifie celle qui est la PLUS RECENTE
+(chronologiquement la plus loin dans le futur / la plus grande une fois
+comparees). C est presque toujours la date de la PROCHAINE visite
+periodique (les autres dates du document — immatriculation, visite deja
+effectuee — sont forcement plus anciennes qu elle).
+ETAPE 3 — Mets cette date la plus recente, et uniquement elle, dans
+"date_prochain_controle".
 
-Exemple typique : si tu lis "VISITE PERIODIQUE LE 11/12/2025", alors
-"date_prochain_controle" = "11/12/2025".
-
-Ne prends JAMAIS la date d enregistrement ni la date de la visite du jour.
-Si plusieurs dates futures existent, prends celle explicitement liee a
-"VISITE PERIODIQUE" / "المراقبة اللاحقة".
+Exemple : si tu lis les dates 12/12/2023, 11/12/2023 et 11/12/2026 sur le
+document, alors "toutes_les_dates" = ["12/12/2023", "11/12/2023",
+"11/12/2026"] et "date_prochain_controle" = "11/12/2026" (la plus recente
+des trois).
 
 Pour le centre : cherche "مركز المراقبة" / nom de l agence / "Z.A.C" / nom
 du controleur ou du centre (ex "MEHDAOUI", "HADJADJ").
@@ -158,6 +178,7 @@ Pour le numero : le numero du proces-verbal (ex 6695729) en haut ou bas.
 Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
 
 {
+  "toutes_les_dates": ["dd/MM/yyyy", "..."],
   "centre": "string ou null",
   "numero": "string ou null",
   "kilometrage": "string ou null",
@@ -165,16 +186,60 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
   "jours_restants": 0
 }
 
-REGLE: ne jamais inventer. Si la date "VISITE PERIODIQUE" n est pas lisible,
-mets null plutot que de prendre une autre date du document.
+REGLE: ne jamais inventer une date qui n est pas ecrite sur le document. Si
+aucune date n est lisible, mets un tableau vide et null.
 ''';
 
       final raw = await _callGroq(prompt, file);
       final json = _parseJson(raw);
       json.remove('magasins');
+      _appliquerDateLaPlusRecente(json);
       return json;
     } catch (e) {
       return {'error': _friendlyOcrError(e)};
+    }
+  }
+
+  /// Filet de securite cote code : le modele s est deja trompe plusieurs
+  /// fois en indiquant une date qui n etait pas la plus recente malgre la
+  /// consigne du prompt. On recalcule ici nous-memes le maximum a partir
+  /// de "toutes_les_dates" (celles reellement lues sur le document) et on
+  /// ecrase "date_prochain_controle" avec ce resultat, plutot que de faire
+  /// une confiance aveugle au choix du modele.
+  void _appliquerDateLaPlusRecente(Map<String, dynamic> json) {
+    final brutes = json['toutes_les_dates'];
+    if (brutes is! List || brutes.isEmpty) return;
+
+    DateTime? maxDate;
+    String? maxDateStr;
+    for (final d in brutes) {
+      final parsed = _parseDateFr(d.toString());
+      if (parsed == null) continue;
+      if (maxDate == null || parsed.isAfter(maxDate)) {
+        maxDate = parsed;
+        maxDateStr = d.toString();
+      }
+    }
+    if (maxDateStr != null) {
+      json['date_prochain_controle'] = maxDateStr;
+      json['jours_restants'] = maxDate!.difference(DateTime.now()).inDays;
+    }
+  }
+
+  /// Parse une date au format dd/MM/yyyy (ou d/M/yyyy). Retourne null si le
+  /// format n est pas reconnu, plutot que de lever une exception.
+  DateTime? _parseDateFr(String s) {
+    final match =
+        RegExp(r'^(\d{1,2})/(\d{1,2})/(\d{4})$').firstMatch(s.trim());
+    if (match == null) return null;
+    final jour = int.tryParse(match.group(1)!);
+    final mois = int.tryParse(match.group(2)!);
+    final annee = int.tryParse(match.group(3)!);
+    if (jour == null || mois == null || annee == null) return null;
+    try {
+      return DateTime(annee, mois, jour);
+    } catch (_) {
+      return null;
     }
   }
 

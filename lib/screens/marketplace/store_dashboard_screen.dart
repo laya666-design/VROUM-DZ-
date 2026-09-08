@@ -51,6 +51,7 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
   StreamSubscription<StoreProfile?>? _profileSub;
   int _lastKnownCount = -1; // total visible (pour détecter nouvelles arrivées)
   int _unreadCount = 0; // badge = non consultées
+  bool _dialogSpecialitesForceeOuverte = false; // une seule fois par session
 
   @override
   void initState() {
@@ -251,7 +252,7 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
     }
   }
 
-  Future<void> _editCategories(StoreProfile profile) async {
+  Future<void> _editCategories(StoreProfile profile, {bool forced = false}) async {
     final selected = Set<String>.from(profile.categories);
     final autreCtrl =
         TextEditingController(text: profile.categorieAutre ?? '');
@@ -259,11 +260,20 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
 
     final ok = await showDialog<bool>(
       context: context,
+      // Juste après la connexion, si le magasin n'a encore renseigné
+      // aucune spécialité, la boîte de dialogue est obligatoire : on
+      // l'empêche de la fermer sans choisir (ni appui en dehors, ni
+      // bouton Annuler), sinon il reste bloqué avec un dashboard vide
+      // ("Renseigne tes spécialités pour recevoir des demandes.") sans
+      // comprendre pourquoi.
+      barrierDismissible: !forced,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setLocal) {
-            return AlertDialog(
-              title: const Text('Mes spécialités'),
+            return PopScope(
+              canPop: !forced,
+              child: AlertDialog(
+              title: Text(forced ? 'Choisis tes spécialités' : 'Mes spécialités'),
               content: SizedBox(
                 width: double.maxFinite,
                 child: SingleChildScrollView(
@@ -271,9 +281,11 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Text(
-                        'Coche les types de pièces que tu vends. Tu ne verras que les demandes correspondantes.',
-                        style: TextStyle(fontSize: 13, color: Colors.black54),
+                      Text(
+                        forced
+                            ? 'Avant de recevoir des demandes, indique les types de pièces que tu vends. Tu ne verras que les demandes correspondantes.'
+                            : 'Coche les types de pièces que tu vends. Tu ne verras que les demandes correspondantes.',
+                        style: const TextStyle(fontSize: 13, color: Colors.black54),
                       ),
                       const SizedBox(height: 12),
                       Wrap(
@@ -321,10 +333,11 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                 ),
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Annuler'),
-                ),
+                if (!forced)
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Annuler'),
+                  ),
                 FilledButton(
                   onPressed: () {
                     if (selected.isEmpty) {
@@ -343,6 +356,7 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                   child: const Text('Enregistrer'),
                 ),
               ],
+              ),
             );
           },
         );
@@ -911,6 +925,17 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
               backgroundColor: widget.config.primaryColor,
               foregroundColor: Colors.white,
               title: const Text('Espace Pro'),
+              // Avant, cet écran d'erreur n'avait aucun bouton retour
+              // explicite : si canPop() était false (selectRole vide la
+              // pile de navigation), il n'y avait strictement aucun moyen
+              // de quitter cet écran d'erreur. popUntil(isFirst) revient
+              // toujours à l'écran racine, quel que soit l'état de la pile.
+              leading: IconButton(
+                tooltip: 'Menu principal',
+                icon: const Icon(Icons.home_outlined),
+                onPressed: () =>
+                    Navigator.of(context).popUntil((route) => route.isFirst),
+              ),
               actions: [IconButton(onPressed: _logout, icon: const Icon(Icons.logout))],
             ),
             body: Center(
@@ -940,6 +965,21 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
         }
         final profile = profileSnap.data;
 
+        // Juste après la connexion, si le magasin n'a jamais choisi de
+        // spécialité, on l'oblige à le faire immédiatement (sinon son
+        // dashboard reste vide sans qu'il comprenne pourquoi, puisque
+        // filtrerParCategories() renvoie [] tant que categories est vide).
+        // addPostFrameCallback : on ne peut pas ouvrir un dialog pendant
+        // build() lui-même.
+        if (profile != null &&
+            !profile.aDesCategories &&
+            !_dialogSpecialitesForceeOuverte) {
+          _dialogSpecialitesForceeOuverte = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _editCategories(profile, forced: true);
+          });
+        }
+
         return Scaffold(
           appBar: AppBar(
             backgroundColor: widget.config.primaryColor,
@@ -952,7 +992,17 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                     icon: const Icon(Icons.close),
                     onPressed: _toggleSelectionMode,
                   )
-                : null,
+                // Bouton maison toujours présent : après la connexion, la
+                // pile de navigation peut être vide (canPop() == false),
+                // ce qui masquait la flèche retour automatique et laissait
+                // cet écran sans aucune sortie. popUntil(isFirst) revient
+                // toujours à l'écran racine.
+                : IconButton(
+                    tooltip: 'Menu principal',
+                    icon: const Icon(Icons.home_outlined),
+                    onPressed: () => Navigator.of(context)
+                        .popUntil((route) => route.isFirst),
+                  ),
             actions: [
               if (_selectionMode) ...[
                 IconButton(

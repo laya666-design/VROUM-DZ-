@@ -138,11 +138,11 @@ class _BuyerPortalScreenState extends State<BuyerPortalScreen> {
           tooltip: _t('Menu principal', 'القائمة الرئيسية'),
           icon: const Icon(Icons.home_outlined),
           onPressed: () {
-            // Remonte vers le menu principal (Home) s'il est dans la pile,
-            // sinon ferme simplement cet écran.
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            }
+            // popUntil((route) => route.isFirst) revient toujours à l'écran
+            // racine de la pile, quel que soit le nombre d'écrans empilés
+            // entre-temps. Avant, un simple pop() ne faisait rien du tout
+            // si canPop() était déjà false (bouton mort).
+            Navigator.of(context).popUntil((route) => route.isFirst);
           },
         ),
         actions: [

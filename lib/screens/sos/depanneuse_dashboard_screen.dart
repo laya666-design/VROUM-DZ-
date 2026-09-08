@@ -102,6 +102,17 @@ class _DepanneuseDashboardScreenState
         backgroundColor: sos,
         foregroundColor: Colors.white,
         title: const Text('Alertes SOS'),
+        // Bouton maison toujours présent : cet écran est atteint via
+        // pushReplacement/pushAndRemoveUntil (changement de rôle), donc
+        // canPop() est souvent false et aucune flèche retour n'apparaît
+        // automatiquement — sans ce bouton, impossible de quitter l'Espace
+        // Dépanneuse. popUntil(isFirst) revient toujours à l'écran racine.
+        leading: IconButton(
+          tooltip: 'Menu principal',
+          icon: const Icon(Icons.home_outlined),
+          onPressed: () =>
+              Navigator.of(context).popUntil((route) => route.isFirst),
+        ),
         actions: [
           IconButton(
             tooltip: 'Déconnexion',
