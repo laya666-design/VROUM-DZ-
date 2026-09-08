@@ -14,10 +14,10 @@ class OcrService {
     return result.text;
   }
 
-  /// Extrait toutes les dates au format JJ/MM/AAAA, J/M/AAAA, JJ.MM.AAAA
-  /// ou JJ-MM-AAAA trouvées dans le texte OCR (cartes jaunes, CT, etc.).
+  /// Extrait toutes les dates (espaces optionnels autour des séparateurs).
   static List<DateTime> extractDates(String rawText) {
-    final regex = RegExp(r'(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})');
+    final regex =
+        RegExp(r'(\d{1,2})\s*[\/\.\-]\s*(\d{1,2})\s*[\/\.\-]\s*(\d{2,4})');
     final matches = regex.allMatches(rawText);
     final dates = <DateTime>[];
 

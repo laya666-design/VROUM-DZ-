@@ -255,8 +255,11 @@ juste en dessous. C est CETTE case-la qu il faut lire en priorite.
    WVW / WVG → VOLKSWAGEN
    U5Y / KMH → HYUNDAI / KIA
 5. Si tu lis clairement "تويوتا" (ou TOYOTA) dans la case الصنف/MARQUE,
-   retourne "marque": "TOYOTA". Ne mets JAMAIS RENAULT a la place.
-6. Ne jamais inventer une marque si la case est illisible → null.
+   retourne "marque": "TOYOTA".
+6. Si tu lis "فيات" → "FIAT". "رينو" → "RENAULT". "بيجو" → "PEUGEOT".
+7. Ne JAMAIS inventer une marque (ex: ne mets pas TOYOTA si tu vois فيات).
+   Si la case est illisible → null. Le chassis WMI ne remplace la marque
+   QUE s il est un VIN long clairement lisible.
 
 Autres champs (meme tableau) :
 - "الطراز" / TYPE : code type / modele (ex NCP92LBEMRK).
@@ -341,9 +344,15 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
       expected = 'DACIA';
     }
 
-    if (expected != null && (marque.isEmpty || marque != expected)) {
-      // Chassis WMI fait foi quand la case marque est illisible / absente
-      // ou clairement en conflit.
+    // Ne force la marque via chassis QUE si :
+    // - aucune marque lue, OU
+    // - chassis long type VIN (≥11) en conflit clair avec la marque.
+    // Un chassis court mal OCR (3-5 caractères) ne doit JAMAIS écraser
+    // une marque lue dans la case الصنف (ex: فيات → FIAT).
+    if (expected == null) return;
+    if (marque.isEmpty) {
+      json['marque'] = expected;
+    } else if (marque != expected && chassis.length >= 11) {
       json['marque'] = expected;
     }
   }
