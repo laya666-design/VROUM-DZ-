@@ -153,7 +153,15 @@ class _BuyerPhoneLoginScreenState extends State<BuyerPhoneLoginScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Croix = retour au choix Acheteur / Magasin (pas un pop).
+            // Croix = retour à l'écran précédent (le portail acheteur,
+            // lui-même un onglet du menu principal). Bug corrigé : cet
+            // écran est normalement empilé au-dessus du menu principal
+            // (HomeScreen) ; un pushAndRemoveUntil ici videait TOUTE la
+            // pile de navigation (y compris le menu principal avec ses
+            // onglets Véhicules/Motos/Pièces/Rappels/Profil), laissant
+            // l'utilisateur bloqué sans aucun moyen d'y retourner. Un
+            // simple retour (pop), avec repli sur le menu principal si
+            // jamais il n'y a rien à dépiler, résout le problème.
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
               child: Row(
@@ -162,15 +170,18 @@ class _BuyerPhoneLoginScreenState extends State<BuyerPhoneLoginScreen> {
                     tooltip: 'Retour',
                     icon: const Icon(Icons.close, size: 22),
                     onPressed: () {
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                          builder: (_) => PartsPortalScreen(
-                            config: widget.config,
-                            isAr: widget.isAr,
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      } else {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => PartsPortalScreen(
+                              config: widget.config,
+                              isAr: widget.isAr,
+                            ),
                           ),
-                        ),
-                        (route) => false,
-                      );
+                        );
+                      }
                     },
                   ),
                   const Spacer(),

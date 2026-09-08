@@ -187,17 +187,16 @@ class _BuyerPortalScreenState extends State<BuyerPortalScreen> {
                 await MarketplaceService.signOut();
                 if (!context.mounted) return;
 
-                // Vide toute la pile pour empêcher le retour vers l'ancien portail.
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BuyerPhoneLoginScreen(
-                      config: widget.config,
-                      isAr: widget.isAr,
-                    ),
-                  ),
-                  (route) => false,
-                );
+                // Bug corrigé : ce portail est un onglet du menu principal
+                // (HomeScreen), pas un écran empilé — un
+                // pushAndRemoveUntil ici supprimait le menu principal de
+                // la pile de navigation, laissant l'utilisateur bloqué
+                // dans l'écran de connexion sans aucun moyen de revenir
+                // au menu principal (mêmes symptômes que le bouton
+                // croix). Un simple setState suffit : l'écran se
+                // reconstruit déjà avec l'icône "Se connecter" dès que
+                // phoneLoggedIn passe à false, sans toucher à la pile.
+                setState(() {});
               },
             )
           else

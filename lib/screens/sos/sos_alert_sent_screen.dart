@@ -92,7 +92,18 @@ class _SosAlertSentScreenState extends State<SosAlertSentScreen> {
 
   Future<void> _annuler(BuildContext context) async {
     await SosService.cancelAlert(widget.alertId);
-    if (context.mounted) Navigator.of(context).pop();
+    if (context.mounted) _retourMenuPrincipal(context);
+  }
+
+  /// Revient au menu principal (écran racine : HomeScreen côté conducteur,
+  /// ou le shell du rôle côté magasin) quel que soit l'état de l'alerte.
+  /// Avant, une fois l'alerte acceptée/arrivée, il n'y avait plus aucun
+  /// bouton pour quitter cet écran (seul "Annuler" existait, et
+  /// uniquement pendant l'attente) — l'utilisateur restait bloqué ici.
+  /// popUntil((route) => route.isFirst) garantit un retour au menu
+  /// principal même si d'autres écrans ont été empilés entre-temps.
+  void _retourMenuPrincipal(BuildContext context) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
@@ -110,6 +121,14 @@ class _SosAlertSentScreenState extends State<SosAlertSentScreen> {
         backgroundColor: sos,
         foregroundColor: Colors.white,
         title: const Text('Alerte SOS'),
+        // Bouton retour explicite (au lieu du pop par défaut) : garantit
+        // un retour fiable au menu principal quel que soit l'état de la
+        // pile de navigation.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Menu principal',
+          onPressed: () => _retourMenuPrincipal(context),
+        ),
       ),
       body: Center(
         child: Padding(
@@ -121,6 +140,7 @@ class _SosAlertSentScreenState extends State<SosAlertSentScreen> {
                 const Icon(Icons.cancel_outlined, size: 64, color: Colors.black38),
                 const SizedBox(height: 16),
                 const Text('Alerte annulée.', style: TextStyle(fontSize: 18)),
+                const SizedBox(height: 20),
               ] else if (!accepte && !arrivee) ...[
                 SizedBox(
                   width: 64,
@@ -170,7 +190,16 @@ class _SosAlertSentScreenState extends State<SosAlertSentScreen> {
                       ),
                     );
                   }),
+                const SizedBox(height: 12),
               ],
+              // Toujours visible, quel que soit l'état de l'alerte — avant,
+              // une fois l'alerte acceptée/arrivée, rien ne permettait de
+              // quitter cet écran.
+              TextButton.icon(
+                onPressed: () => _retourMenuPrincipal(context),
+                icon: const Icon(Icons.home_outlined),
+                label: const Text('Retour au menu principal'),
+              ),
             ],
           ),
         ),
