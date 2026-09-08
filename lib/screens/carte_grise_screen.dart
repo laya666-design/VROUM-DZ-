@@ -57,6 +57,19 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   bool _loading = false;
   String? _error;
   CarteGriseInfo? _info;
+  /// true une fois que l'utilisateur a explicitement validé le scan
+  /// (évite d'enregistrer des erreurs OCR/IA sans relecture).
+  bool _confirmed = false;
+
+  // Contrôleurs pour permettre la correction manuelle avant enregistrement
+  final _marqueCtrl = TextEditingController();
+  final _modeleCtrl = TextEditingController();
+  final _anneeCtrl = TextEditingController();
+  final _chassisCtrl = TextEditingController();
+  final _puissanceCtrl = TextEditingController();
+  final _immatCtrl = TextEditingController();
+  final _engineCtrl = TextEditingController();
+  final _fuelCtrl = TextEditingController();
 
   bool get _modeCreation => widget.vehicule == null;
 
@@ -65,6 +78,14 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   @override
   void dispose() {
     _ocr.dispose();
+    _marqueCtrl.dispose();
+    _modeleCtrl.dispose();
+    _anneeCtrl.dispose();
+    _chassisCtrl.dispose();
+    _puissanceCtrl.dispose();
+    _immatCtrl.dispose();
+    _engineCtrl.dispose();
+    _fuelCtrl.dispose();
     super.dispose();
   }
 
@@ -84,7 +105,33 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
         engineCode: v.engineCode,
         fuelType: v.fuelType,
       );
+      _fillControllers(_info!);
+      _confirmed = true;
     }
+  }
+
+  void _fillControllers(CarteGriseInfo info) {
+    _marqueCtrl.text = info.marque;
+    _modeleCtrl.text = info.modele;
+    _anneeCtrl.text = info.annee?.toString() ?? '';
+    _chassisCtrl.text = info.chassis;
+    _puissanceCtrl.text = info.puissanceFiscale;
+    _immatCtrl.text = info.immatriculation;
+    _engineCtrl.text = info.engineCode;
+    _fuelCtrl.text = info.fuelType;
+  }
+
+  CarteGriseInfo _infoFromControllers() {
+    return CarteGriseInfo(
+      marque: _marqueCtrl.text.trim().toUpperCase(),
+      modele: _modeleCtrl.text.trim(),
+      annee: int.tryParse(_anneeCtrl.text.trim()),
+      chassis: _chassisCtrl.text.trim().toUpperCase(),
+      puissanceFiscale: _puissanceCtrl.text.trim(),
+      immatriculation: _immatCtrl.text.trim(),
+      engineCode: _engineCtrl.text.trim(),
+      fuelType: _fuelCtrl.text.trim(),
+    );
   }
 
   String _nomDepuis(CarteGriseInfo info) {
@@ -189,13 +236,16 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     setState(() {
       _error = null;
       _info = null;
+      _confirmed = false;
     });
 
-    // Image plus légère → moins de tokens ITPM Groq (rate limit).
+    // Qualité plus élevée = texte arabe + petits chiffres (puissance,
+    // année, châssis) bien plus lisibles pour le modèle vision.
+    // 85 / 1600 reste raisonnable pour les tokens Groq.
     final picked = await _picker.pickImage(
       source: source,
-      imageQuality: 55,
-      maxWidth: 1280,
+      imageQuality: 85,
+      maxWidth: 1600,
     );
     if (picked == null) return;
 
@@ -207,29 +257,24 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
 
     try {
       // OCR local en parallèle : sert de filet de secours (marque/châssis)
-      // si Gemini ne trouve rien, mais ne prime plus sur sa lecture de la
-      // case الصنف (voir plus bas).
+      // si le modèle vision ne trouve rien.
       final local = await _fallbackLocal(file);
       final json = await _gemini.analyzeCarteGrise(file);
 
       if (json.containsKey('error')) {
         if (local != null && !local.estVide) {
           _info = local;
-          await _appliquerScan(local);
+          _fillControllers(local);
           _error = null;
         } else {
           _error = _t('Erreur : ${json['error']}', 'خطأ: ${json['error']}');
         }
       } else {
         var info = CarteGriseInfo.fromJson(json);
-        // Gemini (lecture visuelle ciblée de la case الصنف, cf. prompt)
-        // fait foi pour la marque : c'est le seul des deux qui "regarde"
-        // réellement cette case précise. L'OCR local (ML Kit, texte brut
-        // de toute l'image, sans repérage de case) ne sert que de secours
-        // quand Gemini n'a rien trouvé — il ne doit jamais écraser une
-        // marque déjà lue par Gemini, au risque de retomber sur un
-        // mot-clé capté ailleurs sur la page (bug observé : "HYUNDAI"
-        // renvoyé sur une carte grise Mercedes).
+        // Le modèle vision (lecture ciblée de la case الصنف) fait foi pour
+        // la marque. L'OCR local ne sert que de secours quand la marque
+        // est vide — il ne doit jamais écraser une marque déjà lue
+        // (bug observé : "HYUNDAI" renvoyé sur une Mercedes).
         final chassisSecours =
             info.chassis.isNotEmpty ? info.chassis : (local?.chassis ?? '');
         if (info.marque.isEmpty && local != null && local.marque.isNotEmpty) {
@@ -266,17 +311,53 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
                 'الجدول السفلي (خانة الصنف / الماركة).',
           );
         } else {
+          // On n'enregistre PAS encore : l'utilisateur doit confirmer
+          // (et peut corriger) les champs extraits.
           _info = info;
-          await _appliquerScan(info);
+          _fillControllers(info);
         }
       }
     } catch (e) {
       final local = await _fallbackLocal(file);
       if (local != null && !local.estVide) {
         _info = local;
-        await _appliquerScan(local);
+        _fillControllers(local);
       } else {
         _error = _t('Erreur d\'analyse : $e', 'خطأ في التحليل: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _confirmAndSave() async {
+    final info = _infoFromControllers();
+    if (info.estVide) {
+      setState(() {
+        _error = _t(
+          'Renseigne au moins la marque ou le châssis.',
+          'أدخل على الأقل الماركة أو رقم الهيكل.',
+        );
+      });
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await _appliquerScan(info);
+      if (mounted) {
+        setState(() {
+          _info = info;
+          _confirmed = true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = _t('Erreur d\'enregistrement : $e', 'خطأ في الحفظ: $e');
+        });
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -300,6 +381,27 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
                     const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _editField(String label, TextEditingController ctrl,
+      {TextInputType keyboard = TextInputType.text}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: TextField(
+        controller: ctrl,
+        keyboardType: keyboard,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        decoration: InputDecoration(
+          labelText: label,
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          filled: true,
+          fillColor: Colors.white,
+        ),
       ),
     );
   }
@@ -419,28 +521,82 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.check_circle,
-                        color: widget.config.primaryColor, size: 20),
+                    Icon(
+                      _confirmed ? Icons.check_circle : Icons.edit_note,
+                      color: widget.config.primaryColor,
+                      size: 20,
+                    ),
                     const SizedBox(width: 6),
-                    Text(
-                      _modeCreation
-                          ? _t('Véhicule créé', 'تم إنشاء المركبة')
-                          : _t('Moteur identifié', 'تم تحديد المحرك'),
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 15),
+                    Expanded(
+                      child: Text(
+                        _confirmed
+                            ? (_modeCreation
+                                ? _t('Véhicule créé', 'تم إنشاء المركبة')
+                                : _t('Moteur identifié', 'تم تحديد المحرك'))
+                            : _t(
+                                'Vérifie et corrige si besoin',
+                                'تحقق وصحح إذا لزم الأمر',
+                              ),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                _infoRow(_t('Marque', 'الماركة'), _info!.marque),
-                _infoRow(_t('Modèle', 'الموديل'), _info!.modele),
-                _infoRow(_t('Année', 'السنة'), _info!.annee?.toString() ?? ''),
-                _infoRow(_t('Châssis', 'رقم الهيكل'), _info!.chassis),
-                _infoRow(_t('Puissance fiscale', 'القوة الجبائية'),
-                    _info!.puissanceFiscale),
-                _infoRow(_t('Code moteur', 'رمز المحرك'), _info!.engineCode),
-                _infoRow(_t('Carburant', 'نوع الوقود'), _info!.fuelType),
-                if (_info!.engineCode.isEmpty)
+                const SizedBox(height: 12),
+                if (_confirmed) ...[
+                  // Mode lecture seule après validation
+                  _infoRow(_t('Marque', 'الماركة'), _info!.marque),
+                  _infoRow(_t('Modèle', 'الموديل'), _info!.modele),
+                  _infoRow(
+                      _t('Année', 'السنة'), _info!.annee?.toString() ?? ''),
+                  _infoRow(_t('Châssis', 'رقم الهيكل'), _info!.chassis),
+                  _infoRow(_t('Puissance fiscale', 'القوة الجبائية'),
+                      _info!.puissanceFiscale),
+                  _infoRow(
+                      _t('Code moteur', 'رمز المحرك'), _info!.engineCode),
+                  _infoRow(_t('Carburant', 'نوع الوقود'), _info!.fuelType),
+                ] else ...[
+                  // Mode édition : l'utilisateur peut corriger les erreurs IA
+                  _editField(_t('Marque', 'الماركة'), _marqueCtrl),
+                  _editField(_t('Modèle', 'الموديل'), _modeleCtrl),
+                  _editField(_t('Année', 'السنة'), _anneeCtrl,
+                      keyboard: TextInputType.number),
+                  _editField(_t('Châssis', 'رقم الهيكل'), _chassisCtrl),
+                  _editField(
+                      _t('Puissance fiscale', 'القوة الجبائية'), _puissanceCtrl),
+                  _editField(_t('Immatriculation', 'رقم التسجيل'), _immatCtrl),
+                  _editField(_t('Code moteur', 'رمز المحرك'), _engineCtrl),
+                  _editField(_t('Carburant', 'نوع الوقود'), _fuelCtrl),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _loading ? null : _confirmAndSave,
+                      icon: const Icon(Icons.save),
+                      label: Text(_t(
+                        'Confirmer et enregistrer',
+                        'تأكيد وحفظ',
+                      )),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: widget.config.primaryColor,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _t(
+                      'Corrige les champs erronés avant de valider. '
+                      'La qualité de la photo a été augmentée pour réduire les erreurs.',
+                      'صحح الحقول الخاطئة قبل التأكيد. '
+                      'تم رفع جودة الصورة لتقليل الأخطاء.',
+                    ),
+                    style: const TextStyle(fontSize: 11, color: Colors.black54),
+                  ),
+                ],
+                if (_confirmed && _info!.engineCode.isEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
@@ -450,13 +606,14 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
                         'لم يتم تحديد رمز المحرك بشكل مؤكد — '
                         'يمكن التحقق منه في دفتر الصيانة.',
                       ),
-                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                      style: const TextStyle(
+                          fontSize: 12, color: Colors.black54),
                     ),
                   ),
               ],
             ),
           ),
-          if (!_modeCreation) ...[
+          if (_confirmed && !_modeCreation) ...[
             const SizedBox(height: 12),
             Text(
               _t(
