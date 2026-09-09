@@ -12,6 +12,8 @@ import '../theme/app_theme.dart';
 import '../widgets/screen_background.dart';
 import 'admin/admin_login_screen.dart';
 import 'role_router.dart';
+import 'sos/tel_picker_dialog.dart';
+import 'sos/wilaya_picker_dialog.dart';
 
 /// Onglet Profil amélioré :
 /// - Carte compte claire (badge + nombre de véhicules)
@@ -895,7 +897,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 18),
 
-                // ── RACCOURCIS (C) ───────────────────────────────────────
+                // ── RACCOURCI PRO ────────────────────────────────────────
                 _groupCard(
                   children: [
                     _groupTile(
@@ -912,45 +914,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         afficherConducteur: false,
                       ),
                     ),
-                    _groupDivider(),
-                    _groupTile(
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // ── PARAMÈTRES (style sombre) ────────────────────────────
+                _sectionLabel(t('Paramètres', 'الإعدادات')),
+                _darkSettingsCard(
+                  children: [
+                    _darkSettingTile(
+                      icon: Icons.dark_mode_outlined,
+                      title: t('Affichage sombre', 'الوضع الداكن'),
+                      subtitle: SettingsService.isDarkMode
+                          ? t('Activé', 'مفعّل')
+                          : t('Désactivé', 'معطّل'),
+                      trailing: Switch(
+                        value: SettingsService.isDarkMode,
+                        activeColor: widget.config.primaryColor,
+                        onChanged: (val) async {
+                          await SettingsService.setDarkMode(val);
+                          if (mounted) setState(() {});
+                        },
+                      ),
+                    ),
+                    _darkDivider(),
+                    _darkSettingTile(
+                      icon: Icons.language,
+                      title: t('Langue', 'اللغة'),
+                      subtitle: isAr ? 'العربية' : 'Français',
+                      trailing: _darkLangToggle(
+                        isAr: isAr,
+                        onChanged: (v) => widget.isAr.value = v,
+                      ),
+                    ),
+                    _darkDivider(),
+                    _darkSettingTile(
                       icon: Icons.directions_car_filled_outlined,
                       title: t('Type de véhicule', 'نوع المركبة'),
                       subtitle: _vehicleProfileLabel(t),
                       onTap: () => _showVehicleProfilePicker(context, t),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-
-                // ── PRÉFÉRENCES (A+D) ─────────────────────────────────────
-                _sectionLabel(t('Préférences', 'التفضيلات')),
-                _groupCard(
-                  children: [
-                    _groupTile(
-                      icon: Icons.language,
-                      title: t('Langue', 'اللغة'),
-                      subtitle: isAr ? 'العربية' : 'Français',
-                      trailing: SegmentedButton<bool>(
-                        segments: const [
-                          ButtonSegment(value: false, label: Text('FR')),
-                          ButtonSegment(value: true, label: Text('AR')),
-                        ],
-                        selected: {isAr},
-                        onSelectionChanged: (s) =>
-                            widget.isAr.value = s.first,
-                        style: const ButtonStyle(
-                          visualDensity: VisualDensity.compact,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                      ),
+                    _darkDivider(),
+                    _darkSettingTile(
+                      icon: Icons.location_city_outlined,
+                      title: t('Wilaya', 'الولاية'),
+                      subtitle: SettingsService.wilaya?.isNotEmpty == true
+                          ? SettingsService.wilaya!
+                          : t('Non renseignée', 'غير محددة'),
+                      onTap: () async {
+                        final w = await showWilayaPickerDialog(
+                          context,
+                          accentColor: widget.config.primaryColor,
+                        );
+                        if (w != null && w.isNotEmpty) {
+                          await SettingsService.setWilaya(w);
+                          if (mounted) setState(() {});
+                        }
+                      },
+                    ),
+                    _darkDivider(),
+                    _darkSettingTile(
+                      icon: Icons.phone_outlined,
+                      title: t('Téléphone', 'الهاتف'),
+                      subtitle: SettingsService.userTel?.isNotEmpty == true
+                          ? SettingsService.userTel!
+                          : t('Pour le SOS', 'لنداء الاستغاثة'),
+                      onTap: () async {
+                        final tel = await showTelPickerDialog(
+                          context,
+                          accentColor: widget.config.primaryColor,
+                          valeurInitiale: SettingsService.userTel,
+                        );
+                        if (tel != null && tel.isNotEmpty) {
+                          await SettingsService.setUserTel(tel);
+                          if (mounted) setState(() {});
+                        }
+                      },
                     ),
                     if (isPremium) ...[
-                      _groupDivider(),
-                      _groupTile(
+                      _darkDivider(),
+                      _darkSettingTile(
                         icon: Icons.notifications_active_outlined,
-                        title:
-                            t('Rappels SMS / Appel', 'تذكيرات SMS / مكالمة'),
+                        title: t(
+                            'Rappels SMS / Appel', 'تذكيرات SMS / مكالمة'),
                         subtitle: SettingsService.smsRemindersEnabled
                             ? t('Activés', 'مفعّلة')
                             : t('Désactivés', 'معطّلة'),
@@ -1131,6 +1177,160 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       child: Column(children: children),
+    );
+  }
+
+  Widget _darkSettingsCard({required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF0F172A),
+            Color(0xFF1E293B),
+            Color(0xFF334155),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _darkDivider() {
+    return Divider(
+      height: 1,
+      thickness: 1,
+      indent: 56,
+      color: Colors.white.withOpacity(0.08),
+    );
+  }
+
+  Widget _darkLangToggle({
+    required bool isAr,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+      ),
+      padding: const EdgeInsets.all(3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _langChip(
+            label: 'FR',
+            selected: !isAr,
+            onTap: () => onChanged(false),
+          ),
+          _langChip(
+            label: 'AR',
+            selected: isAr,
+            onTap: () => onChanged(true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _langChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? widget.config.primaryColor
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : Colors.white70,
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _darkSettingTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Colors.white.withOpacity(0.55),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              trailing ??
+                  (onTap != null
+                      ? Icon(Icons.chevron_right,
+                          color: Colors.white.withOpacity(0.45), size: 20)
+                      : const SizedBox.shrink()),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
