@@ -21,8 +21,25 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  // Le système Android affiche déjà la notification si le message
-  // contient un bloc `notification`. Rien d'autre à faire ici.
+  // Si le message a un bloc `notification`, Android l'affiche déjà
+  // (souvent sur le canal par défaut, pas forcément sos_alerts).
+  // Pour les alertes SOS on force une notif locale Importance.max
+  // afin que le téléphone sonne même en poche / Doze, même si le
+  // serveur n'a pas mis channel_id: sos_alerts. (Peut doubler la
+  // notif si le payload notification est présent — préférable à
+  // une notif silencieuse.)
+  final n = message.notification;
+  final isSos = message.data.containsKey('alertId') ||
+      (n?.title?.toLowerCase().contains('alerte') ?? false) ||
+      (n?.title?.toLowerCase().contains('panne') ?? false) ||
+      message.data['type'] == 'sos';
+  if (isSos) {
+    await NotificationService.init();
+    await NotificationService.showSos(
+      title: n?.title ?? message.data['title'] ?? 'Alerte panne',
+      body: n?.body ?? message.data['body'] ?? '',
+    );
+  }
 }
 
 void main() async {
