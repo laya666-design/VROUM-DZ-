@@ -1082,63 +1082,108 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
             accentColor: widget.config.primaryColor,
             child: profile == null
               ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.storefront_outlined,
-                            size: 48, color: widget.config.primaryColor),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Profil introuvable',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w700),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Ton compte est connecté, mais aucune fiche magasin '
-                          'n\'a été trouvée. Complète ton profil ou change de rôle.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.black54),
-                        ),
-                        const SizedBox(height: 24),
-                        FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: widget.config.primaryColor,
-                            minimumSize: const Size.fromHeight(48),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      padding: const EdgeInsets.fromLTRB(22, 28, 22, 20),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.grey.shade200),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
                           ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => StoreCompleteProfileScreen(
-                                    config: widget.config),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              color: widget.config.primaryColor
+                                  .withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.storefront_rounded,
+                                size: 36, color: widget.config.primaryColor),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Profil introuvable',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Ton compte est connecté, mais aucune fiche magasin '
+                            'n’a été trouvée.\nComplète ton profil pour recevoir les demandes.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              height: 1.4,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: widget.config.primaryColor,
+                              minimumSize: const Size.fromHeight(50),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                            );
-                          },
-                          icon: const Icon(Icons.edit_outlined),
-                          label: const Text('Compléter mon profil magasin'),
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            RoleRouter.changerDeProfil(
-                              context,
-                              config: widget.config,
-                              isAr: ValueNotifier<bool>(false),
-                            );
-                          },
-                          icon: const Icon(Icons.swap_horiz),
-                          label: const Text('Changer de profil'),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: _logout,
-                          child: const Text('Se déconnecter'),
-                        ),
-                      ],
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => StoreCompleteProfileScreen(
+                                      config: widget.config),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.edit_outlined),
+                            label: const Text('Compléter mon profil magasin'),
+                          ),
+                          const SizedBox(height: 10),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
+                              side: BorderSide(color: Colors.grey.shade300),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            onPressed: () {
+                              RoleRouter.changerDeProfil(
+                                context,
+                                config: widget.config,
+                                isAr: ValueNotifier<bool>(false),
+                              );
+                            },
+                            icon: const Icon(Icons.swap_horiz),
+                            label: const Text('Changer de profil'),
+                          ),
+                          const SizedBox(height: 6),
+                          TextButton(
+                            onPressed: _logout,
+                            child: Text(
+                              'Se déconnecter',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 )

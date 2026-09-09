@@ -224,72 +224,185 @@ class _MagasinProfilTab extends StatelessWidget {
     required this.sosEnCours,
   });
 
+  Widget _profilTile({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback? onTap,
+    Widget? trailing,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(icon, color: iconColor, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        height: 1.3,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              trailing ??
+                  Icon(Icons.chevron_right_rounded,
+                      color: Colors.grey.shade400, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = (String fr, String ar) => isAr ? ar : fr;
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Text(t('Profil magasin', 'ملف المحل')),
-        automaticallyImplyLeading: false,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // SOS discret
-          Card(
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: config.sosColor.withValues(alpha: 0.12),
-                child: Icon(Icons.sos, color: config.sosColor),
-              ),
-              title: Text(
-                t('Alerte SOS', 'تنبيه استغاثة'),
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              subtitle: Text(
-                t(
-                  'Si ton propre véhicule tombe en panne',
-                  'إذا تعطلت مركبتك الخاصة',
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: [
+            // En-tête magasin
+            Container(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    config.primaryColor,
+                    config.primaryColor.withValues(alpha: 0.82),
+                  ],
                 ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: config.primaryColor.withValues(alpha: 0.28),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(Icons.storefront_rounded,
+                        color: Colors.white, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t('Profil magasin', 'ملف المحل'),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          t(
+                            'Abonnement, SOS et changement de rôle',
+                            'الاشتراك، الاستغاثة وتغيير الدور',
+                          ),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.88),
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _profilTile(
+              icon: Icons.sos,
+              iconBg: config.sosColor.withValues(alpha: 0.12),
+              iconColor: config.sosColor,
+              title: t('Alerte SOS', 'تنبيه استغاثة'),
+              subtitle: t(
+                'Si ton propre véhicule tombe en panne',
+                'إذا تعطلت مركبتك الخاصة',
+              ),
+              onTap: sosEnCours ? null : onSos,
               trailing: sosEnCours
                   ? const SizedBox(
-                      width: 24,
-                      height: 24,
+                      width: 22,
+                      height: 22,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Icon(Icons.chevron_right, color: config.sosColor),
-              onTap: sosEnCours ? null : onSos,
+                  : null,
             ),
-          ),
-          const SizedBox(height: 12),
-          // Abonnement / paiements — réutilise l'écran existant
-          // (forfaits, historique de paiement, Chargily/virement).
-          StreamBuilder<StoreProfile?>(
-            stream: StoreService.myProfileStream(),
-            builder: (context, snap) {
-              final profile = snap.data;
-              return Card(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: config.enchereColor.withValues(alpha: 0.15),
-                    child: Icon(Icons.workspace_premium_outlined,
-                        color: config.enchereColor),
-                  ),
-                  title: Text(
-                    t('Abonnement & forfaits', 'الاشتراك والباقات'),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: Text(
-                    profile == null
-                        ? t('Chargement…', 'جارٍ التحميل…')
-                        : t(
-                            'Paiements, forfait en cours et renouvellement.',
-                            'المدفوعات، الباقة الحالية والتجديد.',
-                          ),
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
+            const SizedBox(height: 10),
+            StreamBuilder<StoreProfile?>(
+              stream: StoreService.myProfileStream(),
+              builder: (context, snap) {
+                final profile = snap.data;
+                final loading = snap.connectionState == ConnectionState.waiting;
+                return _profilTile(
+                  icon: Icons.workspace_premium_outlined,
+                  iconBg: config.enchereColor.withValues(alpha: 0.15),
+                  iconColor: config.enchereColor,
+                  title: t('Abonnement & forfaits', 'الاشتراك والباقات'),
+                  subtitle: loading
+                      ? t('Chargement…', 'جارٍ التحميل…')
+                      : profile == null
+                          ? t(
+                              'Complète d’abord ta fiche magasin',
+                              'أكمل أولاً ملف المحل',
+                            )
+                          : t(
+                              'Paiements, forfait en cours et renouvellement',
+                              'المدفوعات والباقة الحالية والتجديد',
+                            ),
                   onTap: profile == null
                       ? null
                       : () => Navigator.push(
@@ -299,44 +412,41 @@ class _MagasinProfilTab extends StatelessWidget {
                                   config: config, profile: profile),
                             ),
                           ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.grey.shade100,
-                child: const Icon(Icons.swap_horiz, color: Colors.black54),
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+            _profilTile(
+              icon: Icons.swap_horiz_rounded,
+              iconBg: Colors.grey.shade100,
+              iconColor: Colors.black54,
+              title: t('Changer de profil', 'تغيير الملف الشخصي'),
+              subtitle: t(
+                'Conducteur, magasin ou dépanneuse',
+                'سائق، متجر أو سطحة',
               ),
-              title: Text(
-                t('Changer de profil', 'تغيير الملف الشخصي'),
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              subtitle: Text(
-                t('Conducteur, magasin ou dépanneuse', 'سائق، متجر أو سطحة'),
-              ),
-              trailing: const Icon(Icons.chevron_right),
               onTap: () => RoleRouter.changerDeProfil(
                 context,
                 config: config,
                 isAr: ValueNotifier<bool>(isAr),
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: onLogout,
-            icon: const Icon(Icons.logout),
-            label: Text(t('Se déconnecter', 'تسجيل الخروج')),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: config.sosColor,
-              side: BorderSide(color: config.sosColor.withValues(alpha: 0.4)),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+            const SizedBox(height: 28),
+            OutlinedButton.icon(
+              onPressed: onLogout,
+              icon: const Icon(Icons.logout),
+              label: Text(t('Se déconnecter', 'تسجيل الخروج')),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: config.sosColor,
+                side: BorderSide(color: config.sosColor.withValues(alpha: 0.4)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
