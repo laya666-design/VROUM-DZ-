@@ -49,13 +49,9 @@ class _BuyerLoginScreenState extends State<BuyerLoginScreen> {
 
   void _goToPortail() {
     if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            BuyerPortalScreen(config: widget.config, isAr: widget.isAr),
-      ),
-    );
+    // Pop pour revenir au portail / onglet Pièces (évite un second
+    // BuyerPortal hors de la pile HomeScreen qui bloquait le retour).
+    Navigator.pop(context, true);
   }
 
   Future<void> _login() async {

@@ -79,13 +79,11 @@ class _BuyerPhoneLoginScreenState extends State<BuyerPhoneLoginScreen> {
         );
       }
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              BuyerPortalScreen(config: widget.config, isAr: widget.isAr),
-        ),
-      );
+      // Revenir simplement à l'écran précédent (le portail acheteur /
+      // onglet Pièces). Évite de pushReplacement un second BuyerPortal
+      // qui sortait de la pile des onglets HomeScreen et bloquait le
+      // bouton retour / l'icône home.
+      Navigator.pop(context, true);
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -102,12 +100,8 @@ class _BuyerPhoneLoginScreenState extends State<BuyerPhoneLoginScreen> {
     try {
       await MarketplaceService.signInWithGoogle();
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => BuyerPortalScreen(config: widget.config, isAr: widget.isAr),
-        ),
-      );
+      // Même logique : pop pour rester dans la navigation des onglets.
+      Navigator.pop(context, true);
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -154,14 +148,9 @@ class _BuyerPhoneLoginScreenState extends State<BuyerPhoneLoginScreen> {
         child: Column(
           children: [
             // Croix = retour à l'écran précédent (le portail acheteur,
-            // lui-même un onglet du menu principal). Bug corrigé : cet
-            // écran est normalement empilé au-dessus du menu principal
-            // (HomeScreen) ; un pushAndRemoveUntil ici videait TOUTE la
-            // pile de navigation (y compris le menu principal avec ses
-            // onglets Véhicules/Motos/Pièces/Rappels/Profil), laissant
-            // l'utilisateur bloqué sans aucun moyen d'y retourner. Un
-            // simple retour (pop), avec repli sur le menu principal si
-            // jamais il n'y a rien à dépiler, résout le problème.
+            // lui-même un onglet du menu principal). Toujours un simple
+            // pop ; si la pile est vide (cas anormal), on ne force plus
+            // un pushReplacement qui pouvait sortir de HomeScreen.
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
               child: Row(
@@ -172,16 +161,11 @@ class _BuyerPhoneLoginScreenState extends State<BuyerPhoneLoginScreen> {
                     onPressed: () {
                       if (Navigator.of(context).canPop()) {
                         Navigator.of(context).pop();
-                      } else {
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => PartsPortalScreen(
-                              config: widget.config,
-                              isAr: widget.isAr,
-                            ),
-                          ),
-                        );
+                      } else if (Navigator.of(context, rootNavigator: true).canPop()) {
+                        Navigator.of(context, rootNavigator: true).pop();
                       }
+                      // Sinon : déjà à la racine, le bouton système
+                      // Android gère la sortie de l'app.
                     },
                   ),
                   const Spacer(),

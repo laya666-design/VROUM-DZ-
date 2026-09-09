@@ -37,13 +37,8 @@ class _BuyerSignupScreenState extends State<BuyerSignupScreen> {
         password: _passwordController.text,
       );
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              BuyerPortalScreen(config: widget.config, isAr: widget.isAr),
-        ),
-      );
+      // Pop pour rester dans la navigation des onglets (HomeScreen).
+      Navigator.pop(context, true);
     } on FirebaseAuthException catch (e) {
       setState(() => _error = e.message ?? 'Inscription impossible.');
     } catch (e) {
@@ -62,7 +57,7 @@ class _BuyerSignupScreenState extends State<BuyerSignupScreen> {
     try {
       await MarketplaceService.signInWithGoogle();
       if (!mounted) return;
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => BuyerPortalScreen(config: widget.config, isAr: widget.isAr)));
+      Navigator.pop(context, true);
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
