@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Demande d'exemption d'optimisation batterie (important pour
+         les alertes SOS dépanneuse quand le téléphone est en poche). -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- Géolocalisation réelle des magasins à l'inscription + distance
          côté acheteur. COARSE seule suffirait pour la distance, mais FINE
          donne une position plus précise pour situer le magasin sur la carte. -->
