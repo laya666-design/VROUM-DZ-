@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'vehicule.dart';
 import '../models/user_role.dart';
@@ -67,6 +68,7 @@ class SettingsService {
 
   static Future<void> init() async {
     await Hive.openBox(boxName);
+    syncDarkModeNotifier();
   }
 
   static Box get _box => Hive.box(boxName);
@@ -155,6 +157,25 @@ class SettingsService {
     } else {
       await _box.put(_avatarPathKey, value.trim());
     }
+  }
+
+  // --- Affichage sombre (thème global de l'app) ---
+  static const String _darkModeKey = 'darkMode';
+
+  /// Notifier écouté par MaterialApp pour basculer clair/sombre à chaud.
+  static final ValueNotifier<bool> darkModeNotifier = ValueNotifier(false);
+
+  static bool get isDarkMode =>
+      _box.get(_darkModeKey, defaultValue: false) as bool;
+
+  static Future<void> setDarkMode(bool value) async {
+    await _box.put(_darkModeKey, value);
+    darkModeNotifier.value = value;
+  }
+
+  /// À appeler une fois après [init] pour synchroniser le notifier.
+  static void syncDarkModeNotifier() {
+    darkModeNotifier.value = isDarkMode;
   }
 
   // --- Position GPS de l'utilisateur ---
