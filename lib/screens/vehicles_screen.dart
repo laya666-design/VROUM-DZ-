@@ -718,7 +718,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   Widget _buildVehicleCard(Vehicule v) {
     final accent = _worstStatusColor(v);
+    // ValueKey unique par véhicule : évite le conflit de GlobalKey
+    // "ink renderer" quand la liste se reconstruit (IndexedStack + Material).
     return Container(
+      key: ValueKey('vehicule_card_${v.id}'),
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -940,6 +943,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   Widget _buildLockedCard() {
     return Container(
+      key: const ValueKey('vehicule_locked_card'),
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),

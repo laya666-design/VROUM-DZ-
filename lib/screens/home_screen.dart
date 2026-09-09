@@ -105,10 +105,19 @@ class _HomeScreenState extends State<HomeScreen> {
         final showVoiture = profile == 'voiture' || profile == 'both';
         final showMoto = profile == 'moto' || profile == 'both';
 
+        // Clés uniques obligatoires pour IndexedStack : sans elles, Flutter
+        // peut réutiliser les éléments Material/Ink entre onglets et déclencher
+        // l'erreur "A GlobalKey was used multiple times ... ink renderer".
         final screens = <Widget>[
-          if (showVoiture) VehiclesScreen(config: widget.config, isAr: isAr),
+          if (showVoiture)
+            VehiclesScreen(
+              key: const ValueKey('tab_voitures'),
+              config: widget.config,
+              isAr: isAr,
+            ),
           if (showMoto)
             VehiclesScreen(
+              key: const ValueKey('tab_motos'),
               config: widget.config,
               isAr: isAr,
               types: const [TypeVehicule.moto, TypeVehicule.scooter],
@@ -122,8 +131,13 @@ class _HomeScreenState extends State<HomeScreen> {
               labelVide: 'Aucune moto ni scooter pour le moment',
               labelVideAr: 'لا توجد دراجة حتى الآن',
             ),
-          PartsPortalScreen(config: widget.config, isAr: isAr),
+          PartsPortalScreen(
+            key: const ValueKey('tab_pieces'),
+            config: widget.config,
+            isAr: isAr,
+          ),
           ProfileScreen(
+            key: const ValueKey('tab_profil'),
             config: widget.config,
             isAr: widget.isAr,
             onVehicleProfileChanged: () => setState(() {}),

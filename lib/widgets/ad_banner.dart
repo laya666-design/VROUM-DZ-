@@ -56,7 +56,11 @@ class _AdBannerState extends State<AdBanner> {
   @override
   Widget build(BuildContext context) {
     if (!_isLoaded || _bannerAd == null) return const SizedBox.shrink();
+    // Clé stable liée à l'instance de la bannière : empêche le framework de
+    // réutiliser le même élément Material/Ink (GlobalKey "ink renderer")
+    // lorsque plusieurs AdBanner coexistent (ex. IndexedStack voitures + motos).
     return Container(
+      key: ValueKey('ad_banner_${identityHashCode(_bannerAd)}'),
       alignment: Alignment.center,
       width: _bannerAd!.size.width.toDouble(),
       height: _bannerAd!.size.height.toDouble(),
