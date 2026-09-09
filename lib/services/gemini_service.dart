@@ -263,9 +263,13 @@ juste en dessous. C est CETTE case-la qu il faut lire en priorite.
 5. Si tu lis clairement "تويوتا" (ou TOYOTA) dans la case الصنف/MARQUE,
    retourne "marque": "TOYOTA".
 6. Si tu lis "فيات" → "FIAT". "رينو" → "RENAULT". "بيجو" → "PEUGEOT".
-7. Ne JAMAIS inventer une marque (ex: ne mets pas TOYOTA si tu vois فيات).
-   Si la case est illisible → null. Le chassis WMI ne remplace la marque
-   QUE s il est un VIN long clairement lisible (≥11 caracteres).
+   ATTENTION CRITIQUE : "بيجو" (Peugeot) ressemble parfois a "تويوتا" pour
+   un OCR approximatif — ne confonds JAMAIS les deux. Si le chassis
+   commence par VF3, c est TOUJOURS PEUGEOT, jamais TOYOTA.
+7. Ne JAMAIS inventer une marque (ex: ne mets pas TOYOTA si tu vois فيات
+   ou بيجو). Si la case est illisible → null. Le chassis WMI (meme court,
+   ex VF3XG8HHC) prime en verification : VF3 = PEUGEOT, VF1 = RENAULT,
+   JT/NCP = TOYOTA.
 
 Autres champs (meme tableau du bas) :
 - "الطراز" / TYPE : code type / modele (ex NCP92LBEMRK). Mets-le aussi dans "modele" s il ressemble a un code type.
@@ -350,15 +354,19 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
       expected = 'DACIA';
     }
 
-    // Ne force la marque via chassis QUE si :
+    // Force la marque via chassis si :
     // - aucune marque lue, OU
-    // - chassis long type VIN (≥11) en conflit clair avec la marque.
-    // Un chassis court mal OCR (3-5 caractères) ne doit JAMAIS écraser
+    // - le préfixe WMI est non ambigu (VF3=Peugeot, VF1=Renault, JT=Toyota…)
+    //   et le chassis a une longueur raisonnable (≥6, typique des codes
+    //   type / N° série algériens comme VF3XG8HHC) en conflit avec la marque.
+    // Un chassis trop court (<6) ou inconnu ne doit jamais écraser
     // une marque lue dans la case الصنف (ex: فيات → FIAT).
     if (expected == null) return;
     if (marque.isEmpty) {
       json['marque'] = expected;
-    } else if (marque != expected && chassis.length >= 11) {
+    } else if (marque != expected && chassis.length >= 6) {
+      // WMI clairs (VF3, VF1, JT…) priment sur une lecture IA erronée
+      // (bug fréquent : بيجو lu comme TOYOTA).
       json['marque'] = expected;
     }
   }

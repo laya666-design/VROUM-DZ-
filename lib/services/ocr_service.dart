@@ -110,11 +110,13 @@ class OcrService {
         return m == 'CITROËN' ? 'CITROEN' : m;
       }
     }
-    // Arabe → latin
+    // Arabe → latin (variantes OCR fréquentes incluses)
     const arabe = <String, String>{
       'تويوتا': 'TOYOTA',
+      'تويو تا': 'TOYOTA',
       'رينو': 'RENAULT',
       'بيجو': 'PEUGEOT',
+      'بيجوو': 'PEUGEOT',
       'نيسان': 'NISSAN',
       'هيونداي': 'HYUNDAI',
       'هيونداى': 'HYUNDAI',
@@ -136,6 +138,13 @@ class OcrService {
     };
     for (final entry in arabe.entries) {
       if (rawText.contains(entry.key)) return entry.value;
+    }
+    // Fallback souple sur les graphies les plus confondues
+    if (rawText.contains('بيجو') || rawText.toLowerCase().contains('peugeot')) {
+      return 'PEUGEOT';
+    }
+    if (rawText.contains('تويوتا') || rawText.toLowerCase().contains('toyota')) {
+      return 'TOYOTA';
     }
     return null;
   }
