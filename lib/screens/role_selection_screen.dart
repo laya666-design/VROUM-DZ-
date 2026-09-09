@@ -54,6 +54,44 @@ class RoleSelectionScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Flèche retour : cet écran est toujours atteint via
+                    // RoleRouter.changerDeProfil, qui vide entièrement la
+                    // pile (pushAndRemoveUntil) pour qu'un retour arrière
+                    // ne révèle jamais l'ancien rôle. Résultat :
+                    // Navigator.canPop() est toujours false ici et il
+                    // n'y avait aucun moyen d'annuler le changement de
+                    // profil. On remplace donc explicitement l'écran par
+                    // celui du rôle actuellement enregistré (annule
+                    // l'action, sans rien changer côté SettingsService).
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Material(
+                        color: Colors.transparent,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () {
+                            Navigator.of(context).pushReplacement(
+                              PageRouteBuilder(
+                                pageBuilder: (_, __, ___) => RoleRouter
+                                    .resolve(config: config, isAr: isAr),
+                                transitionDuration:
+                                    const Duration(milliseconds: 300),
+                                transitionsBuilder: (_, animation, __, child) {
+                                  return FadeTransition(
+                                      opacity: animation, child: child);
+                                },
+                              ),
+                            );
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Icon(Icons.arrow_back, size: 22),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
