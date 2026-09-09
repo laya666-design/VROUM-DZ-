@@ -132,6 +132,27 @@ class OcrService {
       'هوندا': 'HONDA',
       'مرسيدس': 'MERCEDES',
       'بي ام دبليو': 'BMW',
+      // Marques chinoises (parc DZ récent)
+      'شيري': 'CHERY',
+      'شيرى': 'CHERY',
+      'جيتور': 'JETOUR',
+      'هافال': 'HAVAL',
+      'هافل': 'HAVAL',
+      'جيلي': 'GEELY',
+      'جيلى': 'GEELY',
+      'ام جي': 'MG',
+      'إم جي': 'MG',
+      'بي واي دي': 'BYD',
+      'تشانجان': 'CHANGAN',
+      'شانجان': 'CHANGAN',
+      'جاك': 'JAC',
+      'دونغفنغ': 'DONGFENG',
+      'دونج فنج': 'DONGFENG',
+      'بايك': 'BAIC',
+      'اكسيد': 'EXEED',
+      'أومودا': 'OMODA',
+      'اومودا': 'OMODA',
+      'جايكو': 'JAECOO',
     };
     // Peugeot avant Toyota pour éviter toute confusion de sous-chaîne
     for (final key in [
@@ -141,6 +162,10 @@ class OcrService {
       'فولكسفاغن', 'فولكس واجن', 'داسيا', 'سيتروين', 'فيات',
       'شيفروليه', 'سوزوكي', 'ميتسوبيشي', 'فورد', 'اوبل',
       'مازدا', 'هوندا', 'مرسيدس', 'بي ام دبليو',
+      'شيري', 'شيرى', 'جيتور', 'هافال', 'هافل', 'جيلي', 'جيلى',
+      'ام جي', 'إم جي', 'بي واي دي', 'تشانجان', 'شانجان',
+      'جاك', 'دونغفنغ', 'دونج فنج', 'بايك', 'اكسيد',
+      'أومودا', 'اومودا', 'جايكو',
     ]) {
       if (rawText.contains(key)) return arabe[key] ?? arabe[key.trim()];
     }
@@ -160,7 +185,10 @@ class OcrService {
       'VOLKSWAGEN', 'DACIA', 'CITROEN', 'CITROËN', 'FIAT', 'CHEVROLET',
       'SUZUKI', 'MITSUBISHI', 'FORD', 'OPEL', 'MAZDA', 'HONDA',
       'MERCEDES', 'BMW', 'SEAT', 'SKODA', 'AUDI',
+      'CHERY', 'JETOUR', 'HAVAL', 'GWM', 'GEELY', 'BYD', 'CHANGAN',
+      'JAC', 'DONGFENG', 'BAIC', 'EXEED', 'OMODA', 'JAECOO', 'DFSK', 'FOTON',
     ];
+    if (RegExp(r'\bMG\b').hasMatch(upper)) return 'MG';
     for (final m in latin) {
       if (upper.contains(m)) {
         return m == 'CITROËN' ? 'CITROEN' : m;

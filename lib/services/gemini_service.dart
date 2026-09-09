@@ -245,7 +245,21 @@ PROCEDURE OBLIGATOIRE pour "marque" :
    هوندا → HONDA
    مرسيدس → MERCEDES
    بي ام دبليو → BMW
-4. Si le texte est deja en latin (PEUGEOT, TOYOTA...), prends-le tel quel en majuscules.
+   شيري / شيرى → CHERY
+   جيتور → JETOUR
+   هافال / هافل → HAVAL
+   جيلي / جيلى → GEELY
+   ام جي / إم جي → MG
+   بي واي دي → BYD
+   تشانجان / شانجان → CHANGAN
+   جاك → JAC
+   دونغفنغ → DONGFENG
+   بايك → BAIC
+   اكسيد → EXEED
+   اومودا / أومودا → OMODA
+   جايكو → JAECOO
+4. Si le texte est deja en latin (PEUGEOT, CHERY, JETOUR, HAVAL...), prends-le tel quel en majuscules.
+   Marques chinoises frequentes en Algerie a reconnaitre : CHERY, JETOUR, HAVAL, GWM, GEELY, MG, BYD, CHANGAN, JAC, DONGFENG, BAIC, EXEED, OMODA, JAECOO, DFSK, FOTON.
 5. INTERDICTIONS :
    - Ne confonds JAMAIS "بيجو" (PEUGEOT) avec "تويوتا" (TOYOTA). Ce sont deux mots arabes differents.
    - Ne deduis PAS la marque depuis le chassis si la case الصنف est lisible.
