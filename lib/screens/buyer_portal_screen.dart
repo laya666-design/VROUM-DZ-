@@ -134,24 +134,28 @@ class _BuyerPortalScreenState extends State<BuyerPortalScreen> {
         backgroundColor: widget.config.primaryColor,
         foregroundColor: Colors.white,
         title: Text(_t('Portail acheteur', 'بوابة المشتري')),
-        leading: IconButton(
-          tooltip: _t('Menu principal', 'القائمة الرئيسية'),
-          icon: const Icon(Icons.home_outlined),
-          onPressed: () {
-            // Toujours tenter de revenir : d'abord la pile locale,
-            // puis le root navigator si besoin (ex. portail ouvert
-            // hors onglet Home).
-            final nav = Navigator.of(context);
-            if (nav.canPop()) {
-              nav.pop();
-              return;
-            }
-            final root = Navigator.of(context, rootNavigator: true);
-            if (root.canPop()) {
-              root.pop();
-            }
-          },
-        ),
+        // Affiche l'icône "home / retour" seulement s'il y a quelque chose
+        // à dépiler (écran empilé au-dessus de Home). Quand le portail
+        // est l'onglet "Pièces" de HomeScreen, canPop == false : on
+        // laisse leading null pour ne pas afficher un bouton inerte
+        // qui donnait l'impression de "ne pas pouvoir revenir".
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                tooltip: _t('Retour', 'رجوع'),
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  final nav = Navigator.of(context);
+                  if (nav.canPop()) {
+                    nav.pop();
+                    return;
+                  }
+                  final root = Navigator.of(context, rootNavigator: true);
+                  if (root.canPop()) {
+                    root.pop();
+                  }
+                },
+              )
+            : null,
         actions: [
           IconButton(
             tooltip: _t('Mes demandes', 'طلباتي'),
@@ -210,13 +214,18 @@ class _BuyerPortalScreenState extends State<BuyerPortalScreen> {
             IconButton(
               tooltip: _t('Se connecter', 'تسجيل الدخول'),
               icon: const Icon(Icons.login),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => BuyerPhoneLoginScreen(
-                      config: widget.config, isAr: widget.isAr),
-                ),
-              ),
+              onPressed: () async {
+                final ok = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BuyerPhoneLoginScreen(
+                        config: widget.config, isAr: widget.isAr),
+                  ),
+                );
+                // Après connexion réussie (pop avec true), reconstruire
+                // pour afficher l'icône déconnexion et le badge demandes.
+                if (ok == true && mounted) setState(() {});
+              },
             ),
         ],
       ),
