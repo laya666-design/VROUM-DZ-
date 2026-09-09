@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../services/store_service.dart';
-import '../parts_portal_screen.dart';
+import '../role_router.dart';
 import 'store_complete_profile_screen.dart';
 import 'magasin_shell_screen.dart';
 import 'store_login_screen.dart';
@@ -139,34 +139,42 @@ class _StorePhoneLoginScreenState extends State<StorePhoneLoginScreen> {
     );
   }
 
+  /// Retour vers le choix de profil (Conducteur / Magasin / Dépanneuse).
+  /// Après une déconnexion la pile est souvent vide : un simple pop ne
+  /// ferait rien, d'où le passage par RoleRouter.changerDeProfil.
+  void _retourProfil() {
+    RoleRouter.changerDeProfil(
+      context,
+      config: widget.config,
+      isAr: ValueNotifier<bool>(false),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = widget.config.primaryColor;
     final busy = _loading;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _retourProfil();
+      },
+      child: Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // Croix = retour au choix Acheteur / Magasin (pas un pop :
-            // après déconnexion la pile est vide, un pop ne ferait rien).
+            // Flèche retour explicite (jamais de croix X) : ramène au
+            // choix de profil. Même comportement que StoreLoginScreen.
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
               child: Row(
                 children: [
                   IconButton(
                     tooltip: 'Retour',
-                    icon: const Icon(Icons.close, size: 22),
-                    onPressed: () {
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              PartsPortalScreen(config: widget.config),
-                        ),
-                        (route) => false,
-                      );
-                    },
+                    icon: const Icon(Icons.arrow_back, size: 22),
+                    onPressed: _retourProfil,
                   ),
                   const Spacer(),
                 ],
@@ -421,6 +429,7 @@ class _StorePhoneLoginScreenState extends State<StorePhoneLoginScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

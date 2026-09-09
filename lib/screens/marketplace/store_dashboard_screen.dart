@@ -12,6 +12,8 @@ import '../../services/notification_service.dart';
 import '../../services/part_categories.dart';
 import '../../services/store_service.dart';
 import '../../widgets/screen_background.dart';
+import '../role_router.dart';
+import 'store_complete_profile_screen.dart';
 import 'store_phone_login_screen.dart';
 import 'subscription_screen.dart';
 
@@ -933,6 +935,17 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
               backgroundColor: widget.config.primaryColor,
               foregroundColor: Colors.white,
               title: const Text('Espace Pro'),
+              leading: IconButton(
+                tooltip: 'Changer de profil',
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  RoleRouter.changerDeProfil(
+                    context,
+                    config: widget.config,
+                    isAr: ValueNotifier<bool>(false),
+                  );
+                },
+              ),
               actions: [IconButton(onPressed: _logout, icon: const Icon(Icons.logout))],
             ),
             body: Center(
@@ -954,6 +967,18 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                       style: const TextStyle(fontSize: 12, color: Colors.black54),
                       textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 20),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        RoleRouter.changerDeProfil(
+                          context,
+                          config: widget.config,
+                          isAr: ValueNotifier<bool>(false),
+                        );
+                      },
+                      icon: const Icon(Icons.swap_horiz),
+                      label: const Text('Changer de profil'),
+                    ),
                   ],
                 ),
               ),
@@ -969,12 +994,26 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
             title: _selectionMode
                 ? Text('${_selected.length} sélectionnée${_selected.length > 1 ? 's' : ''}')
                 : Text(profile?.nom.isNotEmpty == true ? profile!.nom : 'Espace Pro'),
+            // Toujours une flèche de sortie visible :
+            // - en mode sélection : ferme la sélection
+            // - sinon : retour au choix de profil (évite d'être coincé
+            //   quand le profil Firestore est absent / "Profil introuvable")
             leading: _selectionMode
                 ? IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: _toggleSelectionMode,
                   )
-                : null,
+                : IconButton(
+                    tooltip: 'Changer de profil',
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () {
+                      RoleRouter.changerDeProfil(
+                        context,
+                        config: widget.config,
+                        isAr: ValueNotifier<bool>(false),
+                      );
+                    },
+                  ),
             actions: [
               if (_selectionMode) ...[
                 IconButton(
@@ -1028,11 +1067,12 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                     ),
                     icon: const Icon(Icons.workspace_premium_outlined),
                   ),
-                IconButton(
-                  tooltip: 'Sélection multiple',
-                  icon: const Icon(Icons.checklist),
-                  onPressed: _toggleSelectionMode,
-                ),
+                if (profile != null)
+                  IconButton(
+                    tooltip: 'Sélection multiple',
+                    icon: const Icon(Icons.checklist),
+                    onPressed: _toggleSelectionMode,
+                  ),
                 IconButton(onPressed: _logout, icon: const Icon(Icons.logout)),
               ],
             ],
@@ -1041,7 +1081,67 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
             category: BackgroundCategory.magasin,
             accentColor: widget.config.primaryColor,
             child: profile == null
-              ? const Center(child: Text('Profil introuvable.'))
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.storefront_outlined,
+                            size: 48, color: widget.config.primaryColor),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Profil introuvable',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w700),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Ton compte est connecté, mais aucune fiche magasin '
+                          'n\'a été trouvée. Complète ton profil ou change de rôle.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.black54),
+                        ),
+                        const SizedBox(height: 24),
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: widget.config.primaryColor,
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => StoreCompleteProfileScreen(
+                                    config: widget.config),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.edit_outlined),
+                          label: const Text('Compléter mon profil magasin'),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            RoleRouter.changerDeProfil(
+                              context,
+                              config: widget.config,
+                              isAr: ValueNotifier<bool>(false),
+                            );
+                          },
+                          icon: const Icon(Icons.swap_horiz),
+                          label: const Text('Changer de profil'),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: _logout,
+                          child: const Text('Se déconnecter'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               : !profile.actif
                   ? const Center(
                       child: Padding(
