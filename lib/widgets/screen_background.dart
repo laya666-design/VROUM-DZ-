@@ -59,11 +59,23 @@ class ScreenBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fallbackEnd = isDark ? const Color(0xFF0B1220) : Colors.white;
+    final veilColors = isDark
+        ? const [
+            Color(0xE60B1220),
+            Color(0xCC0B1220),
+            Color(0x990B1220),
+          ]
+        : const [
+            Color(0xCCFFFFFF),
+            Color(0x99FFFFFF),
+            Color(0x66FFFFFF),
+          ];
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Photo de fond si le fichier existe dans assets/images/, sinon
-        // fallback dégradé + icône en filigrane.
         Image.asset(
           _assetPath,
           fit: BoxFit.cover,
@@ -72,7 +84,10 @@ class ScreenBackground extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [accentColor.withValues(alpha: 0.07), Colors.white],
+                colors: [
+                  accentColor.withValues(alpha: isDark ? 0.12 : 0.07),
+                  fallbackEnd,
+                ],
               ),
             ),
             child: Align(
@@ -80,34 +95,22 @@ class ScreenBackground extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(top: 36, right: 16),
                 child: Icon(_fallbackIcon,
-                    size: 110, color: accentColor.withValues(alpha: 0.10)),
+                    size: 110,
+                    color: accentColor.withValues(alpha: isDark ? 0.16 : 0.10)),
               ),
             ),
           ),
         ),
-        // Voile de lisibilité : blanc, plus marqué en haut (zone du
-        // titre/sous-titre, sans carte derrière) et plus léger en bas
-        // (zone des cartes, déjà opaques). Garde la photo reconnaissable
-        // tout en assurant un contraste suffisant pour le texte sombre.
-        const DecoratedBox(
+        DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Color(0xCCFFFFFF),
-                Color(0x99FFFFFF),
-                Color(0x66FFFFFF),
-              ],
-              stops: [0.0, 0.35, 1.0],
+              colors: veilColors,
+              stops: const [0.0, 0.35, 1.0],
             ),
           ),
         ),
-        // IMPORTANT : sans Positioned.fill, le child (souvent un Column
-        // avec Expanded) ne reçoit pas de contraintes de hauteur serrées
-        // et l'Expanded du ListView se retrouve avec une hauteur de 0 →
-        // liste invisible alors que nbDocs > 0 (cas vu sur le dashboard
-        // magasin).
         Positioned.fill(child: child),
       ],
     );
