@@ -189,20 +189,25 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     await VehiculeService.update(v);
   }
 
-  /// Déduit la marque à partir du préfixe chassis (WMI / code type DZ).
-  /// Les préfixes VF3 / VF1 / JT etc. sont non ambigus même sur codes courts
-  /// (ex. VF3XG8HHC) et doivent primer sur une mauvaise lecture OCR/IA.
+  /// Déduit la marque à partir d'un code type / chassis (WMI).
+  /// VF3/VF1/VF7 (codes type algériens) sont prioritaires et très fiables.
   String? _marqueFromChassis(String chassis) {
     final c = chassis.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
-    if (c.length < 3) return null;
-    final p3 = c.substring(0, 3);
+    if (c.length < 2) return null;
+    final p3 = c.length >= 3 ? c.substring(0, 3) : c;
     final p2 = c.substring(0, 2);
-    if (p2 == 'JT' || p3 == 'NCP' || p3 == 'NSP' || p3 == 'NZE' || p3 == 'ZZE' || p3 == 'SCP') {
+    // Codes type algériens — fiables même sur 8-12 caractères (VF3XG8HHC)
+    if (p3 == 'VF3') return 'PEUGEOT';
+    if (p3 == 'VF1') return 'RENAULT';
+    if (p3 == 'VF7') return 'CITROEN';
+    if (p2 == 'JT' ||
+        p3 == 'NCP' ||
+        p3 == 'NSP' ||
+        p3 == 'NZE' ||
+        p3 == 'ZZE' ||
+        p3 == 'SCP') {
       return 'TOYOTA';
     }
-    if (p3 == 'VF1') return 'RENAULT';
-    if (p3 == 'VF3') return 'PEUGEOT';
-    if (p3 == 'VF7') return 'CITROEN';
     if (p2 == 'WV' || p3 == 'WVW' || p3 == 'WVG') return 'VOLKSWAGEN';
     if (p3 == 'WDB' || p3 == 'WDD' || p3 == 'WDC') return 'MERCEDES';
     if (p3 == 'WBA' || p3 == 'WBS') return 'BMW';
@@ -212,23 +217,35 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     return null;
   }
 
-  /// Secours local : OCR ML Kit + détection marque arabe/latin + WMI chassis.
+  /// Cherche d'abord un code VF* (Peugeot/Renault/Citroën) dans le texte OCR,
+  /// sinon le premier code alphanumérique plausible.
+  String _extractBestChassisOrType(String raw) {
+    final upper = raw.toUpperCase();
+    // Priorité : codes type algériens VF1/VF3/VF7 (ex. VF3XG8HHC)
+    final vf = RegExp(r'\b(VF[137][A-HJ-NPR-Z0-9]{4,14})\b').firstMatch(upper);
+    if (vf != null) return vf.group(1)!;
+    final any = RegExp(r'\b([A-HJ-NPR-Z0-9]{6,17})\b').firstMatch(upper);
+    return any?.group(1) ?? '';
+  }
+
+  /// Secours local : OCR ML Kit + détection marque arabe/latin + WMI.
+  /// La marque lue (arabe/latin) prime ; le WMI ne sert que si marque vide,
+  /// sauf VF3/VF1/VF7 qui corrigent une confusion بيجو ↔ تويوتا.
   Future<CarteGriseInfo?> _fallbackLocal(File file) async {
     try {
       final raw = await _ocr.extractText(file);
       if (raw.trim().isEmpty) return null;
       var marque = OcrService.detectMarqueLocale(raw) ?? '';
-      // Accepte aussi les codes type algériens courts (ex VF3XG8HHC, 8-12 car.)
-      final chassisMatch = RegExp(r'\b([A-HJ-NPR-Z0-9]{6,17})\b')
-          .firstMatch(raw.toUpperCase());
-      final chassis = chassisMatch?.group(1) ?? '';
+      final chassis = _extractBestChassisOrType(raw);
       final fromWmi = chassis.isNotEmpty ? _marqueFromChassis(chassis) : null;
-      // WMI non ambigu (VF3 = Peugeot, JT = Toyota…) prime toujours :
-      // corrige les confusions OCR fréquentes بيجو ↔ تويوتا.
-      if (fromWmi != null && fromWmi.isNotEmpty) {
+
+      // VF3/VF1/VF7 (code type clair) corrigent toujours une mauvaise marque
+      if (fromWmi == 'PEUGEOT' ||
+          fromWmi == 'RENAULT' ||
+          fromWmi == 'CITROEN') {
+        marque = fromWmi!;
+      } else if (marque.isEmpty && fromWmi != null) {
         marque = fromWmi;
-      } else if (marque.isEmpty && chassis.isNotEmpty) {
-        marque = fromWmi ?? '';
       }
       if (marque.isEmpty && chassis.isEmpty) return null;
       return CarteGriseInfo(
@@ -310,30 +327,54 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
             fuelType: info.fuelType,
           );
         }
-        // Filet de sécurité supplémentaire : si le chassis (WMI clair
-        // VF3/VF1/JT…) contredit la marque renvoyée par l'IA (bug fréquent
-        // بيجو → TOYOTA), on force la marque correcte. Même logique que
-        // _correctMarqueFromChassis côté service.
+        // Filet de sécurité : priorité à la case الصنف (marque déjà lue).
+        // On ne force via WMI QUE si :
+        //  - un code TYPE VF3/VF1/VF7 est présent (très fiable sur docs DZ), ou
+        //  - la marque est encore vide.
+        // On n'écrase JAMAIS PEUGEOT/RENAULT… avec un JT… potentiellement
+        // halluciné (bug fréquent : بيجو → TOYOTA via faux chassis JTD…).
+        final typeCode = info.type
+            .toUpperCase()
+            .replaceAll(RegExp(r'[^A-Z0-9]'), '');
         final chassisForWmi = chassisSecours.isNotEmpty
             ? chassisSecours
             : info.chassis;
-        if (chassisForWmi.length >= 6) {
-          final fromWmi = _marqueFromChassis(chassisForWmi);
-          if (fromWmi != null &&
-              fromWmi.isNotEmpty &&
-              info.marque.toUpperCase() != fromWmi) {
-            info = CarteGriseInfo(
-              marque: fromWmi,
-              modele: info.modele,
-              type: info.type,
-              annee: info.annee,
-              chassis: chassisForWmi,
-              puissanceFiscale: info.puissanceFiscale,
-              immatriculation: info.immatriculation,
-              engineCode: info.engineCode,
-              fuelType: info.fuelType,
-            );
+        String? forcedMarque;
+        for (final code in [typeCode, chassisForWmi, info.modele]) {
+          final c = code.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+          if (c.length >= 3) {
+            final p3 = c.substring(0, 3);
+            if (p3 == 'VF3') {
+              forcedMarque = 'PEUGEOT';
+              break;
+            }
+            if (p3 == 'VF1') {
+              forcedMarque = 'RENAULT';
+              break;
+            }
+            if (p3 == 'VF7') {
+              forcedMarque = 'CITROEN';
+              break;
+            }
           }
+        }
+        if (forcedMarque == null && info.marque.isEmpty && chassisForWmi.length >= 6) {
+          forcedMarque = _marqueFromChassis(chassisForWmi);
+        }
+        if (forcedMarque != null &&
+            forcedMarque.isNotEmpty &&
+            info.marque.toUpperCase() != forcedMarque) {
+          info = CarteGriseInfo(
+            marque: forcedMarque,
+            modele: info.modele,
+            type: info.type,
+            annee: info.annee,
+            chassis: chassisForWmi.isNotEmpty ? chassisForWmi : info.chassis,
+            puissanceFiscale: info.puissanceFiscale,
+            immatriculation: info.immatriculation,
+            engineCode: info.engineCode,
+            fuelType: info.fuelType,
+          );
         }
         if (info.estVide) {
           _error = _t(
