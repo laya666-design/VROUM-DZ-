@@ -154,31 +154,31 @@ class RoleSelectionScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 20),
                     Text(
                       t('Qui es-tu ?', 'من أنت؟'),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        fontSize: 26,
+                        fontSize: 28,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
-                        letterSpacing: -0.4,
+                        letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       t(
-                        'Choisis ton profil pour continuer.\nTu pourras créer un autre compte plus tard.',
-                        'اختر ملفك الشخصي للمتابعة.\nيمكنك إنشاء حساب آخر لاحقاً.',
+                        'Choisis ton espace pour continuer.\nTu pourras changer de profil à tout moment.',
+                        'اختر مساحتك للمتابعة.\nيمكنك تغيير الملف في أي وقت.',
                       ),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 14,
-                        height: 1.4,
+                        height: 1.45,
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
                     Expanded(
                       child: ListView(
                         children: [
@@ -189,9 +189,10 @@ class RoleSelectionScreen extends StatelessWidget {
                               iconColor: config.primaryDark,
                               title: t('Conducteur', 'سائق'),
                               subtitle: t(
-                                'Gérer mes véhicules, pièces, rappels et envoyer une alerte SOS',
-                                'إدارة مركباتي، القطع، التذكيرات وإرسال تنبيه استغاثة',
+                                'Véhicules, pièces, rappels assurance/CT et alerte SOS',
+                                'المركبات، القطع، تذكيرات التأمين/الفحص وتنبيه الاستغاثة',
                               ),
+                              badge: t('Le plus choisi', 'الأكثر اختياراً'),
                               accent: config.primaryColor,
                               onTap: () =>
                                   _selectRole(context, UserRole.conducteur),
@@ -204,9 +205,10 @@ class RoleSelectionScreen extends StatelessWidget {
                             iconColor: config.enchereColor,
                             title: t('Magasin de pièces', 'محل قطع غيار'),
                             subtitle: t(
-                              'Recevoir les demandes, gérer les commandes et mon profil magasin',
-                              'استقبال الطلبات وإدارة الطلبات وملفي كمحل',
+                              'Reçois les demandes autour de toi et réponds avec ton prix',
+                              'استقبل الطلبات من حولك وأجب بسعرك',
                             ),
+                            badge: t('Espace Pro', 'مساحة برو'),
                             accent: config.enchereColor,
                             onTap: () => _selectRole(context, UserRole.magasin),
                           ),
@@ -216,11 +218,13 @@ class RoleSelectionScreen extends StatelessWidget {
                             iconBg: const Color(0xFFFEE2E2),
                             title: t('Dépanneuse', 'سطحّة'),
                             subtitle: t(
-                              'Recevoir les alertes SOS et gérer mes interventions',
-                              'استقبال تنبيهات الاستغاثة وإدارة تدخّلاتي',
+                              'Alertes SOS en temps réel et suivi des interventions',
+                              'تنبيهات الاستغاثة فورياً ومتابعة التدخلات',
                             ),
+                            badge: t('Urgence', 'طوارئ'),
                             accent: config.sosColor,
-                            onTap: () => _selectRole(context, UserRole.depanneuse),
+                            onTap: () =>
+                                _selectRole(context, UserRole.depanneuse),
                           ),
                         ],
                       ),
@@ -244,6 +248,7 @@ class _RoleCard extends StatelessWidget {
   final Color? iconColor;
   final String title;
   final String subtitle;
+  final String? badge;
   final Color accent;
   final VoidCallback onTap;
 
@@ -254,6 +259,7 @@ class _RoleCard extends StatelessWidget {
     this.iconColor,
     required this.title,
     required this.subtitle,
+    this.badge,
     required this.accent,
     required this.onTap,
   }) : assert(icon != null || iconImage != null);
@@ -262,63 +268,123 @@ class _RoleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(22),
+      elevation: 0,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border, width: 1.5),
+            borderRadius: BorderRadius.circular(22),
+            border:
+                Border.all(color: accent.withValues(alpha: 0.28), width: 1.5),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                accent.withValues(alpha: 0.06),
+                Colors.white,
+              ],
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: accent.withValues(alpha: 0.12),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
           child: Row(
             children: [
               Container(
-                width: 56,
-                height: 56,
+                width: 60,
+                height: 60,
                 padding: iconImage != null ? const EdgeInsets.all(9) : null,
                 decoration: BoxDecoration(
                   color: iconBg,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.12),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: iconImage != null
                     ? Image.asset(iconImage!, fit: BoxFit.contain)
-                    : Icon(icon, color: iconColor, size: 28),
+                    : Icon(icon, color: iconColor, size: 30),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textPrimary,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ),
+                        if (badge != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              badge!,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: accent,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 5),
                     Text(
                       subtitle,
                       style: const TextStyle(
                         fontSize: 13,
-                        height: 1.3,
+                        height: 1.35,
                         color: AppColors.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: accent, size: 28),
+              const SizedBox(width: 6),
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: accent,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.arrow_forward_rounded,
+                    color: Colors.white, size: 18),
+              ),
             ],
           ),
         ),

@@ -898,23 +898,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 18),
 
                 // ── RACCOURCI PRO ────────────────────────────────────────
-                _groupCard(
-                  children: [
-                    _groupTile(
-                      icon: Icons.storefront_rounded,
-                      title: t('Espace Pro', 'مساحة برو'),
-                      subtitle: t(
-                        'Magasin ou dépanneuse',
-                        'متجر أو رافعة',
+                Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: () => RoleRouter.changerDeProfil(
+                      context,
+                      config: widget.config,
+                      isAr: widget.isAr,
+                      afficherConducteur: false,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(14, 14, 12, 14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: widget.config.primaryColor
+                              .withOpacity(0.25),
+                        ),
+                        gradient: LinearGradient(
+                          colors: [
+                            widget.config.primaryColor.withOpacity(0.06),
+                            Colors.white,
+                          ],
+                        ),
                       ),
-                      onTap: () => RoleRouter.changerDeProfil(
-                        context,
-                        config: widget.config,
-                        isAr: widget.isAr,
-                        afficherConducteur: false,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: widget.config.primaryColor
+                                  .withOpacity(0.14),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(
+                              Icons.storefront_rounded,
+                              color: widget.config.primaryColor,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t('Espace Pro', 'مساحة برو'),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  t(
+                                    'Magasin de pièces ou dépanneuse',
+                                    'محل قطع غيار أو سطحّة',
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: widget.config.primaryColor,
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 14),
 
