@@ -141,24 +141,26 @@ class _AjalakAppState extends State<AjalakApp> {
     return ValueListenableBuilder<bool>(
       valueListenable: isAr,
       builder: (context, arActive, _) {
-        return MaterialApp(
-          title: config.appName,
-          debugShowCheckedModeBanner: false,
-          navigatorObservers: [_navigatorObserver],
-          // Bug corrigé : la locale n'était jamais transmise au MaterialApp,
-          // donc seuls les libellés traduits à la main changeaient, pas les
-          // widgets système (dates, etc.) ni la direction par défaut.
-          locale: arActive ? const Locale('ar') : const Locale('fr'),
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: const [Locale('fr'), Locale('ar')],
-          theme: AppTheme.light(config),
-          // Splash vidéo de la roue qui tourne (plein écran) au lancement,
-          // puis on enchaîne vers l'onboarding ou l'accueil selon le profil.
-          home: SplashScreen(config: config, isAr: isAr),
+        return ValueListenableBuilder<bool>(
+          valueListenable: SettingsService.darkModeNotifier,
+          builder: (context, dark, _) {
+            return MaterialApp(
+              title: config.appName,
+              debugShowCheckedModeBanner: false,
+              navigatorObservers: [_navigatorObserver],
+              locale: arActive ? const Locale('ar') : const Locale('fr'),
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: const [Locale('fr'), Locale('ar')],
+              theme: AppTheme.light(config),
+              darkTheme: AppTheme.dark(config),
+              themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+              home: SplashScreen(config: config, isAr: isAr),
+            );
+          },
         );
       },
     );
