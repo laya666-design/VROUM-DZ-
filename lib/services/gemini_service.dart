@@ -212,28 +212,23 @@ mets null.
   Future<Map<String, dynamic>> analyzeCarteGrise(File file) async {
     try {
       final prompt = '''
-Tu es un expert en cartes grises automobiles algeriennes (carte jaune).
+Tu es un expert en cartes grises automobiles algeriennes (carte jaune / quittance).
 REGLE CRITIQUE ABSOLUE: Ne jamais inventer une information non visible sur l image.
 Si un champ n est pas clairement lisible, mets null. Aucune deduction gratuite.
 Ignore le haut du document (nom du proprietaire, adresse) — concentre-toi UNIQUEMENT sur le TABLEAU D IDENTIFICATION du bas.
 
-Ce document est majoritairement en ARABE. Les cases francaises (MARQUE, TYPE, GENRE...)
-sont souvent vides ou minuscules ; la valeur reelle est ecrite en arabe a cote
-ou en lettres latines majuscules dans la case de la marque.
+=== MARQUE = PRIORITE NUMERO 1 (OBLIGATOIRE) ===
+Sur TOUTES les cartes grises algeriennes, la marque est dans la case :
+  "الصنف" (arabe)  +  sous-libelle francais "MARQUE"
+Cette case est a cote de "الطراز" / "TYPE".
 
-PRIORITE ABSOLUE POUR LA MARQUE :
-Sur les cartes grises / quittances algeriennes, la marque se trouve dans la
-case intitulee "الصنف" (en arabe) avec le sous-libelle francais "MARQUE"
-juste en dessous. C est CETTE case-la qu il faut lire en priorite.
-(Ne confonds pas avec "العلامة" qui n est pas le champ standard ici.)
-
-1. Localise la case "الصنف" / "MARQUE" dans le tableau d identification
-   (souvent a cote de "الطراز" / "TYPE").
-2. La valeur est le plus souvent ecrite en ARABE (ex: تويوتا, رينو, بيجو...).
-   TRADUIS-LA systematiquement en francais majuscules :
-   تويوتا → TOYOTA
+PROCEDURE OBLIGATOIRE pour "marque" :
+1. Trouve la case "الصنف" / "MARQUE" dans le tableau du bas.
+2. Lis EXACTEMENT le texte ecrit DANS cette case (pas ailleurs).
+3. Si le texte est en ARABE, TRADUIS-LE en majuscules francaises :
+   بيجو / بيجوو / بيجوه → PEUGEOT
+   تويوتا / تويو تا → TOYOTA
    رينو → RENAULT
-   بيجو → PEUGEOT
    نيسان → NISSAN
    هيونداي / هيونداى → HYUNDAI
    كيا → KIA
@@ -250,51 +245,42 @@ juste en dessous. C est CETTE case-la qu il faut lire en priorite.
    هوندا → HONDA
    مرسيدس → MERCEDES
    بي ام دبليو → BMW
-3. Si la case contient deja du texte latin majuscule (TOYOTA, RENAULT...),
-   prends-le tel quel.
-4. Indices chassis (WMI) en verification secondaire uniquement :
-   NCP / JT / JTD / JTDB / JTN / NSP / NZE / ZZE / SCP → TOYOTA
-   VF1 → RENAULT
-   VF3 → PEUGEOT
-   VF7 → CITROEN
-   WVW / WVG → VOLKSWAGEN
-   U5Y / KMH → HYUNDAI
-   U5Z / KN → KIA
-5. Si tu lis clairement "تويوتا" (ou TOYOTA) dans la case الصنف/MARQUE,
-   retourne "marque": "TOYOTA".
-6. Si tu lis "فيات" → "FIAT". "رينو" → "RENAULT". "بيجو" → "PEUGEOT".
-   ATTENTION CRITIQUE : "بيجو" (Peugeot) ressemble parfois a "تويوتا" pour
-   un OCR approximatif — ne confonds JAMAIS les deux. Si le chassis
-   commence par VF3, c est TOUJOURS PEUGEOT, jamais TOYOTA.
-7. Ne JAMAIS inventer une marque (ex: ne mets pas TOYOTA si tu vois فيات
-   ou بيجو). Si la case est illisible → null. Le chassis WMI (meme court,
-   ex VF3XG8HHC) prime en verification : VF3 = PEUGEOT, VF1 = RENAULT,
-   JT/NCP = TOYOTA.
+4. Si le texte est deja en latin (PEUGEOT, TOYOTA...), prends-le tel quel en majuscules.
+5. INTERDICTIONS :
+   - Ne confonds JAMAIS "بيجو" (PEUGEOT) avec "تويوتا" (TOYOTA). Ce sont deux mots arabes differents.
+   - Ne deduis PAS la marque depuis le chassis si la case الصنف est lisible.
+   - Ne mets JAMAIS TOYOTA si tu vois بيجو (meme partiellement).
+   - Ne mets JAMAIS PEUGEOT si tu vois تويوتا.
+6. Si la case الصنف est illisible → marque = null (ne devine pas).
 
-Autres champs (meme tableau du bas) :
-- "الطراز" / TYPE : code type / modele (ex NCP92LBEMRK). Mets-le aussi dans "modele" s il ressemble a un code type.
-- "القوة" / PUISSANCE / PUISSANCE FISCALE : puissance fiscale (ex 005, 6, 7...). Garde le format tel quel (souvent 3 chiffres).
-- "الطاقة" / ENERGIE : ES-GPL, diesel, essence...
-- Chassis / numero de serie du type / N° DANS LA SERIE DU TYPE si present.
-- Immatriculation (N° D'IMMATRICULATION).
-- Annee de 1ere mise en circulation si visible (4 chiffres).
+=== AUTRES CHAMPS (meme tableau du bas) ===
+- "الطراز" / TYPE : code type (ex VF3XG8HHC, NCP92LBEMRK). Mets-le dans "type".
+  IMPORTANT : un code qui commence par VF3 = Peugeot, VF1 = Renault, VF7 = Citroen.
+  Si "type" commence par VF3 et que marque est null, alors marque = PEUGEOT.
+- "القوة" / PUISSANCE FISCALE : souvent 3 chiffres (009, 005...).
+- Chassis / N° DANS LA SERIE DU TYPE : copie exactement ce qui est ecrit, sans inventer.
+  Ne fabrique PAS un VIN Toyota (JTD...) si le document montre un code VF3...
+- Immatriculation, annee (4 chiffres) si visibles.
 
-Une fois marque + annee + puissance + chassis connus, deduis engine_code
-et fuel_type UNIQUEMENT s ils sont TRES fiables pour ce couple marque/modele
-algerien. Sinon mets null (ne devine jamais).
+Indices chassis/type (SEULEMENT si marque encore null apres lecture de الصنف) :
+   VF3 → PEUGEOT | VF1 → RENAULT | VF7 → CITROEN
+   JT / NCP / NSP / NZE / ZZE / SCP → TOYOTA
+   WVW / WVG → VOLKSWAGEN | U5Y / KMH → HYUNDAI | U5Z / KN → KIA
+
+engine_code / fuel_type : deduis UNIQUEMENT s ils sont TRES fiables, sinon null.
 
 Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
 
 {
-  "marque": "string ou null (en majuscules francaises, ex TOYOTA)",
+  "marque": "string ou null (majuscules, ex PEUGEOT)",
   "modele": "string ou null",
   "type": "string ou null",
   "annee": "aaaa ou null",
   "chassis": "string ou null",
   "puissance_fiscale": "string ou null",
   "immatriculation": "string ou null",
-  "engine_code": "ex K9K, 1KR, deduit ou null si incertain",
-  "fuel_type": "diesel, essence ou gpl, deduit ou null si incertain"
+  "engine_code": "ex K9K, 1KR, ou null si incertain",
+  "fuel_type": "diesel, essence ou gpl, ou null si incertain"
 }
 ''';
 
@@ -310,64 +296,87 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
     }
   }
 
-  /// Si le chassis commence par un WMI connu et que la marque renvoyée
-  /// contredit ce WMI de façon évidente, on force la marque correcte.
+  /// Déduit une marque à partir d'un code type / chassis (préfixe WMI).
+  /// Retourne null si le préfixe n'est pas reconnu.
+  String? _marqueFromWmiCode(String code) {
+    final c = code.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    if (c.length < 2) return null;
+    final p3 = c.length >= 3 ? c.substring(0, 3) : c;
+    final p2 = c.substring(0, 2);
+    // Codes type algériens Peugeot/Renault/Citroën (VF…) — très fiables
+    if (p3 == 'VF3') return 'PEUGEOT';
+    if (p3 == 'VF1') return 'RENAULT';
+    if (p3 == 'VF7') return 'CITROEN';
+    if (p2 == 'JT' ||
+        p3 == 'NCP' ||
+        p3 == 'NSP' ||
+        p3 == 'NZE' ||
+        p3 == 'ZZE' ||
+        p3 == 'SCP') {
+      return 'TOYOTA';
+    }
+    if (p2 == 'WV' || p3 == 'WVW' || p3 == 'WVG') return 'VOLKSWAGEN';
+    if (p3 == 'WDB' || p3 == 'WDD' || p3 == 'WDC') return 'MERCEDES';
+    if (p3 == 'WBA' || p3 == 'WBS') return 'BMW';
+    if (p3 == 'KMH' || p3 == 'U5Y' || p3 == 'TMA') return 'HYUNDAI';
+    if (p3 == 'U5Z' || p2 == 'KN') return 'KIA';
+    if (p3 == 'UU1') return 'DACIA';
+    return null;
+  }
+
+  /// Corrige la marque en s'appuyant sur type + chassis.
+  ///
+  /// Règles (alignées sur la case الصنف) :
+  /// 1. Un code TYPE commençant par VF3/VF1/VF7 prime TOUJOURS
+  ///    (ex. VF3XG8HHC → PEUGEOT même si un chassis JT… a été halluciné).
+  /// 2. Le chassis WMI ne remplit la marque QUE si elle est encore vide.
+  /// 3. On n'écrase JAMAIS une marque déjà lue (بيجو → PEUGEOT, etc.)
+  ///    avec un préfixe JT douteux — bug fréquent observé.
   void _correctMarqueFromChassis(Map<String, dynamic> json) {
-    final chassis = (json['chassis']?.toString() ?? '')
-        .toUpperCase()
-        .replaceAll(RegExp(r'[^A-Z0-9]'), '');
-    if (chassis.length < 3) return;
-    final prefix3 = chassis.substring(0, 3);
-    final prefix2 = chassis.substring(0, 2);
     var marque = (json['marque']?.toString() ?? '').toUpperCase().trim();
     if (marque == 'NULL' || marque == 'UNDEFINED' || marque == 'NONE') {
       marque = '';
       json['marque'] = null;
     }
 
-    String? expected;
-    // Toyota : JT... (VIN) ou codes type algériens NCP / NSP / NZE...
-    if (prefix2 == 'JT' ||
-        prefix3 == 'NCP' ||
-        prefix3 == 'NSP' ||
-        prefix3 == 'NZE' ||
-        prefix3 == 'ZZE' ||
-        prefix3 == 'SCP') {
-      expected = 'TOYOTA';
-    } else if (prefix3 == 'VF1') {
-      expected = 'RENAULT';
-    } else if (prefix3 == 'VF3') {
-      expected = 'PEUGEOT';
-    } else if (prefix3 == 'VF7') {
-      expected = 'CITROEN';
-    } else if (prefix2 == 'WV' || prefix3 == 'WVW' || prefix3 == 'WVG') {
-      expected = 'VOLKSWAGEN';
-    } else if (prefix3 == 'WDB' || prefix3 == 'WDD' || prefix3 == 'WDC') {
-      expected = 'MERCEDES';
-    } else if (prefix3 == 'WBA' || prefix3 == 'WBS') {
-      expected = 'BMW';
-    } else if (prefix3 == 'KMH' || prefix3 == 'U5Y' || prefix3 == 'TMA') {
-      expected = 'HYUNDAI';
-    } else if (prefix3 == 'U5Z' || prefix2 == 'KN') {
-      expected = 'KIA';
-    } else if (prefix3 == 'UU1') {
-      expected = 'DACIA';
+    final type = (json['type']?.toString() ?? '')
+        .toUpperCase()
+        .replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    final modele = (json['modele']?.toString() ?? '')
+        .toUpperCase()
+        .replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    final chassis = (json['chassis']?.toString() ?? '')
+        .toUpperCase()
+        .replaceAll(RegExp(r'[^A-Z0-9]'), '');
+
+    // 1) Codes type algériens VF* (très fiables) — dans type, modele OU chassis
+    for (final code in [type, modele, chassis]) {
+      if (code.length < 3) continue;
+      final p3 = code.substring(0, 3);
+      if (p3 == 'VF3') {
+        json['marque'] = 'PEUGEOT';
+        return;
+      }
+      if (p3 == 'VF1') {
+        json['marque'] = 'RENAULT';
+        return;
+      }
+      if (p3 == 'VF7') {
+        json['marque'] = 'CITROEN';
+        return;
+      }
     }
 
-    // Force la marque via chassis si :
-    // - aucune marque lue, OU
-    // - le préfixe WMI est non ambigu (VF3=Peugeot, VF1=Renault, JT=Toyota…)
-    //   et le chassis a une longueur raisonnable (≥6, typique des codes
-    //   type / N° série algériens comme VF3XG8HHC) en conflit avec la marque.
-    // Un chassis trop court (<6) ou inconnu ne doit jamais écraser
-    // une marque lue dans la case الصنف (ex: فيات → FIAT).
-    if (expected == null) return;
-    if (marque.isEmpty) {
-      json['marque'] = expected;
-    } else if (marque != expected && chassis.length >= 6) {
-      // WMI clairs (VF3, VF1, JT…) priment sur une lecture IA erronée
-      // (bug fréquent : بيجو lu comme TOYOTA).
-      json['marque'] = expected;
+    // 2) Marque déjà lue dans الصنف → on ne touche pas
+    if (marque.isNotEmpty) return;
+
+    // 3) Marque vide → tenter WMI sur type puis chassis
+    for (final code in [type, modele, chassis]) {
+      final fromWmi = _marqueFromWmiCode(code);
+      if (fromWmi != null) {
+        json['marque'] = fromWmi;
+        return;
+      }
     }
   }
 

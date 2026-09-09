@@ -96,27 +96,24 @@ class OcrService {
 
   /// Détecte une marque connue dans un texte OCR brut (arabe ou latin).
   /// Utile en secours si l'IA Groq échoue (rate limit) ou renvoie null.
+  ///
+  /// Priorité : texte arabe de la case الصنف (بيجو → PEUGEOT, etc.),
+  /// puis latin, puis indices de code type VF3/VF1.
   static String? detectMarqueLocale(String rawText) {
-    final t = rawText.toUpperCase();
-    // Latin d'abord (plus fiable si déjà en majuscules sur le document)
-    const latin = [
-      'TOYOTA', 'RENAULT', 'PEUGEOT', 'NISSAN', 'HYUNDAI', 'KIA',
-      'VOLKSWAGEN', 'DACIA', 'CITROEN', 'CITROËN', 'FIAT', 'CHEVROLET',
-      'SUZUKI', 'MITSUBISHI', 'FORD', 'OPEL', 'MAZDA', 'HONDA',
-      'MERCEDES', 'BMW', 'SEAT', 'SKODA', 'AUDI',
-    ];
-    for (final m in latin) {
-      if (t.contains(m)) {
-        return m == 'CITROËN' ? 'CITROEN' : m;
-      }
-    }
-    // Arabe → latin (variantes OCR fréquentes incluses)
+    // 1) Arabe en premier (case الصنف) — ne jamais confondre بيجو et تويوتا
     const arabe = <String, String>{
-      'تويوتا': 'TOYOTA',
-      'تويو تا': 'TOYOTA',
-      'رينو': 'RENAULT',
+      // Peugeot — variantes OCR / orthographes courantes en DZ
       'بيجو': 'PEUGEOT',
       'بيجوو': 'PEUGEOT',
+      'بيجوه': 'PEUGEOT',
+      'بيجو ': 'PEUGEOT',
+      'بـيجو': 'PEUGEOT',
+      // Toyota
+      'تويوتا': 'TOYOTA',
+      'تويو تا': 'TOYOTA',
+      'تويوته': 'TOYOTA',
+      // Autres marques fréquentes en Algérie
+      'رينو': 'RENAULT',
       'نيسان': 'NISSAN',
       'هيونداي': 'HYUNDAI',
       'هيونداى': 'HYUNDAI',
@@ -136,15 +133,38 @@ class OcrService {
       'مرسيدس': 'MERCEDES',
       'بي ام دبليو': 'BMW',
     };
+    // Peugeot avant Toyota pour éviter toute confusion de sous-chaîne
+    for (final key in [
+      'بيجوو', 'بيجوه', 'بـيجو', 'بيجو',
+      'تويو تا', 'تويوته', 'تويوتا',
+      'رينو', 'نيسان', 'هيونداي', 'هيونداى', 'كيا',
+      'فولكسفاغن', 'فولكس واجن', 'داسيا', 'سيتروين', 'فيات',
+      'شيفروليه', 'سوزوكي', 'ميتسوبيشي', 'فورد', 'اوبل',
+      'مازدا', 'هوندا', 'مرسيدس', 'بي ام دبليو',
+    ]) {
+      if (rawText.contains(key)) return arabe[key] ?? arabe[key.trim()];
+    }
     for (final entry in arabe.entries) {
       if (rawText.contains(entry.key)) return entry.value;
     }
-    // Fallback souple sur les graphies les plus confondues
-    if (rawText.contains('بيجو') || rawText.toLowerCase().contains('peugeot')) {
-      return 'PEUGEOT';
-    }
-    if (rawText.contains('تويوتا') || rawText.toLowerCase().contains('toyota')) {
-      return 'TOYOTA';
+
+    // 2) Codes type algériens visibles dans le texte (VF3XG8HHC…)
+    final upper = rawText.toUpperCase();
+    if (RegExp(r'\bVF3[A-Z0-9]{2,}').hasMatch(upper)) return 'PEUGEOT';
+    if (RegExp(r'\bVF1[A-Z0-9]{2,}').hasMatch(upper)) return 'RENAULT';
+    if (RegExp(r'\bVF7[A-Z0-9]{2,}').hasMatch(upper)) return 'CITROEN';
+
+    // 3) Latin
+    const latin = [
+      'PEUGEOT', 'TOYOTA', 'RENAULT', 'NISSAN', 'HYUNDAI', 'KIA',
+      'VOLKSWAGEN', 'DACIA', 'CITROEN', 'CITROËN', 'FIAT', 'CHEVROLET',
+      'SUZUKI', 'MITSUBISHI', 'FORD', 'OPEL', 'MAZDA', 'HONDA',
+      'MERCEDES', 'BMW', 'SEAT', 'SKODA', 'AUDI',
+    ];
+    for (final m in latin) {
+      if (upper.contains(m)) {
+        return m == 'CITROËN' ? 'CITROEN' : m;
+      }
     }
     return null;
   }
