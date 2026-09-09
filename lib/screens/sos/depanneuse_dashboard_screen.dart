@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_config.dart';
 import '../../config/wilayas.dart';
+import '../../services/notification_service.dart';
 import '../../services/sos_models.dart';
 import '../../services/sos_service.dart';
 import '../../services/store_service.dart';
@@ -47,6 +48,38 @@ class _DepanneuseDashboardScreenState
   void initState() {
     super.initState();
     SosService.saveFcmToken();
+    // Après le premier frame : rappeler d'exclure l'app de l'optimisation
+    // batterie pour que les alertes sonnent en poche (OEM chinois).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _rappelBatterie());
+  }
+
+  Future<void> _rappelBatterie() async {
+    if (!mounted) return;
+    // Affiché une seule fois par session pour ne pas harceler.
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Notifications en poche'),
+        content: const Text(
+          'Pour recevoir les alertes même téléphone en poche / écran éteint, '
+          'désactive l\'optimisation batterie pour VROUM DZ dans les '
+          'paramètres (surtout Xiaomi, Oppo, Tecno, Infinix).',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Plus tard'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ouvrir les réglages'),
+          ),
+        ],
+      ),
+    );
+    if (go == true) {
+      await NotificationService.openBatteryOptimizationSettings();
+    }
   }
 
   Future<void> _logout() async {
