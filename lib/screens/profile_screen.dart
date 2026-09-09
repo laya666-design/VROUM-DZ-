@@ -717,35 +717,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
               children: [
-                // ── HERO HEADER ──────────────────────────────────────────
+                // ── HEADER SOMBRE (A+D) ──────────────────────────────────
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
+                    gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: isPremium
-                          ? const [
-                              Color(0xFF0F172A),
-                              Color(0xFF1E293B),
-                              Color(0xFF334155),
-                            ]
-                          : [
-                              widget.config.primaryColor,
-                              widget.config.primaryColor.withOpacity(0.82),
-                              const Color(0xFF0F766E),
-                            ],
+                      colors: [
+                        Color(0xFF0F172A),
+                        Color(0xFF1E293B),
+                        Color(0xFF334155),
+                      ],
                     ),
-                    borderRadius: BorderRadius.circular(26),
+                    borderRadius: BorderRadius.circular(22),
                     boxShadow: [
                       BoxShadow(
-                        color: (isPremium
-                                ? Colors.black
-                                : widget.config.primaryColor)
-                            .withOpacity(0.28),
-                        blurRadius: 22,
-                        offset: const Offset(0, 10),
+                        color: Colors.black.withOpacity(0.22),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
@@ -753,30 +744,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       Row(
                         children: [
-                          // Avatar cliquable
                           GestureDetector(
                             onTap: _pickAvatar,
                             child: Stack(
                               clipBehavior: Clip.none,
                               children: [
                                 Container(
-                                  width: 64,
-                                  height: 64,
+                                  width: 58,
+                                  height: 58,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                        color: Colors.white.withOpacity(0.35),
-                                        width: 2.5),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.2),
-                                        blurRadius: 12,
-                                      ),
-                                    ],
+                                      color: isPremium
+                                          ? const Color(0xFFFBBF24)
+                                          : widget.config.primaryColor
+                                              .withOpacity(0.7),
+                                      width: 2.5,
+                                    ),
                                   ),
                                   child: CircleAvatar(
                                     backgroundColor:
-                                        Colors.white.withOpacity(0.2),
+                                        Colors.white.withOpacity(0.12),
                                     backgroundImage: _avatarImage(
                                         SettingsService.avatarPath),
                                     child: _avatarImage(
@@ -787,7 +775,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 ? Icons.workspace_premium
                                                 : Icons.person,
                                             color: Colors.white,
-                                            size: 32,
+                                            size: 28,
                                           )
                                         : null,
                                   ),
@@ -796,21 +784,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   right: -2,
                                   bottom: -2,
                                   child: Container(
-                                    width: 24,
-                                    height: 24,
-                                    decoration: BoxDecoration(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: const BoxDecoration(
                                       color: Colors.white,
                                       shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.15),
-                                          blurRadius: 4,
-                                        ),
-                                      ],
                                     ),
                                     child: Icon(
                                       Icons.camera_alt,
-                                      size: 13,
+                                      size: 12,
                                       color: widget.config.primaryColor,
                                     ),
                                   ),
@@ -818,412 +800,410 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ],
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  (SettingsService.userName?.isNotEmpty ?? false)
+                                  (SettingsService.userName?.isNotEmpty ??
+                                          false)
                                       ? SettingsService.userName!
-                                      : widget.config.appName,
+                                      : t('Invité', 'زائر'),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 20,
-                                    letterSpacing: -0.3,
+                                    fontSize: 18,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 6),
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 11, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isPremium
-                                            ? const Color(0xFFFBBF24)
-                                            : Colors.white.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        isPremium
-                                            ? t('Compte Premium', 'حساب Premium')
-                                            : t('Compte gratuit', 'حساب مجاني'),
-                                        style: TextStyle(
-                                          color: isPremium
-                                              ? const Color(0xFF78350F)
-                                              : Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 12,
-                                        ),
-                                      ),
+                                GestureDetector(
+                                  onTap: () => _showLoginSheet(context, t),
+                                  child: Text(
+                                    (SettingsService.userName?.isNotEmpty ??
+                                            false)
+                                        ? t('Modifier le profil',
+                                            'تعديل الملف')
+                                        : t('Se connecter', 'تسجيل الدخول'),
+                                    style: TextStyle(
+                                      color: widget.config.primaryColor
+                                          .withOpacity(0.95),
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
                                     ),
-                                    const SizedBox(width: 8),
-                                    GestureDetector(
-                                      onTap: () =>
-                                          _showLoginSheet(context, t),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.22),
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                          border: Border.all(
-                                              color: Colors.white
-                                                  .withOpacity(0.35)),
-                                        ),
-                                        child: Text(
-                                          (SettingsService.userName
-                                                      ?.isNotEmpty ??
-                                                  false)
-                                              ? t('Modifier', 'تعديل')
-                                              : t('Se connecter',
-                                                  'تسجيل الدخول'),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ],
                             ),
                           ),
+                          if (isPremium)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFBBF24),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                t('Premium', 'Premium'),
+                                style: const TextStyle(
+                                  color: Color(0xFF78350F),
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 14),
+                      // Stats dashboard (C)
                       Row(
                         children: [
                           Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12, horizontal: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                    color: Colors.white.withOpacity(0.18)),
-                              ),
+                            child: _statPill(
+                              value: '$vehicleCount',
+                              label: vehicleCount <= 1
+                                  ? t('Véhicule', 'مركبة')
+                                  : t('Véhicules', 'مركبات'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _statPill(
+                              value: _vehicleProfileLabel(t),
+                              label: t('Profil', 'الملف'),
+                              isText: true,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _statPill(
+                              value: isPremium
+                                  ? t('∞', '∞')
+                                  : '1',
+                              label: isPremium
+                                  ? t('Illimité', 'غير محدود')
+                                  : t('Limite', 'الحد'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // ── RACCOURCIS (C) ───────────────────────────────────────
+                _groupCard(
+                  children: [
+                    _groupTile(
+                      icon: Icons.storefront_rounded,
+                      title: t('Espace Pro', 'مساحة برو'),
+                      subtitle: t(
+                        'Magasin ou dépanneuse',
+                        'متجر أو رافعة',
+                      ),
+                      onTap: () => RoleRouter.changerDeProfil(
+                        context,
+                        config: widget.config,
+                        isAr: widget.isAr,
+                        afficherConducteur: false,
+                      ),
+                    ),
+                    _groupDivider(),
+                    _groupTile(
+                      icon: Icons.directions_car_filled_outlined,
+                      title: t('Type de véhicule', 'نوع المركبة'),
+                      subtitle: _vehicleProfileLabel(t),
+                      onTap: () => _showVehicleProfilePicker(context, t),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // ── PRÉFÉRENCES (A+D) ─────────────────────────────────────
+                _sectionLabel(t('Préférences', 'التفضيلات')),
+                _groupCard(
+                  children: [
+                    _groupTile(
+                      icon: Icons.language,
+                      title: t('Langue', 'اللغة'),
+                      subtitle: isAr ? 'العربية' : 'Français',
+                      trailing: SegmentedButton<bool>(
+                        segments: const [
+                          ButtonSegment(value: false, label: Text('FR')),
+                          ButtonSegment(value: true, label: Text('AR')),
+                        ],
+                        selected: {isAr},
+                        onSelectionChanged: (s) =>
+                            widget.isAr.value = s.first,
+                        style: const ButtonStyle(
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ),
+                    if (isPremium) ...[
+                      _groupDivider(),
+                      _groupTile(
+                        icon: Icons.notifications_active_outlined,
+                        title:
+                            t('Rappels SMS / Appel', 'تذكيرات SMS / مكالمة'),
+                        subtitle: SettingsService.smsRemindersEnabled
+                            ? t('Activés', 'مفعّلة')
+                            : t('Désactivés', 'معطّلة'),
+                        trailing: Switch(
+                          value: SettingsService.smsRemindersEnabled,
+                          activeColor: widget.config.primaryColor,
+                          onChanged: (val) async {
+                            await SettingsService
+                                .setSmsRemindersEnabled(val);
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // ── PREMIUM BANNIÈRE FINE (A) ─────────────────────────────
+                if (!isPremium) ...[
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => _showPremiumSheet(context, t),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF0F172A),
+                              Color(0xFF1E293B),
+                              Color(0xFF422006),
+                            ],
+                          ),
+                          border: Border.all(
+                            color: const Color(0xFFFBBF24).withOpacity(0.35),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.workspace_premium,
+                                color: Color(0xFFFBBF24), size: 26),
+                            const SizedBox(width: 12),
+                            Expanded(
                               child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '$vehicleCount',
+                                    t('Passer en Premium',
+                                        'الترقية إلى Premium'),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w800,
-                                      fontSize: 22,
+                                      fontSize: 14.5,
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
                                   Text(
-                                    vehicleCount <= 1
-                                        ? t('véhicule', 'مركبة')
-                                        : t('véhicules', 'مركبات'),
+                                    t(
+                                      'Véhicules illimités · Rappels SMS',
+                                      'مركبات غير محدودة · تذكيرات SMS',
+                                    ),
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.8),
-                                      fontSize: 12,
+                                      color: Colors.grey.shade400,
+                                      fontSize: 11.5,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12, horizontal: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                    color: Colors.white.withOpacity(0.18)),
-                              ),
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    isPremium
-                                        ? Icons.all_inclusive
-                                        : Icons.lock_outline,
-                                    color: Colors.white,
-                                    size: 22,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    isPremium
-                                        ? t('Illimité', 'غير محدود')
-                                        : t('1 gratuit', '1 مجاني'),
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.85),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // ── ACTIONS RAPIDES ──────────────────────────────────────
-                _sectionLabel(t('Accès rapide', 'وصول سريع')),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _quickAction(
-                        icon: Icons.storefront_rounded,
-                        label: t('Espace Pro', 'مساحة برو'),
-                        color: widget.config.primaryColor,
-                        onTap: () => RoleRouter.changerDeProfil(
-                          context,
-                          config: widget.config,
-                          isAr: widget.isAr,
-                          afficherConducteur: false,
+                            const Icon(Icons.arrow_forward_ios,
+                                color: Color(0xFFFBBF24), size: 14),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _quickAction(
-                        icon: Icons.language,
-                        label: isAr ? 'العربية' : 'Français',
-                        color: const Color(0xFF2563EB),
-                        onTap: () => widget.isAr.value = !isAr,
-                      ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+
+                // ── AIDE (D) ─────────────────────────────────────────────
+                _sectionLabel(t('Aide', 'المساعدة')),
+                _groupCard(
+                  children: [
+                    _groupTile(
+                      icon: Icons.chat_rounded,
+                      title: 'WhatsApp',
+                      subtitle: t('Support rapide', 'دعم سريع'),
+                      iconColor: const Color(0xFF25D366),
+                      onTap: _contactWhatsApp,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _quickAction(
-                        icon: Icons.tune_rounded,
-                        label: _vehicleProfileLabel(t),
-                        color: const Color(0xFF7C3AED),
-                        onTap: () => _showVehicleProfilePicker(context, t),
+                    _groupDivider(),
+                    _groupTile(
+                      icon: Icons.mail_outline_rounded,
+                      title: 'Email',
+                      subtitle: 'contact@elbouni-pieces-auto.dz',
+                      onTap: _contactEmail,
+                    ),
+                    _groupDivider(),
+                    GestureDetector(
+                      onLongPress: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              AdminLoginScreen(config: widget.config),
+                        ),
+                      ),
+                      child: _groupTile(
+                        icon: Icons.info_outline_rounded,
+                        title: t('À propos', 'حول التطبيق'),
+                        subtitle: widget.config.appName,
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 22),
-
-                // ── RÉGLAGES ─────────────────────────────────────────────
-                _sectionLabel(t('Réglages', 'الإعدادات')),
-                _settingTile(
-                  icon: Icons.language,
-                  iconBg: const Color(0xFFEFF6FF),
-                  iconColor: const Color(0xFF2563EB),
-                  title: t('Langue', 'اللغة'),
-                  subtitle: isAr ? 'العربية' : 'Français',
-                  trailing: SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(value: false, label: Text('FR')),
-                      ButtonSegment(value: true, label: Text('AR')),
-                    ],
-                    selected: {isAr},
-                    onSelectionChanged: (s) => widget.isAr.value = s.first,
-                    style: const ButtonStyle(
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _settingTile(
-                  icon: Icons.directions_car_filled_outlined,
-                  iconBg: AppColors.primaryLight,
-                  iconColor: widget.config.primaryColor,
-                  title: t('Type de véhicule', 'نوع المركبة'),
-                  subtitle: _vehicleProfileLabel(t),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                  onTap: () => _showVehicleProfilePicker(context, t),
-                ),
-                if (isPremium) ...[
-                  const SizedBox(height: 8),
-                  _settingTile(
-                    icon: Icons.notifications_active_outlined,
-                    iconBg: const Color(0xFFFEF3C7),
-                    iconColor: const Color(0xFFD97706),
-                    title: t('Rappels SMS / Appel', 'تذكيرات SMS / مكالمة'),
-                    subtitle: SettingsService.smsRemindersEnabled
-                        ? t('Activés', 'مفعّلة')
-                        : t('Désactivés', 'معطّلة'),
-                    trailing: Switch(
-                      value: SettingsService.smsRemindersEnabled,
-                      activeColor: widget.config.primaryColor,
-                      onChanged: (val) async {
-                        await SettingsService.setSmsRemindersEnabled(val);
-                        setState(() {});
-                      },
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 22),
-
-                // ── PREMIUM ──────────────────────────────────────────────
-                if (!isPremium) ...[
-                  _sectionLabel(t('Premium', 'بريميوم')),
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(22),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFF0F172A),
-                          Color(0xFF1E293B),
-                          Color(0xFF422006),
-                        ],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 16,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(22),
-                        onTap: () => _showPremiumSheet(context, t),
-                        child: Padding(
-                          padding: const EdgeInsets.all(18),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 46,
-                                    height: 46,
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFFFDE68A),
-                                          Color(0xFFFBBF24),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: const Icon(Icons.workspace_premium,
-                                        color: Color(0xFF78350F), size: 24),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          t('Passer en Premium',
-                                              'الترقية إلى Premium'),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 16.5,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          t(
-                                            'Débloque tout le potentiel',
-                                            'افتح كامل الإمكانيات',
-                                          ),
-                                          style: TextStyle(
-                                            color: Colors.grey.shade400,
-                                            fontSize: 12.5,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const Icon(Icons.arrow_forward_ios,
-                                      color: Color(0xFFFBBF24), size: 16),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 6,
-                                children: [
-                                  _premiumTag(t('Véhicules illimités',
-                                      'مركبات غير محدودة')),
-                                  _premiumTag(
-                                      t('Rappels SMS', 'تذكيرات SMS')),
-                                  _premiumTag(t(
-                                      'Support prioritaire', 'دعم أولوية')),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                ],
-
-                // ── SUPPORT ──────────────────────────────────────────────
-                _sectionLabel(t('Support', 'الدعم')),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _supportButton(
-                        icon: Icons.chat_rounded,
-                        label: 'WhatsApp',
-                        color: const Color(0xFF25D366),
-                        onTap: _contactWhatsApp,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _supportButton(
-                        icon: Icons.mail_outline_rounded,
-                        label: 'Email',
-                        color: const Color(0xFF2563EB),
-                        onTap: _contactEmail,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                GestureDetector(
-                  onLongPress: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          AdminLoginScreen(config: widget.config),
-                    ),
-                  ),
-                  child: _settingTile(
-                    icon: Icons.info_outline_rounded,
-                    iconBg: const Color(0xFFEFF6FF),
-                    iconColor: const Color(0xFF2563EB),
-                    title: t('À propos', 'حول التطبيق'),
-                    subtitle: t(
-                      '${widget.config.appName} — véhicules & pièces',
-                      '${widget.config.appName} — مركبات وقطع غيار',
-                    ),
-                    trailing:
-                        const Icon(Icons.chevron_right, color: Colors.grey),
-                  ),
                 ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _statPill({
+    required String value,
+    required String label,
+    bool isText = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: isText ? 12 : 18,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.65),
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _groupCard({required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _groupDivider() {
+    return Divider(
+      height: 1,
+      thickness: 1,
+      indent: 56,
+      color: Colors.grey.shade100,
+    );
+  }
+
+  Widget _groupTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    Color? iconColor,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
+    final color = iconColor ?? widget.config.primaryColor;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Colors.grey.shade600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              trailing ??
+                  (onTap != null
+                      ? const Icon(Icons.chevron_right,
+                          color: Colors.grey, size: 20)
+                      : const SizedBox.shrink()),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
