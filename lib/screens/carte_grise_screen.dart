@@ -190,12 +190,14 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   }
 
   /// Déduit la marque à partir du préfixe chassis (WMI / code type DZ).
+  /// Les préfixes VF3 / VF1 / JT etc. sont non ambigus même sur codes courts
+  /// (ex. VF3XG8HHC) et doivent primer sur une mauvaise lecture OCR/IA.
   String? _marqueFromChassis(String chassis) {
     final c = chassis.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
     if (c.length < 3) return null;
     final p3 = c.substring(0, 3);
     final p2 = c.substring(0, 2);
-    if (p2 == 'JT' || p3 == 'NCP' || p3 == 'NSP' || p3 == 'NZE' || p3 == 'ZZE') {
+    if (p2 == 'JT' || p3 == 'NCP' || p3 == 'NSP' || p3 == 'NZE' || p3 == 'ZZE' || p3 == 'SCP') {
       return 'TOYOTA';
     }
     if (p3 == 'VF1') return 'RENAULT';
@@ -216,11 +218,17 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
       final raw = await _ocr.extractText(file);
       if (raw.trim().isEmpty) return null;
       var marque = OcrService.detectMarqueLocale(raw) ?? '';
-      final chassisMatch = RegExp(r'\b([A-HJ-NPR-Z0-9]{11,17})\b')
+      // Accepte aussi les codes type algériens courts (ex VF3XG8HHC, 8-12 car.)
+      final chassisMatch = RegExp(r'\b([A-HJ-NPR-Z0-9]{6,17})\b')
           .firstMatch(raw.toUpperCase());
       final chassis = chassisMatch?.group(1) ?? '';
-      if (marque.isEmpty && chassis.isNotEmpty) {
-        marque = _marqueFromChassis(chassis) ?? '';
+      final fromWmi = chassis.isNotEmpty ? _marqueFromChassis(chassis) : null;
+      // WMI non ambigu (VF3 = Peugeot, JT = Toyota…) prime toujours :
+      // corrige les confusions OCR fréquentes بيجو ↔ تويوتا.
+      if (fromWmi != null && fromWmi.isNotEmpty) {
+        marque = fromWmi;
+      } else if (marque.isEmpty && chassis.isNotEmpty) {
+        marque = fromWmi ?? '';
       }
       if (marque.isEmpty && chassis.isEmpty) return null;
       return CarteGriseInfo(
@@ -301,6 +309,31 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
             engineCode: info.engineCode,
             fuelType: info.fuelType,
           );
+        }
+        // Filet de sécurité supplémentaire : si le chassis (WMI clair
+        // VF3/VF1/JT…) contredit la marque renvoyée par l'IA (bug fréquent
+        // بيجو → TOYOTA), on force la marque correcte. Même logique que
+        // _correctMarqueFromChassis côté service.
+        final chassisForWmi = chassisSecours.isNotEmpty
+            ? chassisSecours
+            : info.chassis;
+        if (chassisForWmi.length >= 6) {
+          final fromWmi = _marqueFromChassis(chassisForWmi);
+          if (fromWmi != null &&
+              fromWmi.isNotEmpty &&
+              info.marque.toUpperCase() != fromWmi) {
+            info = CarteGriseInfo(
+              marque: fromWmi,
+              modele: info.modele,
+              type: info.type,
+              annee: info.annee,
+              chassis: chassisForWmi,
+              puissanceFiscale: info.puissanceFiscale,
+              immatriculation: info.immatriculation,
+              engineCode: info.engineCode,
+              fuelType: info.fuelType,
+            );
+          }
         }
         if (info.estVide) {
           _error = _t(
