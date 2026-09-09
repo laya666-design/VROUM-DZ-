@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -190,8 +191,27 @@ class NotificationService {
       enableVibration: true,
       fullScreenIntent: true, // tente d'afficher même écran verrouillé
       category: AndroidNotificationCategory.alarm,
+      visibility: NotificationVisibility.public,
+      ticker: 'Alerte panne — dépanneuse',
+      audioAttributesUsage: AudioAttributesUsage.alarm,
     );
     const details = NotificationDetails(android: androidDetails);
     await _plugin.show(id, title, body, details);
+  }
+
+
+  /// Ouvre l'écran Android des optimisations batterie. L'utilisateur
+  /// doit y désactiver l'optimisation pour VROUM DZ (sinon les alertes
+  /// SOS peuvent être silencieuses quand le téléphone est en poche,
+  /// surtout sur Xiaomi / Oppo / Tecno / Infinix).
+  static Future<void> openBatteryOptimizationSettings() async {
+    try {
+      await launchUrl(
+        Uri.parse('package:com.android.settings'),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      // L'utilisateur peut y accéder manuellement via Paramètres > Batterie.
+    }
   }
 }
