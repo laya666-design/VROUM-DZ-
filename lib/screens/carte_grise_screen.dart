@@ -71,6 +71,164 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   final _engineCtrl = TextEditingController();
   final _fuelCtrl = TextEditingController();
 
+  /// Catalogue marques → modèles courants sur le marché algérien.
+  /// Évite la saisie libre (erreurs OCR) : l'utilisateur choisit dans la liste.
+  static const Map<String, List<String>> _catalogueMarques = {
+    'PEUGEOT': [
+      '206', '207', '208', '301', '307', '308', '2008', '3008', '5008',
+      'Partner', 'Expert', 'Boxer', '406', '407', '508',
+    ],
+    'RENAULT': [
+      'Clio', 'Clio 4', 'Clio 5', 'Symbol', 'Megane', 'Megane 3', 'Megane 4',
+      'Logan', 'Sandero', 'Kangoo', 'Captur', 'Fluence', 'Kadjar', 'Trafic',
+    ],
+    'DACIA': [
+      'Logan', 'Sandero', 'Duster', 'Dokker', 'Lodgy', 'Spring',
+    ],
+    'TOYOTA': [
+      'Yaris', 'Corolla', 'Auris', 'RAV4', 'Hilux', 'Land Cruiser', 'Avensis',
+      'Aygo', 'C-HR', 'Camry', 'Prado',
+    ],
+    'HYUNDAI': [
+      'i10', 'i20', 'i30', 'Accent', 'Elantra', 'Tucson', 'Santa Fe',
+      'Creta', 'Kona', 'H1', 'Porter',
+    ],
+    'KIA': [
+      'Picanto', 'Rio', 'Cerato', 'Sportage', 'Sorento', 'Seltos', 'Morning',
+      'Carnival', 'Stonic',
+    ],
+    'VOLKSWAGEN': [
+      'Polo', 'Golf', 'Golf 6', 'Golf 7', 'Golf 8', 'Passat', 'Jetta',
+      'Tiguan', 'Touareg', 'Caddy', 'Transporter',
+    ],
+    'CITROEN': [
+      'C3', 'C4', 'C5', 'Berlingo', 'C-Elysée', 'C4 Cactus', 'Jumpy', 'Jumper',
+    ],
+    'NISSAN': [
+      'Micra', 'Sunny', 'Qashqai', 'Juke', 'X-Trail', 'Navara', 'Patrol',
+      'Note', 'Almera',
+    ],
+    'FIAT': [
+      'Punto', 'Tipo', '500', 'Panda', 'Doblo', 'Fiorino', 'Ducato',
+    ],
+    'SUZUKI': [
+      'Swift', 'Vitara', 'Jimny', 'Alto', 'Dzire', 'S-Presso', 'Ertiga',
+    ],
+    'CHEVROLET': [
+      'Spark', 'Aveo', 'Cruze', 'Captiva', 'N300', 'Optra',
+    ],
+    'FORD': [
+      'Fiesta', 'Focus', 'Fusion', 'Ranger', 'EcoSport', 'Kuga', 'Transit',
+    ],
+    'MITSUBISHI': [
+      'Lancer', 'Pajero', 'L200', 'ASX', 'Outlander', 'Attrage',
+    ],
+    'MERCEDES': [
+      'Classe A', 'Classe B', 'Classe C', 'Classe E', 'GLA', 'GLC', 'Sprinter',
+      'Vito',
+    ],
+    'BMW': [
+      'Série 1', 'Série 2', 'Série 3', 'Série 5', 'X1', 'X3', 'X5',
+    ],
+    'SEAT': ['Ibiza', 'Leon', 'Arona', 'Ateca', 'Toledo'],
+    'SKODA': ['Fabia', 'Octavia', 'Rapid', 'Kodiaq', 'Kamiq'],
+    'AUDI': ['A3', 'A4', 'A6', 'Q3', 'Q5', 'Q7'],
+    'OPEL': ['Corsa', 'Astra', 'Insignia', 'Mokka', 'Combo'],
+    'HONDA': ['Civic', 'Jazz', 'CR-V', 'HR-V', 'Accord'],
+    'MAZDA': ['2', '3', '6', 'CX-5', 'CX-3'],
+    // ——— Marques chinoises (parc algérien récent) ———
+    'CHERY': [
+      'Tiggo 2', 'Tiggo 3', 'Tiggo 4', 'Tiggo 7', 'Tiggo 8',
+      'Arrizo 5', 'Arrizo 6', 'Arrizo 8', 'QQ',
+    ],
+    'JETOUR': [
+      'X70', 'X70 Plus', 'X90', 'X90 Plus', 'Dashing', 'T2',
+    ],
+    'HAVAL': [
+      'H6', 'Jolion', 'H9', 'Dargo', 'H2',
+    ],
+    'GWM': [
+      'Poer', 'Wingle', 'Tank 300', 'Ora',
+    ],
+    'GEELY': [
+      'Coolray', 'Emgrand', 'Azkarra', 'GX3', 'Okavango', 'Geometry',
+    ],
+    'MG': [
+      'ZS', 'HS', 'MG5', 'MG6', 'RX5', 'MG3', 'Marvel R',
+    ],
+    'BYD': [
+      'Atto 3', 'Song Plus', 'Seal', 'Dolphin', 'Han', 'Tang', 'Yuan Plus',
+    ],
+    'CHANGAN': [
+      'CS35', 'CS35 Plus', 'CS55', 'CS75', 'Alsvin', 'UNI-T', 'UNI-V',
+    ],
+    'JAC': [
+      'S3', 'S4', 'S7', 'J7', 'T8', 'X200',
+    ],
+    'DONGFENG': [
+      'AX7', 'Shine', 'Rich', 'Aeolus', 'Fengon',
+    ],
+    'BAIC': [
+      'X25', 'X35', 'X55', 'BJ40', 'Senova',
+    ],
+    'EXEED': [
+      'TXL', 'VX', 'RX', 'LX',
+    ],
+    'OMODA': [
+      'C5', 'E5', 'C7',
+    ],
+    'JAECOO': [
+      'J7', 'J8',
+    ],
+    'DFSK': [
+      'Glory 580', 'Fengon 500', 'K01', 'C37',
+    ],
+    'FOTON': [
+      'Tunland', 'View', 'Aumark', 'Sauvana',
+    ],
+  };
+
+  static const Map<String, Color> _couleurMarque = {
+    'PEUGEOT': Color(0xFF1A1F71),
+    'RENAULT': Color(0xFFFFCC33),
+    'DACIA': Color(0xFF5B8C2A),
+    'TOYOTA': Color(0xFFEB0A1E),
+    'HYUNDAI': Color(0xFF002C5F),
+    'KIA': Color(0xFFBB162B),
+    'VOLKSWAGEN': Color(0xFF001E50),
+    'CITROEN': Color(0xFFC4002B),
+    'NISSAN': Color(0xFFC3002F),
+    'FIAT': Color(0xFFAD1719),
+    'SUZUKI': Color(0xFFE30613),
+    'CHEVROLET': Color(0xFFD4A017),
+    'FORD': Color(0xFF003478),
+    'MITSUBISHI': Color(0xFFE60012),
+    'MERCEDES': Color(0xFF333333),
+    'BMW': Color(0xFF1C69D4),
+    'SEAT': Color(0xFFED1C24),
+    'SKODA': Color(0xFF4BA82E),
+    'AUDI': Color(0xFFBB0A30),
+    'OPEL': Color(0xFFF7FF00),
+    'HONDA': Color(0xFFCC0000),
+    'MAZDA': Color(0xFF101010),
+    'CHERY': Color(0xFF1B4F9C),
+    'JETOUR': Color(0xFF0B3D91),
+    'HAVAL': Color(0xFFC8102E),
+    'GWM': Color(0xFF00843D),
+    'GEELY': Color(0xFF0033A0),
+    'MG': Color(0xFFD5001C),
+    'BYD': Color(0xFF1A1A1A),
+    'CHANGAN': Color(0xFF0055A5),
+    'JAC': Color(0xFF0072BC),
+    'DONGFENG': Color(0xFF003DA5),
+    'BAIC': Color(0xFF1E3A8A),
+    'EXEED': Color(0xFF111827),
+    'OMODA': Color(0xFF6B21A8),
+    'JAECOO': Color(0xFF14532D),
+    'DFSK': Color(0xFFE11D48),
+    'FOTON': Color(0xFF1D4ED8),
+  };
+
   bool get _modeCreation => widget.vehicule == null;
 
   String _t(String fr, String ar) => widget.isAr ? ar : fr;
@@ -111,8 +269,36 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   }
 
   void _fillControllers(CarteGriseInfo info) {
-    _marqueCtrl.text = info.marque;
-    _modeleCtrl.text = info.modele;
+    // Normalise la marque OCR vers une clé du catalogue si possible
+    // (ex: "Peugeot " → PEUGEOT) pour pré-sélectionner le bon logo.
+    final rawMarque = info.marque.trim().toUpperCase();
+    String marque = rawMarque;
+    if (rawMarque.isNotEmpty && !_catalogueMarques.containsKey(rawMarque)) {
+      for (final key in _catalogueMarques.keys) {
+        if (rawMarque.contains(key) || key.contains(rawMarque)) {
+          marque = key;
+          break;
+        }
+      }
+    }
+    _marqueCtrl.text = marque;
+
+    // Pré-sélectionne le modèle s'il matche la liste de la marque
+    final modeles = _modelesPourMarque(marque);
+    final rawModele = info.modele.trim();
+    String modele = rawModele;
+    if (rawModele.isNotEmpty && modeles.isNotEmpty) {
+      final match = modeles.cast<String?>().firstWhere(
+            (m) =>
+                m!.toLowerCase() == rawModele.toLowerCase() ||
+                rawModele.toLowerCase().contains(m.toLowerCase()) ||
+                m.toLowerCase().contains(rawModele.toLowerCase()),
+            orElse: () => null,
+          );
+      if (match != null) modele = match;
+    }
+    _modeleCtrl.text = modele;
+
     _anneeCtrl.text = info.annee?.toString() ?? '';
     _chassisCtrl.text = info.chassis;
     _puissanceCtrl.text = info.puissanceFiscale;
@@ -480,6 +666,347 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     );
   }
 
+  Color _colorForMarque(String marque) {
+    final key = marque.toUpperCase().trim();
+    return _couleurMarque[key] ?? widget.config.primaryColor;
+  }
+
+  List<String> _modelesPourMarque(String marque) {
+    final key = marque.toUpperCase().trim();
+    return List<String>.from(_catalogueMarques[key] ?? const <String>[]);
+  }
+
+  Widget _marqueAvatar(String marque, {double size = 36}) {
+    final c = _colorForMarque(marque);
+    final letter = marque.isNotEmpty ? marque[0].toUpperCase() : '?';
+    // Contraste : pastille jaune/claire → texte sombre
+    final luminance = c.computeLuminance();
+    final fg = luminance > 0.55 ? Colors.black87 : Colors.white;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: c,
+        borderRadius: BorderRadius.circular(size * 0.28),
+        boxShadow: [
+          BoxShadow(
+            color: c.withValues(alpha: 0.35),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        letter,
+        style: TextStyle(
+          color: fg,
+          fontWeight: FontWeight.w900,
+          fontSize: size * 0.42,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _ouvrirSelecteurMarque() async {
+    final marques = _catalogueMarques.keys.toList()..sort();
+    final current = _marqueCtrl.text.trim().toUpperCase();
+    final chosen = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.45,
+          maxChildSize: 0.92,
+          builder: (_, scrollCtrl) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+                    child: Row(
+                      children: [
+                        Text(
+                          _t('Choisir la marque', 'اختر الماركة'),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: GridView.builder(
+                      controller: scrollCtrl,
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 0.95,
+                      ),
+                      itemCount: marques.length,
+                      itemBuilder: (_, i) {
+                        final m = marques[i];
+                        final selected = m == current;
+                        return Material(
+                          color: selected
+                              ? widget.config.primaryColor.withValues(alpha: 0.1)
+                              : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () => Navigator.pop(ctx, m),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: selected
+                                      ? widget.config.primaryColor
+                                      : Colors.grey.shade200,
+                                  width: selected ? 2 : 1,
+                                ),
+                              ),
+                              padding: const EdgeInsets.all(10),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _marqueAvatar(m, size: 42),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    m,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: selected
+                                          ? FontWeight.w800
+                                          : FontWeight.w600,
+                                      color: selected
+                                          ? widget.config.primaryColor
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+    if (chosen == null || !mounted) return;
+    setState(() {
+      _marqueCtrl.text = chosen;
+      // Reset modèle s'il n'appartient plus à la nouvelle marque
+      final modeles = _modelesPourMarque(chosen);
+      if (!modeles.contains(_modeleCtrl.text.trim())) {
+        _modeleCtrl.clear();
+      }
+    });
+  }
+
+  Future<void> _ouvrirSelecteurModele() async {
+    final marque = _marqueCtrl.text.trim().toUpperCase();
+    if (marque.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_t(
+            'Choisis d’abord la marque.',
+            'اختر الماركة أولاً.',
+          )),
+        ),
+      );
+      return;
+    }
+    final modeles = _modelesPourMarque(marque);
+    if (modeles.isEmpty) {
+      // Marque hors catalogue : saisie libre
+      return;
+    }
+    final current = _modeleCtrl.text.trim();
+    final chosen = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.55,
+          minChildSize: 0.35,
+          maxChildSize: 0.9,
+          builder: (_, scrollCtrl) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 12, 8),
+                    child: Row(
+                      children: [
+                        _marqueAvatar(marque, size: 32),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _t('Modèle $marque', 'موديل $marque'),
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView.separated(
+                      controller: scrollCtrl,
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+                      itemCount: modeles.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (_, i) {
+                        final m = modeles[i];
+                        final selected =
+                            m.toLowerCase() == current.toLowerCase();
+                        return ListTile(
+                          onTap: () => Navigator.pop(ctx, m),
+                          leading: Icon(
+                            selected
+                                ? Icons.check_circle
+                                : Icons.directions_car_outlined,
+                            color: selected
+                                ? widget.config.primaryColor
+                                : Colors.grey.shade500,
+                          ),
+                          title: Text(
+                            m,
+                            style: TextStyle(
+                              fontWeight: selected
+                                  ? FontWeight.w800
+                                  : FontWeight.w500,
+                              color: selected
+                                  ? widget.config.primaryColor
+                                  : Colors.black87,
+                            ),
+                          ),
+                          trailing: selected
+                              ? Icon(Icons.done,
+                                  color: widget.config.primaryColor)
+                              : null,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+    if (chosen == null || !mounted) return;
+    setState(() => _modeleCtrl.text = chosen);
+  }
+
+  Widget _pickerField({
+    required String label,
+    required String value,
+    required String placeholder,
+    required VoidCallback onTap,
+    Widget? leading,
+  }) {
+    final hasValue = value.trim().isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: InputDecorator(
+            isEmpty: !hasValue,
+            decoration: InputDecoration(
+              labelText: label,
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              filled: true,
+              fillColor: Colors.white,
+              suffixIcon: const Icon(Icons.expand_more_rounded),
+            ),
+            child: Row(
+              children: [
+                if (leading != null) ...[
+                  leading,
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: Text(
+                    hasValue ? value : placeholder,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight:
+                          hasValue ? FontWeight.w600 : FontWeight.w400,
+                      color: hasValue ? Colors.black87 : Colors.grey.shade500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final content = Column(
@@ -631,9 +1158,25 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
                       _t('Code moteur', 'رمز المحرك'), _info!.engineCode),
                   _infoRow(_t('Carburant', 'نوع الوقود'), _info!.fuelType),
                 ] else ...[
-                  // Mode édition : l'utilisateur peut corriger les erreurs IA
-                  _editField(_t('Marque', 'الماركة'), _marqueCtrl),
-                  _editField(_t('Modèle', 'الموديل'), _modeleCtrl),
+                  // Mode édition : marque & modèle via menus (évite les
+                  // erreurs de saisie / OCR). Autres champs en texte libre.
+                  _pickerField(
+                    label: _t('Marque', 'الماركة'),
+                    value: _marqueCtrl.text,
+                    placeholder: _t('Choisir la marque…', 'اختر الماركة…'),
+                    onTap: _ouvrirSelecteurMarque,
+                    leading: _marqueCtrl.text.trim().isNotEmpty
+                        ? _marqueAvatar(_marqueCtrl.text, size: 28)
+                        : null,
+                  ),
+                  _pickerField(
+                    label: _t('Modèle', 'الموديل'),
+                    value: _modeleCtrl.text,
+                    placeholder: _marqueCtrl.text.trim().isEmpty
+                        ? _t('D’abord la marque', 'الماركة أولاً')
+                        : _t('Choisir le modèle…', 'اختر الموديل…'),
+                    onTap: _ouvrirSelecteurModele,
+                  ),
                   _editField(_t('Année', 'السنة'), _anneeCtrl,
                       keyboard: TextInputType.number),
                   _editField(_t('Châssis', 'رقم الهيكل'), _chassisCtrl),
