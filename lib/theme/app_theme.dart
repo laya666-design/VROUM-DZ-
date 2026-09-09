@@ -226,7 +226,149 @@ class AppTheme {
     );
   }
 
-  /// Conservé pour compatibilité si un écran y fait encore référence,
-  /// mais l'app utilise désormais [light] partout (voir main.dart).
-  static ThemeData dark(AppConfig config) => light(config);
+  /// Thème sombre VROUM DZ — fonds ardoise, texte clair, accent vert.
+  static ThemeData dark(AppConfig config) {
+    const bg = Color(0xFF0B1220);
+    const surface = Color(0xFF151C2C);
+    const surfaceMuted = Color(0xFF1C2436);
+    const border = Color(0xFF2A3348);
+    const textPrimary = Color(0xFFF3F4F6);
+    const textSecondary = Color(0xFFCBD5E1);
+    const textMuted = Color(0xFF94A3B8);
+
+    final scheme = ColorScheme.fromSeed(
+      seedColor: config.primaryColor,
+      brightness: Brightness.dark,
+    ).copyWith(
+      primary: config.primaryColor,
+      onPrimary: Colors.white,
+      secondary: config.enchereColor,
+      error: config.sosColor,
+      surface: surface,
+      onSurface: textPrimary,
+    );
+
+    final base = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: bg,
+      canvasColor: bg,
+    );
+
+    return base.copyWith(
+      appBarTheme: AppBarTheme(
+        backgroundColor: surface,
+        foregroundColor: textPrimary,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: const TextStyle(
+          color: textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        margin: EdgeInsets.zero,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: config.primaryColor,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: config.primaryColor.withValues(alpha: 0.35),
+          elevation: 0,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: config.primaryColor,
+          foregroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: textPrimary,
+          side: const BorderSide(color: border),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: config.primaryColor),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: surfaceMuted,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: config.primaryColor, width: 1.6),
+        ),
+        labelStyle: const TextStyle(color: textSecondary, fontSize: 14),
+        prefixIconColor: textMuted,
+      ),
+      dividerTheme: const DividerThemeData(color: border, thickness: 1),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: surfaceMuted,
+        contentTextStyle: const TextStyle(color: textPrimary, fontSize: 13.5),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: surface,
+        indicatorColor: config.primaryColor.withValues(alpha: 0.22),
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 11,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? config.primaryColor : textMuted,
+          );
+        }),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((s) {
+          if (s.contains(WidgetState.selected)) return config.primaryColor;
+          return textMuted;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((s) {
+          if (s.contains(WidgetState.selected)) {
+            return config.primaryColor.withValues(alpha: 0.35);
+          }
+          return border;
+        }),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: surface,
+        titleTextStyle: const TextStyle(
+          color: textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+        ),
+        contentTextStyle: const TextStyle(color: textSecondary, fontSize: 14),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: surface,
+        modalBackgroundColor: surface,
+      ),
+    );
+  }
 }
