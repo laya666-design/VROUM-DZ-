@@ -38,7 +38,7 @@ class _MagasinShellScreenState extends State<MagasinShellScreen> {
   @override
   void initState() {
     super.initState();
-    // Si pas connecté → login, puis retour ici.
+    // Si pas connecté (ou seulement session anonyme SOS/pièces) → login.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Attend que Firebase Auth ait fini de restaurer une éventuelle
       // session persistée (utile juste après un redémarrage de l'app,
@@ -46,6 +46,15 @@ class _MagasinShellScreenState extends State<MagasinShellScreen> {
       // isLoggedIn pourrait répondre "non" à tort pendant l'instant où
       // currentUser vaut encore null.
       await StoreService.waitForAuthReady();
+      await StoreService.loadPhoneAsId();
+
+      // Une session anonyme (demande de pièces / SOS) ne doit pas ouvrir
+      // l'Espace Pro : on la ignore et on affiche la connexion magasin.
+      final user = StoreService.currentUser;
+      if (user != null && user.isAnonymous) {
+        await StoreService.signOut();
+      }
+
       if (!StoreService.isLoggedIn && mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
