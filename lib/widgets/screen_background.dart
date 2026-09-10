@@ -59,60 +59,23 @@ class ScreenBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Fond uni / léger dégradé — plus de photo voiture / moto / magasin
+    // (demande produit : interface plus sobre, moins de bruit visuel).
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fallbackEnd = isDark ? const Color(0xFF0B1220) : Colors.white;
-    final veilColors = isDark
-        ? const [
-            Color(0xE60B1220),
-            Color(0xCC0B1220),
-            Color(0x990B1220),
-          ]
-        : const [
-            Color(0xCCFFFFFF),
-            Color(0x99FFFFFF),
-            Color(0x66FFFFFF),
-          ];
+    final top = isDark
+        ? const Color(0xFF0B1220)
+        : Color.lerp(Colors.white, accentColor, 0.06)!;
+    final bottom = isDark ? const Color(0xFF0B1220) : Colors.white;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.asset(
-          _assetPath,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stack) => DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  accentColor.withValues(alpha: isDark ? 0.12 : 0.07),
-                  fallbackEnd,
-                ],
-              ),
-            ),
-            child: Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 36, right: 16),
-                child: Icon(_fallbackIcon,
-                    size: 110,
-                    color: accentColor.withValues(alpha: isDark ? 0.16 : 0.10)),
-              ),
-            ),
-          ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [top, bottom],
         ),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: veilColors,
-              stops: const [0.0, 0.35, 1.0],
-            ),
-          ),
-        ),
-        Positioned.fill(child: child),
-      ],
+      ),
+      child: child,
     );
   }
 }
