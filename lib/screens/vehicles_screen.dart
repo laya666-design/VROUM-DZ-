@@ -5,6 +5,7 @@ import '../services/vehicule.dart';
 import '../services/vehicule_service.dart';
 import '../widgets/ad_banner.dart';
 import '../widgets/screen_background.dart';
+import 'ajouter_vehicule_flow_screen.dart';
 import 'carte_grise_screen.dart';
 import 'controle_technique_screen.dart';
 import 'insurance_screen.dart';
@@ -155,33 +156,15 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     }
 
     if (!mounted) return;
+    // Parcours complet : carte grise (crée la fiche) -> assurance -> contrôle
+    // technique, avec enchaînement automatique dès qu'une photo est scannée
+    // avec succès, et un "Ajouter plus tard" pour passer l'étape sans photo.
     final cree = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (routeContext) => Scaffold(
-          appBar: AppBar(
-            backgroundColor: widget.config.primaryColor,
-            foregroundColor: Colors.white,
-            title: Text(_t('Ajouter un véhicule', 'إضافة مركبة')),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              tooltip: _t('Retour', 'رجوع'),
-              onPressed: () {
-                if (Navigator.of(routeContext).canPop()) {
-                  Navigator.of(routeContext).pop(false);
-                }
-              },
-            ),
-          ),
-          body: CarteGriseScreen(
-            config: widget.config,
-            typeVehicule: selectedType,
-            isAr: widget.isAr,
-            onVehiculeCree: (_) {
-              if (Navigator.of(routeContext).canPop()) {
-                Navigator.of(routeContext).pop(true);
-              }
-            },
-          ),
+        builder: (_) => AjouterVehiculeFlowScreen(
+          config: widget.config,
+          typeVehicule: selectedType,
+          isAr: widget.isAr,
         ),
       ),
     );

@@ -23,12 +23,19 @@ class InsuranceScreen extends StatefulWidget {
   /// plutôt qu'affiché seul dans son propre onglet.
   final bool embedded;
 
+  /// Appelé automatiquement juste après un enregistrement réussi (photo
+  /// scannée + date reconnue + sauvegardée). Utilisé par le parcours
+  /// d'ajout de véhicule pour enchaîner directement sur l'étape suivante
+  /// (contrôle technique) sans action supplémentaire de l'utilisateur.
+  final VoidCallback? onEnregistre;
+
   const InsuranceScreen({
     super.key,
     required this.config,
     this.vehicule,
     this.isAr = false,
     this.embedded = false,
+    this.onEnregistre,
   });
 
   @override
@@ -151,6 +158,15 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+
+    // Enchaînement automatique (parcours d'ajout de véhicule) : seulement
+    // si une date a bien été reconnue et enregistrée, avec un court délai
+    // pour laisser l'utilisateur voir le résultat avant de passer à l'étape
+    // suivante (contrôle technique).
+    if (mounted && _status != null && widget.onEnregistre != null) {
+      await Future.delayed(const Duration(milliseconds: 900));
+      if (mounted) widget.onEnregistre!.call();
     }
   }
 

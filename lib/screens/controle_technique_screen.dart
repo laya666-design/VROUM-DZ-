@@ -21,12 +21,19 @@ class ControleTechniqueScreen extends StatefulWidget {
   /// propres, qui sont alors gérés par la fiche véhicule englobante.
   final bool embedded;
 
+  /// Appelé automatiquement juste après un enregistrement réussi (photo
+  /// scannée + date reconnue + sauvegardée). Utilisé par le parcours
+  /// d'ajout de véhicule pour terminer le parcours sans action
+  /// supplémentaire de l'utilisateur.
+  final VoidCallback? onEnregistre;
+
   const ControleTechniqueScreen({
     super.key,
     required this.config,
     this.vehicule,
     this.isAr = false,
     this.embedded = false,
+    this.onEnregistre,
   });
 
   @override
@@ -154,6 +161,15 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+
+    // Enchaînement automatique (parcours d'ajout de véhicule) : seulement
+    // si une date a bien été reconnue et enregistrée, avec un court délai
+    // pour laisser l'utilisateur voir le résultat avant de terminer le
+    // parcours.
+    if (mounted && _status != null && widget.onEnregistre != null) {
+      await Future.delayed(const Duration(milliseconds: 900));
+      if (mounted) widget.onEnregistre!.call();
     }
   }
 
