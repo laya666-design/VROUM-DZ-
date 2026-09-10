@@ -168,6 +168,186 @@ class _ProfileScreenState extends State<ProfileScreen> {
     widget.onVehicleProfileChanged?.call();
   }
 
+  void _openSettingsSheet(
+    BuildContext context,
+    String Function(String, String) t,
+    bool isAr,
+  ) {
+    final isPremium = SettingsService.isPremium;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+              ),
+              decoration: const BoxDecoration(
+                color: Color(0xFF0F172A),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 12, 8),
+                      child: Row(
+                        children: [
+                          Text(
+                            t('Paramètres', 'الإعدادات'),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            icon: const Icon(Icons.close, color: Colors.white70),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+                        children: [
+                          _darkSettingsCard(
+                            children: [
+                              _darkSettingTile(
+                                icon: Icons.dark_mode_outlined,
+                                title: t('Affichage sombre', 'الوضع الداكن'),
+                                subtitle: SettingsService.isDarkMode
+                                    ? t('Activé', 'مفعّل')
+                                    : t('Désactivé', 'معطّل'),
+                                trailing: Switch(
+                                  value: SettingsService.isDarkMode,
+                                  activeColor: widget.config.primaryColor,
+                                  onChanged: (val) async {
+                                    await SettingsService.setDarkMode(val);
+                                    setSheet(() {});
+                                    if (mounted) setState(() {});
+                                  },
+                                ),
+                              ),
+                              _darkDivider(),
+                              _darkSettingTile(
+                                icon: Icons.language,
+                                title: t('Langue', 'اللغة'),
+                                subtitle: isAr ? 'العربية' : 'Français',
+                                trailing: _darkLangToggle(
+                                  isAr: isAr,
+                                  onChanged: (v) {
+                                    widget.isAr.value = v;
+                                    setSheet(() {});
+                                    if (mounted) setState(() {});
+                                  },
+                                ),
+                              ),
+                              _darkDivider(),
+                              _darkSettingTile(
+                                icon: Icons.directions_car_filled_outlined,
+                                title: t('Type de véhicule', 'نوع المركبة'),
+                                subtitle: _vehicleProfileLabel(t),
+                                onTap: () async {
+                                  Navigator.pop(ctx);
+                                  await _showVehicleProfilePicker(context, t);
+                                },
+                              ),
+                              _darkDivider(),
+                              _darkSettingTile(
+                                icon: Icons.location_city_outlined,
+                                title: t('Wilaya', 'الولاية'),
+                                subtitle:
+                                    SettingsService.wilaya?.isNotEmpty == true
+                                        ? SettingsService.wilaya!
+                                        : t('Non renseignée', 'غير محددة'),
+                                onTap: () async {
+                                  final w = await showWilayaPickerDialog(
+                                    context,
+                                    accentColor: widget.config.primaryColor,
+                                  );
+                                  if (w != null && w.isNotEmpty) {
+                                    await SettingsService.setWilaya(w);
+                                    setSheet(() {});
+                                    if (mounted) setState(() {});
+                                  }
+                                },
+                              ),
+                              _darkDivider(),
+                              _darkSettingTile(
+                                icon: Icons.phone_outlined,
+                                title: t('Téléphone', 'الهاتف'),
+                                subtitle: SettingsService.userTel
+                                            ?.isNotEmpty ==
+                                        true
+                                    ? SettingsService.userTel!
+                                    : t('Pour le SOS', 'لنداء الاستغاثة'),
+                                onTap: () async {
+                                  final tel = await showTelPickerDialog(
+                                    context,
+                                    accentColor: widget.config.primaryColor,
+                                    valeurInitiale: SettingsService.userTel,
+                                  );
+                                  if (tel != null && tel.isNotEmpty) {
+                                    await SettingsService.setUserTel(tel);
+                                    setSheet(() {});
+                                    if (mounted) setState(() {});
+                                  }
+                                },
+                              ),
+                              if (isPremium) ...[
+                                _darkDivider(),
+                                _darkSettingTile(
+                                  icon: Icons.notifications_active_outlined,
+                                  title: t('Rappels SMS / Appel',
+                                      'تذكيرات SMS / مكالمة'),
+                                  subtitle: SettingsService.smsRemindersEnabled
+                                      ? t('Activés', 'مفعّلة')
+                                      : t('Désactivés', 'معطّلة'),
+                                  trailing: Switch(
+                                    value: SettingsService.smsRemindersEnabled,
+                                    activeColor: widget.config.primaryColor,
+                                    onChanged: (val) async {
+                                      await SettingsService
+                                          .setSmsRemindersEnabled(val);
+                                      setSheet(() {});
+                                      if (mounted) setState(() {});
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _vehicleOption({
     required BuildContext ctx,
     required String value,
@@ -857,6 +1037,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                             ),
+                          // Roue dentée → paramètres (plus de carte PARAMÈTRES en bas).
+                          const SizedBox(width: 6),
+                          Material(
+                            color: Colors.white.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => _openSettingsSheet(context, t, isAr),
+                              child: const Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Icon(Icons.settings_rounded,
+                                    color: Colors.white, size: 22),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 14),
@@ -978,102 +1173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // ── PARAMÈTRES (style sombre) ────────────────────────────
-                _sectionLabel(t('Paramètres', 'الإعدادات')),
-                _darkSettingsCard(
-                  children: [
-                    _darkSettingTile(
-                      icon: Icons.dark_mode_outlined,
-                      title: t('Affichage sombre', 'الوضع الداكن'),
-                      subtitle: SettingsService.isDarkMode
-                          ? t('Activé', 'مفعّل')
-                          : t('Désactivé', 'معطّل'),
-                      trailing: Switch(
-                        value: SettingsService.isDarkMode,
-                        activeColor: widget.config.primaryColor,
-                        onChanged: (val) async {
-                          await SettingsService.setDarkMode(val);
-                          if (mounted) setState(() {});
-                        },
-                      ),
-                    ),
-                    _darkDivider(),
-                    _darkSettingTile(
-                      icon: Icons.language,
-                      title: t('Langue', 'اللغة'),
-                      subtitle: isAr ? 'العربية' : 'Français',
-                      trailing: _darkLangToggle(
-                        isAr: isAr,
-                        onChanged: (v) => widget.isAr.value = v,
-                      ),
-                    ),
-                    _darkDivider(),
-                    _darkSettingTile(
-                      icon: Icons.directions_car_filled_outlined,
-                      title: t('Type de véhicule', 'نوع المركبة'),
-                      subtitle: _vehicleProfileLabel(t),
-                      onTap: () => _showVehicleProfilePicker(context, t),
-                    ),
-                    _darkDivider(),
-                    _darkSettingTile(
-                      icon: Icons.location_city_outlined,
-                      title: t('Wilaya', 'الولاية'),
-                      subtitle: SettingsService.wilaya?.isNotEmpty == true
-                          ? SettingsService.wilaya!
-                          : t('Non renseignée', 'غير محددة'),
-                      onTap: () async {
-                        final w = await showWilayaPickerDialog(
-                          context,
-                          accentColor: widget.config.primaryColor,
-                        );
-                        if (w != null && w.isNotEmpty) {
-                          await SettingsService.setWilaya(w);
-                          if (mounted) setState(() {});
-                        }
-                      },
-                    ),
-                    _darkDivider(),
-                    _darkSettingTile(
-                      icon: Icons.phone_outlined,
-                      title: t('Téléphone', 'الهاتف'),
-                      subtitle: SettingsService.userTel?.isNotEmpty == true
-                          ? SettingsService.userTel!
-                          : t('Pour le SOS', 'لنداء الاستغاثة'),
-                      onTap: () async {
-                        final tel = await showTelPickerDialog(
-                          context,
-                          accentColor: widget.config.primaryColor,
-                          valeurInitiale: SettingsService.userTel,
-                        );
-                        if (tel != null && tel.isNotEmpty) {
-                          await SettingsService.setUserTel(tel);
-                          if (mounted) setState(() {});
-                        }
-                      },
-                    ),
-                    if (isPremium) ...[
-                      _darkDivider(),
-                      _darkSettingTile(
-                        icon: Icons.notifications_active_outlined,
-                        title: t(
-                            'Rappels SMS / Appel', 'تذكيرات SMS / مكالمة'),
-                        subtitle: SettingsService.smsRemindersEnabled
-                            ? t('Activés', 'مفعّلة')
-                            : t('Désactivés', 'معطّلة'),
-                        trailing: Switch(
-                          value: SettingsService.smsRemindersEnabled,
-                          activeColor: widget.config.primaryColor,
-                          onChanged: (val) async {
-                            await SettingsService
-                                .setSmsRemindersEnabled(val);
-                            setState(() {});
-                          },
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 14),
+                // Paramètres accessibles via ⚙ en haut à droite du header.
 
                 // ── PREMIUM BANNIÈRE FINE (A) ─────────────────────────────
                 if (!isPremium) ...[
