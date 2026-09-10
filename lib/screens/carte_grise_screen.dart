@@ -229,47 +229,45 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     'FOTON': Color(0xFF1D4ED8),
   };
 
-  /// Logos officiels (ou proches) via Clearbit / domaines connus.
-  /// Fallback automatique sur l'initiale colorée si l'image échoue.
-  static const Map<String, String> _logoMarqueUrls = {
-    'PEUGEOT': 'https://logo.clearbit.com/peugeot.com',
-    'RENAULT': 'https://logo.clearbit.com/renault.com',
-    'DACIA': 'https://logo.clearbit.com/dacia.com',
-    'TOYOTA': 'https://logo.clearbit.com/toyota.com',
-    'HYUNDAI': 'https://logo.clearbit.com/hyundai.com',
-    'KIA': 'https://logo.clearbit.com/kia.com',
-    'VOLKSWAGEN': 'https://logo.clearbit.com/volkswagen.com',
-    'CITROEN': 'https://logo.clearbit.com/citroen.com',
-    'NISSAN': 'https://logo.clearbit.com/nissan.com',
-    'FIAT': 'https://logo.clearbit.com/fiat.com',
-    'SUZUKI': 'https://logo.clearbit.com/suzuki.com',
-    'CHEVROLET': 'https://logo.clearbit.com/chevrolet.com',
-    'FORD': 'https://logo.clearbit.com/ford.com',
-    'MITSUBISHI': 'https://logo.clearbit.com/mitsubishi-motors.com',
-    'MERCEDES': 'https://logo.clearbit.com/mercedes-benz.com',
-    'BMW': 'https://logo.clearbit.com/bmw.com',
-    'SEAT': 'https://logo.clearbit.com/seat.com',
-    'SKODA': 'https://logo.clearbit.com/skoda-auto.com',
-    'AUDI': 'https://logo.clearbit.com/audi.com',
-    'OPEL': 'https://logo.clearbit.com/opel.com',
-    'HONDA': 'https://logo.clearbit.com/honda.com',
-    'MAZDA': 'https://logo.clearbit.com/mazda.com',
-    'CHERY': 'https://logo.clearbit.com/cheryinternational.com',
-    'JETOUR': 'https://logo.clearbit.com/jetourglobal.com',
-    'HAVAL': 'https://logo.clearbit.com/haval.com.cn',
-    'GWM': 'https://logo.clearbit.com/gwm.com.cn',
-    'GEELY': 'https://logo.clearbit.com/geely.com',
-    'MG': 'https://logo.clearbit.com/mg.co.uk',
-    'BYD': 'https://logo.clearbit.com/byd.com',
-    'CHANGAN': 'https://logo.clearbit.com/changan.com.cn',
-    'JAC': 'https://logo.clearbit.com/jac.com.cn',
-    'DONGFENG': 'https://logo.clearbit.com/dfmc.com.cn',
-    'BAIC': 'https://logo.clearbit.com/baicgroup.com.cn',
-    'EXEED': 'https://logo.clearbit.com/exeed.com',
-    'OMODA': 'https://logo.clearbit.com/omoda.com',
-    'JAECOO': 'https://logo.clearbit.com/jaecoo.com',
-    'DFSK': 'https://logo.clearbit.com/dfsk.com',
-    'FOTON': 'https://logo.clearbit.com/foton-global.com',
+  /// Logos officiels embarqués en assets (fiables, offline, comme sur la photo).
+  /// Fallback automatique sur l'initiale colorée si le fichier est absent.
+  static const Map<String, String> _logoMarqueAssets = {
+    'PEUGEOT': 'assets/logos/peugeot.png',
+    'RENAULT': 'assets/logos/renault.png',
+    'DACIA': 'assets/logos/dacia.png',
+    'TOYOTA': 'assets/logos/toyota.png',
+    'HYUNDAI': 'assets/logos/hyundai.png',
+    'KIA': 'assets/logos/kia.png',
+    'VOLKSWAGEN': 'assets/logos/volkswagen.png',
+    'CITROEN': 'assets/logos/citroen.png',
+    'NISSAN': 'assets/logos/nissan.png',
+    'FIAT': 'assets/logos/fiat.png',
+    'SUZUKI': 'assets/logos/suzuki.png',
+    'CHEVROLET': 'assets/logos/chevrolet.png',
+    'FORD': 'assets/logos/ford.png',
+    'MITSUBISHI': 'assets/logos/mitsubishi.png',
+    'MERCEDES': 'assets/logos/mercedes.png',
+    'BMW': 'assets/logos/bmw.png',
+    'SEAT': 'assets/logos/seat.png',
+    'SKODA': 'assets/logos/skoda.png',
+    'AUDI': 'assets/logos/audi.png',
+    'OPEL': 'assets/logos/opel.png',
+    'HONDA': 'assets/logos/honda.png',
+    'MAZDA': 'assets/logos/mazda.png',
+    'CHERY': 'assets/logos/chery.png',
+    'JETOUR': 'assets/logos/jetour.png',
+    'HAVAL': 'assets/logos/haval.png',
+    'GWM': 'assets/logos/gwm.png',
+    'GEELY': 'assets/logos/geely.png',
+    'MG': 'assets/logos/mg.png',
+    'BYD': 'assets/logos/byd.png',
+    'CHANGAN': 'assets/logos/changan.png',
+    'JAC': 'assets/logos/jac.png',
+    'DONGFENG': 'assets/logos/dongfeng.png',
+    // BAIC, DFSK, JAECOO : pas de logo local → fallback initiale colorée
+    'EXEED': 'assets/logos/exeed.png',
+    'OMODA': 'assets/logos/omoda.png',
+    'FOTON': 'assets/logos/foton.png',
   };
 
   bool get _modeCreation => widget.vehicule == null;
@@ -725,7 +723,7 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     final letter = key.isNotEmpty ? key[0] : '?';
     final luminance = c.computeLuminance();
     final fg = luminance > 0.55 ? Colors.black87 : Colors.white;
-    final logoUrl = _logoMarqueUrls[key];
+    final logoAsset = _logoMarqueAssets[key];
 
     Widget letterFallback() => Text(
           letter,
@@ -741,31 +739,27 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: logoUrl != null ? Colors.white : c,
+        color: logoAsset != null ? Colors.white : c,
         borderRadius: BorderRadius.circular(size * 0.28),
-        border: logoUrl != null
+        border: logoAsset != null
             ? Border.all(color: Colors.grey.shade200, width: 1)
             : null,
         boxShadow: [
           BoxShadow(
-            color: (logoUrl != null ? Colors.black12 : c.withValues(alpha: 0.35)),
+            color: (logoAsset != null ? Colors.black12 : c.withValues(alpha: 0.35)),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: logoUrl != null
-          ? Image.network(
-              logoUrl,
+      child: logoAsset != null
+          ? Image.asset(
+              logoAsset,
               width: size * 0.78,
               height: size * 0.78,
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) => letterFallback(),
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return letterFallback();
-              },
             )
           : letterFallback(),
     );
