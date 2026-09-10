@@ -1,0 +1,19 @@
+Fichiers a remplacer pour les logos (version agrandie) :
+
+1. Copie TOUT le dossier assets/logos/ dans ton projet :
+   -> VROUM-DZ--main/assets/logos/
+
+2. Remplace le fichier :
+   lib/screens/carte_grise_screen.dart
+   par celui fourni ici.
+
+3. Dans pubspec.yaml, verifie que tu as bien :
+   assets:
+     - assets/images/
+     - assets/icon/
+     - assets/video/
+     - assets/logos/
+
+4. Puis :
+   flutter pub get
+   flutter build apk   (ou run)
