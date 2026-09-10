@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'cloudinary_service.dart';
 import 'google_auth_helper.dart';
@@ -28,7 +29,16 @@ class StoreService {
   static const _phoneAsIdKey = 'store_phone_as_id';
 
   static User? get currentUser => FirebaseAuth.instance.currentUser;
-  static bool get isLoggedIn => currentUser != null;
+
+  /// True seulement pour un vrai compte magasin (email/mdp, téléphone,
+  /// Google). Les sessions anonymes créées par une demande de pièces ou
+  /// un SOS ne comptent PAS : sinon l'Espace Pro affiche « Profil
+  /// introuvable » au lieu de l'écran de connexion.
+  static bool get isLoggedIn {
+    final user = currentUser;
+    if (user == null || user.isAnonymous) return false;
+    return true;
+  }
 
   /// À appeler avant tout test de session au lancement d'un écran racine
   /// (ex: MagasinShellScreen). Sans ça, juste après un redémarrage de
@@ -75,7 +85,7 @@ class StoreService {
   /// Firebase Auth (leur document existe déjà sous cette clé).
   static String? get currentStoreDocId {
     final user = currentUser;
-    if (user == null) return null;
+    if (user == null || user.isAnonymous) return null;
     if (_phoneAsId != null && _phoneAsId!.isNotEmpty) return _phoneAsId;
     final email = user.email;
     if (email != null && email.endsWith('@elbouni.local')) {
@@ -584,7 +594,15 @@ class StoreService {
     }
   }
 
-  static Future<void> signOut() => FirebaseAuth.instance.signOut();
+  static Future<void> signOut() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_phoneAsIdKey);
+    _phoneAsId = null;
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {}
+    await FirebaseAuth.instance.signOut();
+  }
 
   static Future<void> _registerFcmToken(String storeDocId) async {
     try {
