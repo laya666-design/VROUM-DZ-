@@ -494,7 +494,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     _refresh();
   }
 
-  Widget _statusChip(DateTime? expiration, String labelVide) {
+  /// [prefix] ex: "Assurance" / "CT" → « Assurance 196j restants ».
+  Widget _statusChip(DateTime? expiration, String labelVide, {String? prefix}) {
     if (expiration == null) {
       return Chip(
         label: Text(labelVide, style: const TextStyle(fontSize: 11)),
@@ -518,6 +519,12 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         fg = const Color(0xFF991B1B);
         break;
     }
+    final p = (prefix != null && prefix.isNotEmpty) ? '$prefix ' : '';
+    final text = status.isExpired
+        ? _t('${p}expiré depuis ${status.daysRemaining.abs()}j',
+            '$pمنتهي منذ ${status.daysRemaining.abs()} يوم')
+        : _t('${p}${status.daysRemaining}j restants',
+            '$pباقي ${status.daysRemaining} يوم');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -525,11 +532,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        status.isExpired
-            ? _t('Expiré depuis ${status.daysRemaining.abs()}j',
-                'منتهي منذ ${status.daysRemaining.abs()} يوم')
-            : _t('${status.daysRemaining}j restants',
-                'باقي ${status.daysRemaining} يوم'),
+        text,
         style:
             TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w600),
       ),
@@ -634,14 +637,33 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Text(
-            _titre,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _titre,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ),
+              // + à droite du titre : ajoute un véhicule, ou Premium si limite.
+              Material(
+                color: Colors.white.withOpacity(0.22),
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: _ajouterVehiculeViaScan,
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(Icons.add, color: Colors.white, size: 24),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           Text(
@@ -717,10 +739,16 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       spacing: 6,
                       runSpacing: 4,
                       children: [
-                        _statusChip(v.assuranceExpiration,
-                            _t('Pas d\'assurance', 'لا يوجد تأمين')),
-                        _statusChip(v.controleTechniqueExpiration,
-                            _t('Pas de CT', 'لا يوجد فحص تقني')),
+                        _statusChip(
+                          v.assuranceExpiration,
+                          _t('Pas d\'assurance', 'لا يوجد تأمين'),
+                          prefix: _t('Assurance', 'تأمين'),
+                        ),
+                        _statusChip(
+                          v.controleTechniqueExpiration,
+                          _t('Pas de CT', 'لا يوجد فحص تقني'),
+                          prefix: _t('CT', 'فحص'),
+                        ),
                       ],
                     ),
                   ],
@@ -909,10 +937,16 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                 widget.config.primaryColor.withOpacity(0.12),
                                 widget.config.primaryColor,
                               ),
-                            _statusChip(v.assuranceExpiration,
-                                _t('Pas d\'assurance', 'لا يوجد تأمين')),
-                            _statusChip(v.controleTechniqueExpiration,
-                                _t('Pas de CT', 'لا يوجد فحص تقني')),
+                            _statusChip(
+                              v.assuranceExpiration,
+                              _t('Pas d\'assurance', 'لا يوجد تأمين'),
+                              prefix: _t('Assurance', 'تأمين'),
+                            ),
+                            _statusChip(
+                              v.controleTechniqueExpiration,
+                              _t('Pas de CT', 'لا يوجد فحص تقني'),
+                              prefix: _t('CT', 'فحص'),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 10),
@@ -1235,10 +1269,6 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isPremium = SettingsService.isPremium;
-    final showLockedCard =
-        !isPremium && _vehicules.length >= VehiculeService.freeLimit;
-
     return ScreenBackground(
       category: _bgCategory,
       accentColor: widget.config.primaryColor,
@@ -1248,33 +1278,14 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
             children: [
+              // Titre + bouton + + véhicules dans le bandeau vert.
+              // Le + (à droite de « Mes véhicules ») gère aussi le passage Premium.
               _buildHeroHeader(),
               const SizedBox(height: 12),
               const AdBanner(),
-              const SizedBox(height: 10),
-              if (_vehicules.isEmpty)
-                _buildEmptyState()
-              else ...[
-                // Les véhicules sont déjà dans le bandeau vert.
-                if (showLockedCard)
-                  _buildLockedCard()
-                else
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, bottom: 8),
-                    child: OutlinedButton.icon(
-                      onPressed: _ajouterVehiculeViaScan,
-                      icon: const Icon(Icons.add_circle_outline),
-                      label: Text(_labelAjout),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: widget.config.primaryColor,
-                        side: BorderSide(
-                            color: widget.config.primaryColor.withOpacity(0.4)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                      ),
-                    ),
-                  ),
+              if (_vehicules.isEmpty) ...[
+                const SizedBox(height: 10),
+                _buildEmptyState(),
               ],
             ],
           ),
