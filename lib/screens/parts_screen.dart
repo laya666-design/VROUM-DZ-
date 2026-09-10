@@ -269,10 +269,10 @@ class _PartsScreenState extends State<PartsScreen> {
   Widget _stepCard(int n, IconData icon, String title, String sub) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
         decoration: BoxDecoration(
           color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFE2E8F0)),
         ),
         child: Column(
@@ -281,20 +281,20 @@ class _PartsScreenState extends State<PartsScreen> {
               clipBehavior: Clip.none,
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     color: widget.config.primaryColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, size: 20, color: widget.config.primaryColor),
+                  child: Icon(icon, size: 16, color: widget.config.primaryColor),
                 ),
                 Positioned(
-                  right: -6,
-                  top: -6,
+                  right: -5,
+                  top: -5,
                   child: Container(
-                    width: 18,
-                    height: 18,
+                    width: 16,
+                    height: 16,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: widget.config.primaryColor,
@@ -304,7 +304,7 @@ class _PartsScreenState extends State<PartsScreen> {
                       '$n',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -312,23 +312,22 @@ class _PartsScreenState extends State<PartsScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               title,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 12.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
-                height: 1.2,
+                height: 1.15,
               ),
             ),
-            const SizedBox(height: 3),
             Text(
               sub,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 10.5,
-                height: 1.25,
+                fontSize: 10,
+                height: 1.2,
                 color: Colors.grey.shade600,
               ),
             ),
@@ -340,161 +339,90 @@ class _PartsScreenState extends State<PartsScreen> {
 
   Widget _buildLanding() {
     final primary = widget.config.primaryColor;
+    // Version compacte : tout tient sur un écran avec Caméra / Galerie
+    // visibles sans défiler.
     return Column(
       children: [
-        // Hero gradient
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(18),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
                 primary,
-                Color.lerp(primary, const Color(0xFF0F766E), 0.35)!,
-                Color.lerp(primary, const Color(0xFF14532D), 0.45)!,
+                Color.lerp(primary, const Color(0xFF0F766E), 0.4)!,
               ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: primary.withValues(alpha: 0.35),
-                blurRadius: 22,
-                offset: const Offset(0, 10),
-              ),
-            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.auto_awesome,
-                            size: 14, color: Colors.white),
-                        const SizedBox(width: 5),
-                        Text(
-                          _t('Scanner IA', 'ماسح ذكي'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.handyman_rounded,
-                      color: Colors.white.withValues(alpha: 0.9), size: 28),
-                ],
-              ),
-              const SizedBox(height: 16),
               Text(
                 _t(
-                  'Une photo.\nLes magasins te répondent.',
-                  'صورة واحدة.\nالمتاجر تردّ عليك.',
+                  'Une photo → les magasins te répondent',
+                  'صورة → المتاجر تردّ عليك',
                 ),
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
+                  fontSize: 17,
                   fontWeight: FontWeight.w900,
-                  height: 1.15,
-                  letterSpacing: -0.5,
+                  height: 1.2,
+                  letterSpacing: -0.3,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Text(
                 _t(
-                  'L’IA identifie la pièce, les magasins te proposent leurs prix.',
+                  'L’IA identifie la pièce, les magasins proposent leurs prix.',
                   'الذكاء يعرّف القطعة، والمتاجر تعرض أسعارها.',
                 ),
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 13.5,
-                  height: 1.4,
+                  fontSize: 12.5,
+                  height: 1.3,
                 ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _benefitPill(Icons.bolt_rounded, _t('Rapide', 'سريع')),
-                  _benefitPill(Icons.verified_outlined, _t('Précis', 'دقيق')),
-                  _benefitPill(
-                      Icons.storefront_outlined, _t('Magasins DZ', 'محلات الجزائر')),
-                ],
               ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
-        // Étapes
+        const SizedBox(height: 10),
         Row(
           children: [
             _stepCard(
               1,
               Icons.camera_alt_rounded,
               _t('Photo', 'صورة'),
-              _t('Nette & cadrée', 'واضحة'),
+              _t('Nette', 'واضحة'),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             _stepCard(
               2,
               Icons.psychology_alt_rounded,
               _t('IA', 'ذكاء'),
               _t('Identifie', 'يتعرّف'),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             _stepCard(
               3,
               Icons.storefront_outlined,
               _t('Magasins', 'متاجر'),
-              _t('Offres réelles', 'عروض حقيقية'),
+              _t('Offres', 'عروض'),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        // Astuce
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFECFDF5),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFA7F3D0)),
+        const SizedBox(height: 8),
+        Text(
+          _t(
+            'Astuce : scanne d’abord la carte grise dans « Véhicules ».',
+            'نصيحة: امسح البطاقة الرمادية أولاً في « المركبات ».',
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.lightbulb_outline,
-                  size: 18, color: Color(0xFF059669)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  _t(
-                    'Astuce : scanne d’abord la carte grise dans « Véhicules » pour une identification encore plus précise.',
-                    'نصيحة: امسح البطاقة الرمادية أولاً في « المركبات » لتحديد أدق.',
-                  ),
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    height: 1.35,
-                    color: Color(0xFF065F46),
-                  ),
-                ),
-              ),
-            ],
+          style: TextStyle(
+            fontSize: 11.5,
+            color: Colors.grey.shade600,
+            height: 1.3,
           ),
         ),
       ],
@@ -512,7 +440,7 @@ class _PartsScreenState extends State<PartsScreen> {
           children: [
             if (part == null && _image == null && !_loading) ...[
               _buildLanding(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
             ] else ...[
               Text(
                 _t(
