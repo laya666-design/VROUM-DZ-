@@ -134,11 +134,12 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                       const SizedBox(height: 8),
                       Text(
                         t(
-                          'Ça nous permet de n\'afficher que ce qui te '
-                          'concerne. Tu pourras changer ça plus tard dans '
-                          'Profil.',
-                          'هذا يسمح لنا بعرض ما يهمك فقط. يمكنك تغيير هذا '
-                          'لاحقاً من الملف الشخصي.',
+                          'Scanne tes documents (assurance, CT) : on te '
+                          'rappelle avant expiration. Tu pourras changer '
+                          'ce choix plus tard dans Profil.',
+                          'امسح وثائقك (التأمين، الفحص): نذكّرك قبل '
+                          'الانتهاء. يمكنك تغيير هذا الخيار لاحقاً من '
+                          'الملف الشخصي.',
                         ),
                         style: const TextStyle(color: Colors.black54),
                       ),

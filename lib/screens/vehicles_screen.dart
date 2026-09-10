@@ -35,8 +35,8 @@ class VehiclesScreen extends StatefulWidget {
     this.types = const [TypeVehicule.voiture],
     this.titre = 'Mes véhicules',
     this.titreAr = 'سياراتي',
-    this.sousTitre = 'Assurance et contrôle technique, par véhicule.',
-    this.sousTitreAr = 'التأمين والفحص التقني، لكل سيارة.',
+    this.sousTitre = 'Scanne assurance & CT — rappels avant expiration.',
+    this.sousTitreAr = 'امسح التأمين والفحص — تذكيرات قبل الانتهاء.',
     this.iconePrincipale = Icons.directions_car,
     this.labelAjout = 'Ajouter un véhicule',
     this.labelAjoutAr = 'إضافة سيارة',
@@ -1014,8 +1014,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 const SizedBox(height: 6),
                 Text(
                   _t(
-                    'Scanne ta carte grise une fois — on s’occupe des rappels assurance & CT.',
-                    'امسح البطاقة الرمادية مرة واحدة — ونتولى تذكيرات التأمين والفحص.',
+                    'Scanne ta carte grise, ton assurance et ton CT.\n'
+                    'On te rappelle avant expiration — pour éviter les amendes.',
+                    'امسح البطاقة الرمادية والتأمين والفحص التقني.\n'
+                    'نذكّرك قبل الانتهاء — لتجنب الغرامات.',
                   ),
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -1024,41 +1026,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     height: 1.4,
                   ),
                 ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
-            child: Column(
-              children: [
-                _emptyFeature(
-                  icon: Icons.document_scanner_rounded,
-                  color: primary,
-                  title: _t('Scan carte grise IA', 'مسح البطاقة بالذكاء'),
-                  subtitle: _t(
-                    'Marque, modèle, année, châssis — en ~10 secondes',
-                    'الماركة والموديل والسنة والهيكل — خلال ~10 ثوانٍ',
-                  ),
-                ),
-                _emptyFeature(
-                  icon: Icons.notifications_active_outlined,
-                  color: const Color(0xFFF59E0B),
-                  title: _t('Rappels intelligents', 'تذكيرات ذكية'),
-                  subtitle: _t(
-                    'Alerte avant expiration assurance et CT',
-                    'تنبيه قبل انتهاء التأمين والفحص التقني',
-                  ),
-                ),
-                _emptyFeature(
-                  icon: Icons.handyman_outlined,
-                  color: const Color(0xFF3B82F6),
-                  title: _t('Pièces plus précises', 'قطع أدق'),
-                  subtitle: _t(
-                    'Le scanner pièces utilise ta motorisation',
-                    'ماسح القطع يعتمد على محرك مركبتك',
-                  ),
-                ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 16),
+                // Bouton principal en haut : action immédiate, pas tout en bas
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
@@ -1074,7 +1043,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   _t(
                     'Gratuit pour 1 véhicule · Premium pour illimité',
@@ -1084,6 +1053,40 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     fontSize: 11.5,
                     color: Colors.grey.shade500,
                     fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+            child: Column(
+              children: [
+                _emptyFeature(
+                  icon: Icons.document_scanner_rounded,
+                  color: primary,
+                  title: _t('Carte grise', 'البطاقة الرمادية'),
+                  subtitle: _t(
+                    'Marque, modèle, année, châssis — en quelques secondes',
+                    'الماركة والموديل والسنة والهيكل — في ثوانٍ',
+                  ),
+                ),
+                _emptyFeature(
+                  icon: Icons.shield_outlined,
+                  color: const Color(0xFF10B981),
+                  title: _t('Assurance & CT', 'التأمين والفحص'),
+                  subtitle: _t(
+                    'Tu scannes les documents : les dates sont dedans, pas dans la carte grise',
+                    'تمسح الوثائق: التواريخ فيها، وليس في البطاقة الرمادية',
+                  ),
+                ),
+                _emptyFeature(
+                  icon: Icons.notifications_active_outlined,
+                  color: const Color(0xFFF59E0B),
+                  title: _t('Rappels automatiques', 'تذكيرات تلقائية'),
+                  subtitle: _t(
+                    'Alertes avant expiration — tu renouvelles à temps, sans amende',
+                    'تنبيهات قبل الانتهاء — تجدّد في الوقت، بلا غرامة',
                   ),
                 ),
               ],
