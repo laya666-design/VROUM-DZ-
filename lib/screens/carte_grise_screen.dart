@@ -756,8 +756,8 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
       child: logoAsset != null
           ? Image.asset(
               logoAsset,
-              width: size * 0.78,
-              height: size * 0.78,
+              width: size * 0.90,
+              height: size * 0.90,
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) => letterFallback(),
             )
@@ -850,8 +850,8 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  _marqueAvatar(m, size: 42),
-                                  const SizedBox(height: 8),
+                                  _marqueAvatar(m, size: 48),
+                                  const SizedBox(height: 6),
                                   Text(
                                     m,
                                     textAlign: TextAlign.center,
