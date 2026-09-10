@@ -42,7 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _contactEmail() async {
     final uri = Uri(
       scheme: 'mailto',
-      path: 'contact@elbouni-pieces-auto.dz',
+      path: 'vroumdz.support@gmail.com',
       query:
           'subject=${Uri.encodeComponent("Support - ${widget.config.appName}")}',
     );
@@ -1254,7 +1254,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _groupTile(
                       icon: Icons.mail_outline_rounded,
                       title: 'Email',
-                      subtitle: 'contact@elbouni-pieces-auto.dz',
+                      subtitle: 'vroumdz.support@gmail.com',
                       onTap: _contactEmail,
                     ),
                     _groupDivider(),
