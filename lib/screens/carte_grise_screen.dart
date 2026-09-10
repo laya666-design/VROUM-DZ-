@@ -229,6 +229,49 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     'FOTON': Color(0xFF1D4ED8),
   };
 
+  /// Logos officiels (ou proches) via Clearbit / domaines connus.
+  /// Fallback automatique sur l'initiale colorée si l'image échoue.
+  static const Map<String, String> _logoMarqueUrls = {
+    'PEUGEOT': 'https://logo.clearbit.com/peugeot.com',
+    'RENAULT': 'https://logo.clearbit.com/renault.com',
+    'DACIA': 'https://logo.clearbit.com/dacia.com',
+    'TOYOTA': 'https://logo.clearbit.com/toyota.com',
+    'HYUNDAI': 'https://logo.clearbit.com/hyundai.com',
+    'KIA': 'https://logo.clearbit.com/kia.com',
+    'VOLKSWAGEN': 'https://logo.clearbit.com/volkswagen.com',
+    'CITROEN': 'https://logo.clearbit.com/citroen.com',
+    'NISSAN': 'https://logo.clearbit.com/nissan.com',
+    'FIAT': 'https://logo.clearbit.com/fiat.com',
+    'SUZUKI': 'https://logo.clearbit.com/suzuki.com',
+    'CHEVROLET': 'https://logo.clearbit.com/chevrolet.com',
+    'FORD': 'https://logo.clearbit.com/ford.com',
+    'MITSUBISHI': 'https://logo.clearbit.com/mitsubishi-motors.com',
+    'MERCEDES': 'https://logo.clearbit.com/mercedes-benz.com',
+    'BMW': 'https://logo.clearbit.com/bmw.com',
+    'SEAT': 'https://logo.clearbit.com/seat.com',
+    'SKODA': 'https://logo.clearbit.com/skoda-auto.com',
+    'AUDI': 'https://logo.clearbit.com/audi.com',
+    'OPEL': 'https://logo.clearbit.com/opel.com',
+    'HONDA': 'https://logo.clearbit.com/honda.com',
+    'MAZDA': 'https://logo.clearbit.com/mazda.com',
+    'CHERY': 'https://logo.clearbit.com/cheryinternational.com',
+    'JETOUR': 'https://logo.clearbit.com/jetourglobal.com',
+    'HAVAL': 'https://logo.clearbit.com/haval.com.cn',
+    'GWM': 'https://logo.clearbit.com/gwm.com.cn',
+    'GEELY': 'https://logo.clearbit.com/geely.com',
+    'MG': 'https://logo.clearbit.com/mg.co.uk',
+    'BYD': 'https://logo.clearbit.com/byd.com',
+    'CHANGAN': 'https://logo.clearbit.com/changan.com.cn',
+    'JAC': 'https://logo.clearbit.com/jac.com.cn',
+    'DONGFENG': 'https://logo.clearbit.com/dfmc.com.cn',
+    'BAIC': 'https://logo.clearbit.com/baicgroup.com.cn',
+    'EXEED': 'https://logo.clearbit.com/exeed.com',
+    'OMODA': 'https://logo.clearbit.com/omoda.com',
+    'JAECOO': 'https://logo.clearbit.com/jaecoo.com',
+    'DFSK': 'https://logo.clearbit.com/dfsk.com',
+    'FOTON': 'https://logo.clearbit.com/foton-global.com',
+  };
+
   bool get _modeCreation => widget.vehicule == null;
 
   String _t(String fr, String ar) => widget.isAr ? ar : fr;
@@ -677,34 +720,54 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   }
 
   Widget _marqueAvatar(String marque, {double size = 36}) {
-    final c = _colorForMarque(marque);
-    final letter = marque.isNotEmpty ? marque[0].toUpperCase() : '?';
-    // Contraste : pastille jaune/claire → texte sombre
+    final key = marque.toUpperCase().trim();
+    final c = _colorForMarque(key);
+    final letter = key.isNotEmpty ? key[0] : '?';
     final luminance = c.computeLuminance();
     final fg = luminance > 0.55 ? Colors.black87 : Colors.white;
+    final logoUrl = _logoMarqueUrls[key];
+
+    Widget letterFallback() => Text(
+          letter,
+          style: TextStyle(
+            color: fg,
+            fontWeight: FontWeight.w900,
+            fontSize: size * 0.42,
+          ),
+        );
+
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: c,
+        color: logoUrl != null ? Colors.white : c,
         borderRadius: BorderRadius.circular(size * 0.28),
+        border: logoUrl != null
+            ? Border.all(color: Colors.grey.shade200, width: 1)
+            : null,
         boxShadow: [
           BoxShadow(
-            color: c.withValues(alpha: 0.35),
+            color: (logoUrl != null ? Colors.black12 : c.withValues(alpha: 0.35)),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Text(
-        letter,
-        style: TextStyle(
-          color: fg,
-          fontWeight: FontWeight.w900,
-          fontSize: size * 0.42,
-        ),
-      ),
+      clipBehavior: Clip.antiAlias,
+      child: logoUrl != null
+          ? Image.network(
+              logoUrl,
+              width: size * 0.78,
+              height: size * 0.78,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => letterFallback(),
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return letterFallback();
+              },
+            )
+          : letterFallback(),
     );
   }
 
@@ -970,17 +1033,20 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: InputDecorator(
-            isEmpty: !hasValue,
+            // Toujours "non vide" pour éviter le chevauchement label/placeholder
+            // (bug Flutter InputDecorator + isEmpty + child text).
+            isEmpty: false,
             decoration: InputDecoration(
               labelText: label,
+              floatingLabelBehavior: FloatingLabelBehavior.always,
               isDense: true,
               contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  const EdgeInsets.fromLTRB(12, 18, 8, 12),
               border:
                   OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               filled: true,
               fillColor: Colors.white,
-              suffixIcon: const Icon(Icons.expand_more_rounded),
+              suffixIcon: const Icon(Icons.expand_more_rounded, size: 22),
             ),
             child: Row(
               children: [
@@ -991,6 +1057,8 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
                 Expanded(
                   child: Text(
                     hasValue ? value : placeholder,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight:
