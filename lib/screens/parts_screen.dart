@@ -402,8 +402,8 @@ class _PartsScreenState extends State<PartsScreen> {
               const SizedBox(height: 16),
               Text(
                 _t(
-                  'Une photo.\nTa pièce identifiée.',
-                  'صورة واحدة.\nقطعتك معرّفة.',
+                  'Une photo.\nLes magasins te répondent.',
+                  'صورة واحدة.\nالمتاجر تردّ عليك.',
                 ),
                 style: const TextStyle(
                   color: Colors.white,
@@ -416,8 +416,8 @@ class _PartsScreenState extends State<PartsScreen> {
               const SizedBox(height: 8),
               Text(
                 _t(
-                  'Référence, compatibilité et prix indicatif — en quelques secondes.',
-                  'المرجع، التوافق والسعر التقريبي — في ثوانٍ.',
+                  'L’IA identifie la pièce, les magasins te proposent leurs prix.',
+                  'الذكاء يعرّف القطعة، والمتاجر تعرض أسعارها.',
                 ),
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.9),
@@ -459,9 +459,9 @@ class _PartsScreenState extends State<PartsScreen> {
             const SizedBox(width: 8),
             _stepCard(
               3,
-              Icons.sell_outlined,
-              _t('Résultat', 'نتيجة'),
-              _t('Réf + prix', 'مرجع + سعر'),
+              Icons.storefront_outlined,
+              _t('Magasins', 'متاجر'),
+              _t('Offres réelles', 'عروض حقيقية'),
             ),
           ],
         ),
@@ -516,8 +516,8 @@ class _PartsScreenState extends State<PartsScreen> {
             ] else ...[
               Text(
                 _t(
-                  'Photographie la pièce cassée pour trouver référence et prix.',
-                  'صوّر القطعة المكسورة لمعرفة المرجع والسعر.',
+                  'Photographie la pièce : l’IA l’identifie, puis les magasins te proposent leurs prix.',
+                  'صوّر القطعة: الذكاء يعرّفها، ثم المتاجر تعرض أسعارها.',
                 ),
                 style: const TextStyle(color: Colors.black54),
               ),
