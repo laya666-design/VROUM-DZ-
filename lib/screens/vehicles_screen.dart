@@ -651,30 +651,103 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               fontSize: 13.5,
             ),
           ),
+          // Véhicules rassemblés dans le bandeau vert (plus de double
+          // "1 véhicule / OK" + carte séparée en dessous).
           if (_vehicules.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                _statPill(
-                  Icons.directions_car,
-                  '${_vehicules.length}',
-                  _t(
-                    _vehicules.length > 1 ? 'véhicules' : 'véhicule',
-                    _vehicules.length > 1 ? 'مركبات' : 'مركبة',
-                  ),
-                ),
-                const SizedBox(width: 10),
-                _statPill(
-                  alerts > 0 ? Icons.warning_amber_rounded : Icons.verified,
-                  alerts > 0 ? '$alerts' : 'OK',
-                  alerts > 0
-                      ? _t('à surveiller', 'للمراقبة')
-                      : _t('tout est à jour', 'كل شيء محدّث'),
-                ),
-              ],
-            ),
+            const SizedBox(height: 14),
+            ..._vehicules.map((v) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildVehicleCardInHero(v),
+                )),
           ],
         ],
+      ),
+    );
+  }
+
+  /// Carte véhicule compacte, style clair, posée dans le bandeau vert.
+  Widget _buildVehicleCardInHero(Vehicule v) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _openVehicle(v),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: widget.config.primaryColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(widget.iconePrincipale,
+                    color: widget.config.primaryColor, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      v.nom,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (v.marque.isNotEmpty || v.year != null)
+                      Text(
+                        [
+                          if (v.marque.isNotEmpty) v.marque,
+                          if (v.year != null) '${v.year}',
+                        ].join(' · '),
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        _statusChip(v.assuranceExpiration,
+                            _t('Pas d\'assurance', 'لا يوجد تأمين')),
+                        _statusChip(v.controleTechniqueExpiration,
+                            _t('Pas de CT', 'لا يوجد فحص تقني')),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _openVehicleFormDialog(existing: v);
+                  } else if (value == 'delete') {
+                    _confirmDelete(v);
+                  }
+                },
+                itemBuilder: (ctx) => [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Text(_t('Modifier', 'تعديل')),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Text(_t('Supprimer', 'حذف')),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1176,13 +1249,13 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
             children: [
               _buildHeroHeader(),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               const AdBanner(),
               const SizedBox(height: 10),
               if (_vehicules.isEmpty)
                 _buildEmptyState()
               else ...[
-                ..._vehicules.map(_buildVehicleCard),
+                // Les véhicules sont déjà dans le bandeau vert.
                 if (showLockedCard)
                   _buildLockedCard()
                 else
