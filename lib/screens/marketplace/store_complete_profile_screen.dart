@@ -234,6 +234,8 @@ class _SpecialtyChip extends StatelessWidget {
     final border = selected
         ? primaryColor.withOpacity(0.4)
         : Colors.transparent;
+    // Évite les bandes rouges overflow sur les libellés longs
+    final maxChipWidth = MediaQuery.sizeOf(context).width - 72;
     return Material(
       color: bg,
       borderRadius: BorderRadius.circular(20),
@@ -241,7 +243,8 @@ class _SpecialtyChip extends StatelessWidget {
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          constraints: BoxConstraints(maxWidth: maxChipWidth),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: border),
@@ -254,19 +257,23 @@ class _SpecialtyChip extends StatelessWidget {
                 size: 18,
                 color: selected ? primaryColor : Colors.black38,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 5),
               Icon(
                 category.icon,
                 size: 18,
                 color: selected ? primaryColor : Colors.black54,
               ),
-              const SizedBox(width: 6),
-              Text(
-                category.labelFr,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  color: selected ? Colors.black87 : Colors.black54,
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  category.labelFr,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    color: selected ? Colors.black87 : Colors.black54,
+                  ),
                 ),
               ),
             ],
