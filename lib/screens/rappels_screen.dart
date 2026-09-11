@@ -28,7 +28,8 @@ class RappelsScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(_t('Rappels', 'تذكيرات')),
-        automaticallyImplyLeading: false,
+        // Retour visible quand on arrive depuis Véhicules (état vide).
+        automaticallyImplyLeading: true,
       ),
       body: vehicules.isEmpty
           ? _EmptyRappels(

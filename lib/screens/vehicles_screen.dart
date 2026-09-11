@@ -9,6 +9,7 @@ import 'ajouter_vehicule_flow_screen.dart';
 import 'carte_grise_screen.dart';
 import 'controle_technique_screen.dart';
 import 'insurance_screen.dart';
+import 'rappels_screen.dart';
 
 class VehiclesScreen extends StatefulWidget {
   final AppConfig config;
@@ -977,213 +978,119 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     required Color color,
     required String title,
     required String subtitle,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.07),
+    return Material(
+      color: color.withOpacity(0.07),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.18)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withOpacity(0.15),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Icon(icon, size: 20, color: color),
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withOpacity(0.18)),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13.5,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withOpacity(0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.3,
-                    color: Colors.grey.shade600,
-                  ),
+                child: Icon(icon, size: 22, color: color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.3,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Icon(Icons.chevron_right, color: color.withOpacity(0.7)),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
+  /// État vide allégé : uniquement les 3 actions cliquables (plus de gros
+  /// bloc « Aucun véhicule » / bouton central).
   Widget _buildEmptyState() {
     final primary = widget.config.primaryColor;
-    return Container(
-      margin: const EdgeInsets.only(top: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+    return Column(
+      children: [
+        _emptyFeature(
+          icon: Icons.document_scanner_rounded,
+          color: primary,
+          title: _t('Carte grise', 'البطاقة الرمادية'),
+          subtitle: _t(
+            'Marque, modèle, année, châssis — en quelques secondes',
+            'الماركة والموديل والسنة والهيكل — في ثوانٍ',
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
-            decoration: BoxDecoration(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(26)),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  primary.withOpacity(0.14),
-                  primary.withOpacity(0.04),
-                ],
+          onTap: _ajouterVehiculeViaScan,
+        ),
+        _emptyFeature(
+          icon: Icons.shield_outlined,
+          color: const Color(0xFF10B981),
+          title: _t('Assurance & CT', 'التأمين والفحص'),
+          subtitle: _t(
+            'Scanne les documents : les dates sont dedans, pas dans la carte grise',
+            'تمسح الوثائق: التواريخ فيها، وليس في البطاقة الرمادية',
+          ),
+          // Même parcours : crée le véhicule puis enchaîne assurance / CT.
+          onTap: _ajouterVehiculeViaScan,
+        ),
+        _emptyFeature(
+          icon: Icons.notifications_active_outlined,
+          color: const Color(0xFFF59E0B),
+          title: _t('Rappels automatiques', 'تذكيرات تلقائية'),
+          subtitle: _t(
+            'Jours restants, alertes J-30 / J-15 / J-7 — sans amende',
+            'الأيام المتبقية، تنبيهات قبل 30 و15 و7 أيام — بلا غرامة',
+          ),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => RappelsScreen(
+                  config: widget.config,
+                  isAr: widget.isAr,
+                ),
               ),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 88,
-                  height: 88,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [
-                        primary.withOpacity(0.25),
-                        primary.withOpacity(0.08),
-                      ],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: primary.withOpacity(0.2),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child:
-                      Icon(widget.iconePrincipale, size: 44, color: primary),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  _labelVide,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _t(
-                    'Scanne ta carte grise, ton assurance et ton CT.\n'
-                    'On te rappelle avant expiration — pour éviter les amendes.',
-                    'امسح البطاقة الرمادية والتأمين والفحص التقني.\n'
-                    'نذكّرك قبل الانتهاء — لتجنب الغرامات.',
-                  ),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 13.5,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Bouton principal en haut : action immédiate, pas tout en bas
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: _ajouterVehiculeViaScan,
-                    icon: const Icon(Icons.document_scanner_outlined),
-                    label: Text(_labelAjout),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: primary,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _t(
-                    'Gratuit pour 1 véhicule · Premium pour illimité',
-                    'مجاني لمركبة واحدة · Premium بلا حدود',
-                  ),
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: Colors.grey.shade500,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
-            child: Column(
-              children: [
-                _emptyFeature(
-                  icon: Icons.document_scanner_rounded,
-                  color: primary,
-                  title: _t('Carte grise', 'البطاقة الرمادية'),
-                  subtitle: _t(
-                    'Marque, modèle, année, châssis — en quelques secondes',
-                    'الماركة والموديل والسنة والهيكل — في ثوانٍ',
-                  ),
-                ),
-                _emptyFeature(
-                  icon: Icons.shield_outlined,
-                  color: const Color(0xFF10B981),
-                  title: _t('Assurance & CT', 'التأمين والفحص'),
-                  subtitle: _t(
-                    'Tu scannes les documents : les dates sont dedans, pas dans la carte grise',
-                    'تمسح الوثائق: التواريخ فيها، وليس في البطاقة الرمادية',
-                  ),
-                ),
-                _emptyFeature(
-                  icon: Icons.notifications_active_outlined,
-                  color: const Color(0xFFF59E0B),
-                  title: _t('Rappels automatiques', 'تذكيرات تلقائية'),
-                  subtitle: _t(
-                    'Alertes avant expiration — tu renouvelles à temps, sans amende',
-                    'تنبيهات قبل الانتهاء — تجدّد في الوقت، بلا غرامة',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+            );
+          },
+        ),
+      ],
     );
   }
 
