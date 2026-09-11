@@ -63,6 +63,104 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _showAboutDialog(String Function(String, String) t) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final green = widget.config.primaryColor;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: green.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.directions_car_filled_rounded, size: 34, color: green),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                widget.config.appName,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                t('Version 1.0.0', 'الإصدار 1.0.0'),
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                t(
+                  "L'application intelligente pour les automobilistes d'El Bouni et d'Annaba.",
+                  'التطبيق الذكي لسائقي السيارات في البوني وعنابة.',
+                ),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13.5, height: 1.4, color: Colors.grey.shade800),
+              ),
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  t('Fonctionnalités', 'الميزات'),
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+              ),
+              const SizedBox(height: 6),
+              _aboutBullet(t('OCR Carte Jaune (assurance)', 'مسح بطاقة التأمين الصفراء')),
+              _aboutBullet(t('Identification de pièces par photo', 'التعرف على قطع الغيار بالصورة')),
+              _aboutBullet(t('Carte des magasins d\'El Bouni', 'خريطة محلات البوني')),
+              _aboutBullet(t('Alertes SOS / Dépanneuse', 'تنبيهات الطوارئ / الونش')),
+              _aboutBullet(t('Espace Magasin', 'فضاء المحل')),
+              const SizedBox(height: 14),
+              Text(
+                t('Support', 'الدعم'),
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'WhatsApp : 0556 65 32 20',
+                style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+              ),
+              Text(
+                'Email : vroumdz.support@gmail.com',
+                style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '© 2026 VROUM DZ',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(t('Fermer', 'إغلاق'), style: TextStyle(color: green, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _aboutBullet(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('•  ', style: TextStyle(fontSize: 13)),
+          Expanded(child: Text(text, style: TextStyle(fontSize: 12.5, color: Colors.grey.shade800))),
+        ],
+      ),
+    );
+  }
+
   // ─── Labels véhicule ─────────────────────────────────────────────────────
 
   String _vehicleProfileLabel(String Function(String, String) t) {
@@ -1270,6 +1368,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.info_outline_rounded,
                         title: t('À propos', 'حول التطبيق'),
                         subtitle: widget.config.appName,
+                        onTap: () => _showAboutDialog(t),
                       ),
                     ),
                   ],
