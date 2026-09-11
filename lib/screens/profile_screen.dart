@@ -64,98 +64,239 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showAboutDialog(String Function(String, String) t) {
+    final green = widget.config.primaryColor;
     showDialog(
       context: context,
       builder: (ctx) {
-        final green = widget.config.primaryColor;
-        return AlertDialog(
+        return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: green.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.directions_car_filled_rounded, size: 34, color: green),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                widget.config.appName,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                t('Version 1.0.0', 'الإصدار 1.0.0'),
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                t(
-                  "L'application intelligente pour les automobilistes d'El Bouni et d'Annaba.",
-                  'التطبيق الذكي لسائقي السيارات في البوني وعنابة.',
-                ),
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13.5, height: 1.4, color: Colors.grey.shade800),
-              ),
-              const SizedBox(height: 14),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  t('Fonctionnalités', 'الميزات'),
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                ),
-              ),
-              const SizedBox(height: 6),
-              _aboutBullet(t('OCR Carte Jaune (assurance)', 'مسح بطاقة التأمين الصفراء')),
-              _aboutBullet(t('Identification de pièces par photo', 'التعرف على قطع الغيار بالصورة')),
-              _aboutBullet(t('Carte des magasins d\'El Bouni', 'خريطة محلات البوني')),
-              _aboutBullet(t('Alertes SOS / Dépanneuse', 'تنبيهات الطوارئ / الونش')),
-              _aboutBullet(t('Espace Magasin', 'فضاء المحل')),
-              const SizedBox(height: 14),
-              Text(
-                t('Support', 'الدعم'),
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'WhatsApp : 0556 65 32 20',
-                style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
-              ),
-              Text(
-                'Email : vroumdz.support@gmail.com',
-                style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '© 2026 VROUM DZ',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(t('Fermer', 'إغلاق'), style: TextStyle(color: green, fontWeight: FontWeight.w700)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.85,
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 12, 0),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: green.withOpacity(0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.directions_car_filled_rounded,
+                            size: 26, color: green),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.config.appName,
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.w800),
+                            ),
+                            Text(
+                              t('Roulez tranquille. On s\'occupe du reste.',
+                                  'سوق مرتاح. حنا نتكفلو بالباقي.'),
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 20),
+                // Scrollable body
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t(
+                            'VROUM DZ est né d\'un constat simple : on a tous déjà stressé au barrage pour une assurance ou un contrôle technique oublié.\n\nOn a créé la première app algérienne qui vous évite les amendes.',
+                            'VROUM DZ جاء من ملاحظة بسيطة: كاملنا توترنا مرة في الحاجز على تأمين أو مراقبة تقنية منسيّة.\n\nدرنا أول تطبيق جزائري يبعدك على الغرامات.',
+                          ),
+                          style: TextStyle(
+                              fontSize: 13.5,
+                              height: 1.45,
+                              color: Colors.grey.shade800),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          t('Que fait VROUM DZ pour vous ?',
+                              'ماذا يفعل VROUM DZ من أجلك؟'),
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 12),
+                        _aboutFeature(
+                          emoji: '📸',
+                          title: t('SCAN INTELLIGENT — Zéro saisie',
+                              'مسح ذكي — بدون إدخال يدوي'),
+                          body: t(
+                            'Prenez en photo votre carte grise, assurance et contrôle technique. L\'app extrait les dates automatiquement. 3 secondes, c\'est fait.',
+                            'صوّر البطاقة الرمادية، التأمين والمراقبة التقنية. التطبيق يستخرج التواريخ تلقائياً. 3 ثواني وبرك.',
+                          ),
+                        ),
+                        _aboutFeature(
+                          emoji: '🔔',
+                          title: t('RAPPEL ANTI-AMENDE', 'تذكير ضد الغرامات'),
+                          body: t(
+                            'On vous alerte 7 jours, 3 jours et 1 jour avant la fin de validité. Plus jamais d\'amende pour papier expiré.',
+                            'ننبّهوك قبل 7 أيام، 3 أيام ويوم واحد من انتهاء الصلاحية. عمرك ما تعاود تدفع غرامة على وثيقة منتهية.',
+                          ),
+                        ),
+                        _aboutFeature(
+                          emoji: '🔧',
+                          title: t('PIÈCES & SOS', 'قطع الغيار والطوارئ'),
+                          body: t(
+                            'Pièce cassée ? Photographiez-la, VROUM vous dit ce que c\'est.\nEn panne ? Le bouton SOS trouve la dépanneuse ou le magasin de pièces le plus proche de vous.',
+                            'قطعة تكسرت؟ صوّرها، VROUM يقولك وش هي.\nطحت في عطب؟ زر SOS يلقى أقرب ونش أو محل قطع غيار ليك.',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          t(
+                            'Pour voiture et moto. Conçu par des conducteurs algériens, pour les conducteurs algériens.',
+                            'للسيارة والدراجة النارية. مصمم من سائقين جزائريين، للسائقين الجزائريين.',
+                          ),
+                          style: TextStyle(
+                              fontSize: 13,
+                              height: 1.4,
+                              fontStyle: FontStyle.italic,
+                              color: Colors.grey.shade700),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          t('Notre promesse', 'وعدنا'),
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          t(
+                            'Vos données restent privées et sécurisées sur votre téléphone. VROUM DZ est gratuit pour 1 véhicule. Passez en Premium pour les véhicules illimités et les rappels par SMS.',
+                            'بياناتك تبقى خاصة وآمنة على هاتفك. VROUM DZ مجاني لمركبة واحدة. انتقل إلى Premium للمركبات غير المحدودة والتذكيرات عبر SMS.',
+                          ),
+                          style: TextStyle(
+                              fontSize: 13,
+                              height: 1.4,
+                              color: Colors.grey.shade800),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          t(
+                            'Une question ? Une idée ? On répond vite.',
+                            'عندك سؤال؟ فكرة؟ نجاوبوك بسرعة.',
+                          ),
+                          style: TextStyle(
+                              fontSize: 13, color: Colors.grey.shade700),
+                        ),
+                        const SizedBox(height: 16),
+                        Center(
+                          child: Column(
+                            children: [
+                              Text(
+                                'VROUM DZ v1.0',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.grey.shade600),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                t('Fait avec ❤️ en Algérie',
+                                    'صُنع بـ ❤️ في الجزائر'),
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey.shade600),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'vroumdz.support@gmail.com',
+                                style: TextStyle(
+                                    fontSize: 12, color: green),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Close button
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: TextButton.styleFrom(
+                        backgroundColor: green.withOpacity(0.1),
+                        foregroundColor: green,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(
+                        t('Fermer', 'إغلاق'),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
   }
 
-  Widget _aboutBullet(String text) {
+  Widget _aboutFeature({
+    required String emoji,
+    required String title,
+    required String body,
+  }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 3),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('•  ', style: TextStyle(fontSize: 13)),
-          Expanded(child: Text(text, style: TextStyle(fontSize: 12.5, color: Colors.grey.shade800))),
+          Text(emoji, style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 13.5, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 3),
+                Text(body,
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.4,
+                        color: Colors.grey.shade700)),
+              ],
+            ),
+          ),
         ],
       ),
     );
