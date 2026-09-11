@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 /// Catégories de pièces pour filtrer les demandes côté magasins.
 ///
 /// Un magasin doit cocher au moins une catégorie à l'inscription.
@@ -6,45 +8,92 @@ class PartCategory {
   final String id;
   final String labelFr;
   final String labelAr;
+  final IconData icon;
 
   const PartCategory({
     required this.id,
     required this.labelFr,
     required this.labelAr,
+    required this.icon,
   });
 }
 
 const List<PartCategory> kPartCategories = [
-  PartCategory(id: 'batterie', labelFr: 'Batterie', labelAr: 'بطارية'),
-  PartCategory(id: 'freinage', labelFr: 'Freinage', labelAr: 'فرامل'),
-  PartCategory(id: 'filtres', labelFr: 'Filtres', labelAr: 'فلاتر'),
+  PartCategory(
+      id: 'batterie',
+      labelFr: 'Batterie',
+      labelAr: 'بطارية',
+      icon: Icons.battery_charging_full),
+  PartCategory(
+      id: 'freinage',
+      labelFr: 'Freinage',
+      labelAr: 'فرامل',
+      icon: Icons.disc_full),
+  PartCategory(
+      id: 'filtres',
+      labelFr: 'Filtres',
+      labelAr: 'فلاتر',
+      icon: Icons.filter_list),
   PartCategory(
       id: 'suspension',
       labelFr: 'Suspension / Direction',
-      labelAr: 'تعليق / توجيه'),
-  PartCategory(id: 'embrayage', labelFr: 'Embrayage', labelAr: 'قابض'),
-  PartCategory(id: 'moteur', labelFr: 'Moteur', labelAr: 'محرك'),
+      labelAr: 'تعليق / توجيه',
+      icon: Icons.height),
   PartCategory(
-      id: 'distribution', labelFr: 'Distribution', labelAr: 'توزيع'),
+      id: 'embrayage',
+      labelFr: 'Embrayage',
+      labelAr: 'قابض',
+      icon: Icons.settings),
+  PartCategory(
+      id: 'moteur',
+      labelFr: 'Moteur',
+      labelAr: 'محرك',
+      icon: Icons.engineering),
+  PartCategory(
+      id: 'distribution',
+      labelFr: 'Distribution',
+      labelAr: 'توزيع',
+      icon: Icons.autorenew),
   PartCategory(
       id: 'electricite',
       labelFr: 'Électricité / Allumage',
-      labelAr: 'كهرباء / إشعال'),
-  PartCategory(id: 'carrosserie', labelFr: 'Carrosserie', labelAr: 'هيكل'),
+      labelAr: 'كهرباء / إشعال',
+      icon: Icons.bolt),
   PartCategory(
-      id: 'pneus', labelFr: 'Pneus / Jantes', labelAr: 'إطارات / جنوط'),
+      id: 'carrosserie',
+      labelFr: 'Carrosserie',
+      labelAr: 'هيكل',
+      icon: Icons.directions_car),
+  PartCategory(
+      id: 'pneus',
+      labelFr: 'Pneus / Jantes',
+      labelAr: 'إطارات / جنوط',
+      icon: Icons.album),
   PartCategory(
       id: 'huile_lubrifiants',
       labelFr: 'Huile / Lubrifiants',
-      labelAr: 'زيت / مواد تشحيم'),
+      labelAr: 'زيت / مواد تشحيم',
+      icon: Icons.opacity),
   PartCategory(
       id: 'refroidissement',
       labelFr: 'Refroidissement',
-      labelAr: 'تبريد'),
-  PartCategory(id: 'echappement', labelFr: 'Échappement', labelAr: 'عادم'),
+      labelAr: 'تبريد',
+      icon: Icons.ac_unit),
   PartCategory(
-      id: 'accessoires', labelFr: 'Accessoires', labelAr: 'إكسسوارات'),
-  PartCategory(id: 'autre', labelFr: 'Autre', labelAr: 'أخرى'),
+      id: 'echappement',
+      labelFr: 'Échappement',
+      labelAr: 'عادم',
+      icon: Icons.air),
+  PartCategory(
+      id: 'accessoires',
+      labelFr: 'Accessoires',
+      labelAr: 'إكسسوارات',
+      icon: Icons.build),
+  PartCategory(
+      id: 'autre',
+      labelFr: 'Autre',
+      labelAr: 'أخرى',
+      icon: Icons.more_horiz),
 ];
 
 const String kCategorieAutre = 'autre';
