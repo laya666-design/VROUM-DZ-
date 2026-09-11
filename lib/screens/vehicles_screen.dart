@@ -673,89 +673,198 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   /// Carte véhicule compacte, style clair, posée dans le bandeau vert.
   Widget _buildVehicleCardInHero(Vehicule v) {
+    final accent = _worstStatusColor(v);
+    final details = <String>[
+      if (v.marque.isNotEmpty) v.marque,
+      if (v.year != null) '${v.year}',
+      if (v.immatriculation.isNotEmpty) v.immatriculation,
+    ];
+    final hasAssur = v.assuranceExpiration != null;
+    final hasCt = v.controleTechniqueExpiration != null;
+
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
+      elevation: 0,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         onTap: () => _openVehicle(v),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
-          child: Row(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: accent.withOpacity(0.35), width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Bandeau couleur statut
               Container(
-                width: 42,
-                height: 42,
+                height: 4,
                 decoration: BoxDecoration(
-                  color: widget.config.primaryColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  color: accent,
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16)),
                 ),
-                child: Icon(widget.iconePrincipale,
-                    color: widget.config.primaryColor, size: 22),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 8, 8),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      v.nom,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            widget.config.primaryColor.withOpacity(0.18),
+                            widget.config.primaryColor.withOpacity(0.08),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      child: Icon(widget.iconePrincipale,
+                          color: widget.config.primaryColor, size: 28),
                     ),
-                    if (v.marque.isNotEmpty || v.year != null)
-                      Text(
-                        [
-                          if (v.marque.isNotEmpty) v.marque,
-                          if (v.year != null) '${v.year}',
-                        ].join(' · '),
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12.5,
-                        ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            v.nom,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 17,
+                              letterSpacing: -0.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (details.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              details.join(' · '),
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                          if (v.engineCode.isNotEmpty ||
+                              v.fuelType.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              [
+                                if (v.engineCode.isNotEmpty) v.engineCode,
+                                if (v.fuelType.isNotEmpty) v.fuelType,
+                              ].join(' · '),
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        _statusChip(
-                          v.assuranceExpiration,
-                          _t('Pas d\'assurance', 'لا يوجد تأمين'),
-                          prefix: _t('Assurance', 'تأمين'),
+                    ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _openVehicleFormDialog(existing: v);
+                        } else if (value == 'delete') {
+                          _confirmDelete(v);
+                        }
+                      },
+                      itemBuilder: (ctx) => [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Text(_t('Modifier', 'تعديل')),
                         ),
-                        _statusChip(
-                          v.controleTechniqueExpiration,
-                          _t('Pas de CT', 'لا يوجد فحص تقني'),
-                          prefix: _t('CT', 'فحص'),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Text(_t('Supprimer', 'حذف')),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    _openVehicleFormDialog(existing: v);
-                  } else if (value == 'delete') {
-                    _confirmDelete(v);
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Text(_t('Modifier', 'تعديل')),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Text(_t('Supprimer', 'حذف')),
-                  ),
-                ],
+              // Chips statut
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    _statusChip(
+                      v.assuranceExpiration,
+                      _t('Pas d\'assurance', 'لا يوجد تأمين'),
+                      prefix: _t('Assurance', 'تأمين'),
+                    ),
+                    _statusChip(
+                      v.controleTechniqueExpiration,
+                      _t('Pas de CT', 'لا يوجد فحص تقني'),
+                      prefix: _t('CT', 'فحص'),
+                    ),
+                  ],
+                ),
+              ),
+              // Actions rapides
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _openVehicle(v),
+                        icon: Icon(
+                          hasAssur
+                              ? Icons.verified_user_outlined
+                              : Icons.document_scanner_outlined,
+                          size: 16,
+                        ),
+                        label: Text(
+                          hasAssur
+                              ? _t('Voir assurance', 'عرض التأمين')
+                              : _t('Scanner assurance', 'مسح التأمين'),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF059669),
+                          side: const BorderSide(color: Color(0xFFA7F3D0)),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _openVehicle(v),
+                        icon: Icon(
+                          hasCt
+                              ? Icons.fact_check_outlined
+                              : Icons.document_scanner_outlined,
+                          size: 16,
+                        ),
+                        label: Text(
+                          hasCt
+                              ? _t('Voir CT', 'عرض الفحص')
+                              : _t('Scanner CT', 'مسح الفحص'),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFD97706),
+                          side: const BorderSide(color: Color(0xFFFDE68A)),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -1046,6 +1155,41 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   /// État vide allégé : uniquement les 3 actions cliquables (plus de gros
   /// bloc « Aucun véhicule » / bouton central).
+  /// Ouvre le parcours d'ajout en précisant l'intention (carte grise vs
+  /// assurance/CT) pour que l'utilisateur ne soit pas surpris de voir
+  /// d'abord le scanner carte grise.
+  Future<void> _startFlowForAssuranceCt() async {
+    // Sans véhicule, on doit d'abord créer la fiche via la carte grise.
+    // On le dit clairement avant d'ouvrir le scan.
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_t('Assurance & CT', 'التأمين والفحص')),
+        content: Text(
+          _t(
+            'Pour scanner l\'assurance ou le contrôle technique, il faut d\'abord créer le véhicule avec la carte grise.\n\n'
+            'On commence par la carte grise, puis tu pourras enchaîner sur l\'assurance et le CT.',
+            'لمسح التأمين أو الفحص التقني، يجب أولاً إنشاء المركبة عبر البطاقة الرمادية.\n\n'
+            'نبدأ بالبطاقة الرمادية، ثم يمكنك متابعة التأمين والفحص.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_t('Annuler', 'إلغاء')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_t('Commencer', 'ابدأ')),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && mounted) {
+      await _ajouterVehiculeViaScan();
+    }
+  }
+
   Widget _buildEmptyState() {
     final primary = widget.config.primaryColor;
     return Column(
@@ -1065,11 +1209,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           color: const Color(0xFF10B981),
           title: _t('Assurance & CT', 'التأمين والفحص'),
           subtitle: _t(
-            'Scanne les documents : les dates sont dedans, pas dans la carte grise',
-            'تمسح الوثائق: التواريخ فيها، وليس في البطاقة الرمادية',
+            'D\'abord la carte grise, puis scan assurance & CT (dates dedans)',
+            'أولاً البطاقة الرمادية، ثم مسح التأمين والفحص (التواريخ فيها)',
           ),
-          // Même parcours : crée le véhicule puis enchaîne assurance / CT.
-          onTap: _ajouterVehiculeViaScan,
+          onTap: _startFlowForAssuranceCt,
         ),
         _emptyFeature(
           icon: Icons.notifications_active_outlined,
