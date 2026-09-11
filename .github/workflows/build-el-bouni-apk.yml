@@ -13,8 +13,6 @@ jobs:
   build:
     name: Build APK (rouge)
     runs-on: ubuntu-latest
-    # Les secrets ne peuvent PAS être utilisés dans les conditions `if:`.
-    # On les expose en variables d'environnement au niveau du job.
     env:
       RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
       RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
@@ -64,6 +62,31 @@ jobs:
           echo "--- Vérification ---"
           grep -A1 "firebase_app_check_debug_secret" android/app/src/main/AndroidManifest.xml
 
+      - name: Ajouter les règles ProGuard pour ML Kit (évite R8 missing classes)
+        run: |
+          mkdir -p android/app
+          cat > android/app/proguard-rules.pro << 'EOF'
+          # ===== google_mlkit_text_recognition =====
+          -dontwarn com.google.mlkit.vision.text.**
+          -keep class com.google.mlkit.vision.text.** { *; }
+          -keep class com.google.mlkit.vision.text.chinese.** { *; }
+          -keep class com.google.mlkit.vision.text.devanagari.** { *; }
+          -keep class com.google.mlkit.vision.text.japanese.** { *; }
+          -keep class com.google.mlkit.vision.text.korean.** { *; }
+          -keep class com.google.android.gms.internal.mlkit_vision_text_common.** { *; }
+
+          -keep class com.google.mlkit.** { *; }
+          -dontwarn com.google.mlkit.**
+
+          -keep class io.flutter.app.** { *; }
+          -keep class io.flutter.plugin.**  { *; }
+          -keep class io.flutter.util.**  { *; }
+          -keep class io.flutter.view.**  { *; }
+          -keep class io.flutter.**  { *; }
+          -keep class io.flutter.plugins.**  { *; }
+          EOF
+          echo "OK : proguard-rules.pro créé"
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -75,17 +98,13 @@ jobs:
           mkdir -p \~/.android
           if [ ! -f android/keystore/debug.keystore ]; then
             echo "ERREUR : android/keystore/debug.keystore introuvable dans le dépôt !"
-            echo "Le SHA doit rester fixe. Arrêt du build."
             exit 1
           fi
           cp android/keystore/debug.keystore \~/.android/debug.keystore
           echo "OK : keystore du dépôt copié"
-          echo "--- Empreinte SHA utilisée pour ce build ---"
           keytool -list -v -keystore \~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep -E "SHA1:|SHA256:"
 
-          # Force Gradle à signer avec le keystore du dépôt (SHA Firebase fixe).
           if [ -f android/app/build.gradle.kts ]; then
-            # Ajouter les imports nécessaires en haut du fichier
             if ! grep -q "import java.util.Properties" android/app/build.gradle.kts; then
               sed -i '1i import java.util.Properties\nimport java.io.FileInputStream' android/app/build.gradle.kts
             fi
@@ -109,7 +128,7 @@ jobs:
               }
           }
           EOF
-            echo "OK : signingConfigs debug forcé dans build.gradle.kts"
+            echo "OK : signingConfigs debug forcé"
           fi
 
       - name: Get dependencies
@@ -130,7 +149,6 @@ jobs:
           retention-days: 14
           overwrite: true
 
-      # Build de RELEASE (AAB signé) - celui à envoyer sur le Play Store.
       - name: Preparer les credentials de release
         if: ${{ env.RELEASE_KEYSTORE_BASE64 != '' }}
         env:
@@ -144,17 +162,16 @@ jobs:
           echo "OK : keystore et key.properties prepares"
           ls -la android/app/release.keystore android/key.properties
 
-      - name: Configurer la signature de release
+      - name: Configurer la signature de release + ProGuard
         if: ${{ env.RELEASE_KEYSTORE_BASE64 != '' }}
         run: |
-          # S'assurer que les imports sont présents
           if ! grep -q "import java.util.Properties" android/app/build.gradle.kts; then
             sed -i '1i import java.util.Properties\nimport java.io.FileInputStream' android/app/build.gradle.kts
           fi
 
           cat >> android/app/build.gradle.kts << 'EOF'
 
-          // === Release signing (ajouté par CI) ===
+          // === Release signing + minify (ajouté par CI) ===
           val keystoreProperties = Properties()
           val keystorePropertiesFile = rootProject.file("key.properties")
           if (keystorePropertiesFile.exists()) {
@@ -175,13 +192,18 @@ jobs:
               buildTypes {
                   getByName("release") {
                       signingConfig = signingConfigs.getByName("release")
+                      isMinifyEnabled = true
+                      isShrinkResources = true
+                      proguardFiles(
+                          getDefaultProguardFile("proguard-android-optimize.txt"),
+                          "proguard-rules.pro"
+                      )
                   }
               }
           }
           EOF
-          echo "OK : signingConfigs release ajoute"
-          echo "--- Fin du build.gradle.kts ---"
-          tail -n 40 android/app/build.gradle.kts
+          echo "OK : signingConfigs release + ProGuard ajoutés"
+          tail -n 50 android/app/build.gradle.kts
 
       - name: Build AAB (release, signe - pour le Play Store)
         if: ${{ env.RELEASE_KEYSTORE_BASE64 != '' }}
