@@ -13,9 +13,8 @@ jobs:
   build:
     name: Build APK (rouge)
     runs-on: ubuntu-latest
-    # IMPORTANT: GitHub Actions n'autorise PAS d'utiliser `secrets` dans les
-    # conditions `if:`. On expose donc les secrets en variables d'env du job,
-    # puis on teste env.RELEASE_KEYSTORE_BASE64.
+    # Les secrets ne peuvent PAS être utilisés dans les conditions `if:`.
+    # On les expose en variables d'environnement au niveau du job.
     env:
       RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
       RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
@@ -86,6 +85,11 @@ jobs:
 
           # Force Gradle à signer avec le keystore du dépôt (SHA Firebase fixe).
           if [ -f android/app/build.gradle.kts ]; then
+            # Ajouter les imports nécessaires en haut du fichier
+            if ! grep -q "import java.util.Properties" android/app/build.gradle.kts; then
+              sed -i '1i import java.util.Properties\nimport java.io.FileInputStream' android/app/build.gradle.kts
+            fi
+
             cat >> android/app/build.gradle.kts << 'EOF'
 
           // VROUM DZ — forcer le keystore debug du dépôt (SHA Firebase fixe)
@@ -127,10 +131,6 @@ jobs:
           overwrite: true
 
       # Build de RELEASE (AAB signé) - celui à envoyer sur le Play Store.
-      # Ne s'exécute que si les secrets du keystore de release sont
-      # configurés dans le dépôt (Settings > Secrets and variables >
-      # Actions) : RELEASE_KEYSTORE_BASE64, RELEASE_KEYSTORE_PASSWORD,
-      # RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD.
       - name: Preparer les credentials de release
         if: ${{ env.RELEASE_KEYSTORE_BASE64 != '' }}
         env:
@@ -142,23 +142,33 @@ jobs:
           echo "$KS_B64" | base64 -d > android/app/release.keystore
           printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=release.keystore\n' "$KS_PASS" "$KEY_PASS" "$KS_ALIAS" > android/key.properties
           echo "OK : keystore et key.properties prepares"
+          ls -la android/app/release.keystore android/key.properties
 
       - name: Configurer la signature de release
         if: ${{ env.RELEASE_KEYSTORE_BASE64 != '' }}
         run: |
+          # S'assurer que les imports sont présents
+          if ! grep -q "import java.util.Properties" android/app/build.gradle.kts; then
+            sed -i '1i import java.util.Properties\nimport java.io.FileInputStream' android/app/build.gradle.kts
+          fi
+
           cat >> android/app/build.gradle.kts << 'EOF'
+
+          // === Release signing (ajouté par CI) ===
+          val keystoreProperties = Properties()
+          val keystorePropertiesFile = rootProject.file("key.properties")
+          if (keystorePropertiesFile.exists()) {
+              keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+          }
 
           android {
               signingConfigs {
                   create("release") {
-                      val props = java.util.Properties()
-                      val propsFile = rootProject.file("key.properties")
-                      if (propsFile.exists()) {
-                          props.load(java.io.FileInputStream(propsFile))
-                          storeFile = file(props["storeFile"] as String)
-                          storePassword = props["storePassword"] as String
-                          keyAlias = props["keyAlias"] as String
-                          keyPassword = props["keyPassword"] as String
+                      if (keystorePropertiesFile.exists()) {
+                          keyAlias = keystoreProperties["keyAlias"] as String
+                          keyPassword = keystoreProperties["keyPassword"] as String
+                          storeFile = file(keystoreProperties["storeFile"] as String)
+                          storePassword = keystoreProperties["storePassword"] as String
                       }
                   }
               }
@@ -170,6 +180,8 @@ jobs:
           }
           EOF
           echo "OK : signingConfigs release ajoute"
+          echo "--- Fin du build.gradle.kts ---"
+          tail -n 40 android/app/build.gradle.kts
 
       - name: Build AAB (release, signe - pour le Play Store)
         if: ${{ env.RELEASE_KEYSTORE_BASE64 != '' }}
