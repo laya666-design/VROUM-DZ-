@@ -161,14 +161,12 @@ class _StoreCompleteProfileScreenState
                 runSpacing: 8,
                 children: [
                   for (final cat in kPartCategories)
-                    FilterChip(
-                      label: Text(cat.labelFr),
+                    _SpecialtyChip(
+                      category: cat,
                       selected: _selectedCategories.contains(cat.id),
-                      onSelected:
-                          _loading ? null : (_) => _toggleCategory(cat.id),
-                      selectedColor:
-                          widget.config.primaryColor.withOpacity(0.2),
-                      checkmarkColor: widget.config.primaryColor,
+                      primaryColor: widget.config.primaryColor,
+                      enabled: !_loading,
+                      onTap: () => _toggleCategory(cat.id),
                     ),
                 ],
               ),
@@ -203,6 +201,73 @@ class _StoreCompleteProfileScreenState
                             strokeWidth: 2, color: Colors.white),
                       )
                     : const Text('Continuer'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Chip spécialité avec icône + check (style photo).
+class _SpecialtyChip extends StatelessWidget {
+  final PartCategory category;
+  final bool selected;
+  final Color primaryColor;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _SpecialtyChip({
+    required this.category,
+    required this.selected,
+    required this.primaryColor,
+    this.enabled = true,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = selected
+        ? primaryColor.withOpacity(0.15)
+        : const Color(0xFFF1F8F4);
+    final border = selected
+        ? primaryColor.withOpacity(0.4)
+        : Colors.transparent;
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                selected ? Icons.check_circle : Icons.circle_outlined,
+                size: 18,
+                color: selected ? primaryColor : Colors.black38,
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                category.icon,
+                size: 18,
+                color: selected ? primaryColor : Colors.black54,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                category.labelFr,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: selected ? Colors.black87 : Colors.black54,
+                ),
               ),
             ],
           ),
