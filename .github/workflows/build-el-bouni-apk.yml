@@ -13,8 +13,6 @@ jobs:
   build:
     name: Build APK (rouge)
     runs-on: ubuntu-latest
-    # On expose les secrets en variables d'environnement au niveau du job
-    # pour pouvoir les tester dans les conditions if: (secrets n'est pas autorisé dans if)
     env:
       RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
       RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
@@ -125,11 +123,51 @@ jobs:
           retention-days: 14
           overwrite: true
 
-      # Build de RELEASE (AAB signé) - celui à envoyer sur le Play Store.
-      # Ne s'exécute que si les secrets du keystore de release sont
-      # configurés dans le dépôt (Settings > Secrets and variables >
-      # Actions) : RELEASE_KEYSTORE_BASE64, RELEASE_KEYSTORE_PASSWORD,
-      # RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD.
+      # ========== FIX R8 / ML Kit (classes optionnelles manquantes) ==========
+      - name: Ajouter règles ProGuard pour google_mlkit_text_recognition
+        if: env.RELEASE_KEYSTORE_BASE64 != ''
+        run: |
+          cat > android/app/proguard-rules.pro << 'PROGUARD'
+          # google_mlkit_text_recognition — langues optionnelles non utilisées
+          -dontwarn com.google.mlkit.vision.text.chinese.**
+          -dontwarn com.google.mlkit.vision.text.japanese.**
+          -dontwarn com.google.mlkit.vision.text.korean.**
+          -dontwarn com.google.mlkit.vision.text.devanagari.**
+          -dontwarn com.google.android.gms.internal.mlkit_vision_text_common.**
+          -dontwarn com.google.mlkit.common.**
+          -keep class com.google.mlkit.vision.text.** { *; }
+          -keep class com.google.android.gms.internal.mlkit_vision_text_common.** { *; }
+
+          # Flutter / Firebase / autres
+          -keep class io.flutter.app.** { *; }
+          -keep class io.flutter.plugin.** { *; }
+          -keep class io.flutter.util.** { *; }
+          -keep class io.flutter.view.** { *; }
+          -keep class io.flutter.** { *; }
+          -keep class io.flutter.plugins.** { *; }
+          -dontwarn io.flutter.embedding.**
+          PROGUARD
+
+          # S'assurer que le buildType release utilise bien ces règles
+          cat >> android/app/build.gradle.kts << 'EOF'
+
+          android {
+              buildTypes {
+                  getByName("release") {
+                      isMinifyEnabled = true
+                      isShrinkResources = true
+                      proguardFiles(
+                          getDefaultProguardFile("proguard-android-optimize.txt"),
+                          "proguard-rules.pro"
+                      )
+                  }
+              }
+          }
+          EOF
+          echo "OK : proguard-rules.pro créé et lié au buildType release"
+          cat android/app/proguard-rules.pro
+
+      # Build de RELEASE (AAB signé)
       - name: Preparer les credentials de release
         if: env.RELEASE_KEYSTORE_BASE64 != ''
         env:
