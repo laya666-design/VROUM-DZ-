@@ -65,6 +65,8 @@ class VehiculeService {
 class SettingsService {
   static const String boxName = 'settings';
   static const String _premiumKey = 'isPremium';
+  static const String _premiumEndKey = 'premiumEndDate';
+  static const String _premiumRequestIdKey = 'premiumRequestId';
 
   static Future<void> init() async {
     await Hive.openBox(boxName);
@@ -73,11 +75,49 @@ class SettingsService {
 
   static Box get _box => Hive.box(boxName);
 
-  static bool get isPremium =>
-      _box.get(_premiumKey, defaultValue: false) as bool;
+  /// true si le Premium est actif — soit sans date d'expiration connue
+  /// (compatibilité avec l'ancien flux gratuit), soit avec une date
+  /// d'expiration encore dans le futur (flux BaridiMob validé par un
+  /// admin, voir PremiumPaymentService).
+  static bool get isPremium {
+    final v = _box.get(_premiumKey, defaultValue: false) as bool;
+    if (!v) return false;
+    final endStr = _box.get(_premiumEndKey) as String?;
+    if (endStr == null) return true;
+    final end = DateTime.tryParse(endStr);
+    if (end == null) return true;
+    return DateTime.now().isBefore(end);
+  }
 
   static Future<void> setPremium(bool value) async {
     await _box.put(_premiumKey, value);
+    if (!value) await _box.delete(_premiumEndKey);
+  }
+
+  /// Active le Premium avec une date d'expiration précise (après
+  /// validation d'un paiement BaridiMob par un admin).
+  static Future<void> setPremiumUntil(DateTime end) async {
+    await _box.put(_premiumKey, true);
+    await _box.put(_premiumEndKey, end.toIso8601String());
+  }
+
+  static DateTime? get premiumEndDate {
+    final s = _box.get(_premiumEndKey) as String?;
+    return s != null ? DateTime.tryParse(s) : null;
+  }
+
+  /// Id de la demande de paiement Premium envoyée mais pas encore
+  /// validée par un admin — permet de reprendre la vérification si
+  /// l'utilisateur ferme et rouvre l'app avant validation.
+  static String? get premiumRequestId =>
+      _box.get(_premiumRequestIdKey) as String?;
+
+  static Future<void> setPremiumRequestId(String? value) async {
+    if (value == null) {
+      await _box.delete(_premiumRequestIdKey);
+    } else {
+      await _box.put(_premiumRequestIdKey, value);
+    }
   }
 
   // --- Rappels SMS / Appel (Premium) ---

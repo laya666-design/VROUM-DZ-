@@ -2,11 +2,13 @@ import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
 import '../services/google_auth_helper.dart';
+import '../services/premium_payment_service.dart';
 import '../services/vehicule_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/screen_background.dart';
@@ -61,245 +63,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SnackBar(content: Text('WhatsApp non disponible')),
       );
     }
-  }
-
-  void _showAboutDialog(String Function(String, String) t) {
-    final green = widget.config.primaryColor;
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(ctx).size.height * 0.85,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 12, 0),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: green.withOpacity(0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.directions_car_filled_rounded,
-                            size: 26, color: green),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.config.appName,
-                              style: const TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.w800),
-                            ),
-                            Text(
-                              t('Roulez tranquille. On s\'occupe du reste.',
-                                  'سوق مرتاح. حنا نتكفلو بالباقي.'),
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.grey.shade600),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 20),
-                // Scrollable body
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t(
-                            'VROUM DZ est né d\'un constat simple : on a tous déjà stressé au barrage pour une assurance ou un contrôle technique oublié.\n\nOn a créé la première app algérienne qui vous évite les amendes.',
-                            'VROUM DZ جاء من ملاحظة بسيطة: كاملنا توترنا مرة في الحاجز على تأمين أو مراقبة تقنية منسيّة.\n\nدرنا أول تطبيق جزائري يبعدك على الغرامات.',
-                          ),
-                          style: TextStyle(
-                              fontSize: 13.5,
-                              height: 1.45,
-                              color: Colors.grey.shade800),
-                        ),
-                        const SizedBox(height: 18),
-                        Text(
-                          t('Que fait VROUM DZ pour vous ?',
-                              'ماذا يفعل VROUM DZ من أجلك؟'),
-                          style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 12),
-                        _aboutFeature(
-                          emoji: '📸',
-                          title: t('SCAN INTELLIGENT — Zéro saisie',
-                              'مسح ذكي — بدون إدخال يدوي'),
-                          body: t(
-                            'Prenez en photo votre carte grise, assurance et contrôle technique. L\'app extrait les dates automatiquement. 3 secondes, c\'est fait.',
-                            'صوّر البطاقة الرمادية، التأمين والمراقبة التقنية. التطبيق يستخرج التواريخ تلقائياً. 3 ثواني وبرك.',
-                          ),
-                        ),
-                        _aboutFeature(
-                          emoji: '🔔',
-                          title: t('RAPPEL ANTI-AMENDE', 'تذكير ضد الغرامات'),
-                          body: t(
-                            'On vous alerte 7 jours, 3 jours et 1 jour avant la fin de validité. Plus jamais d\'amende pour papier expiré.',
-                            'ننبّهوك قبل 7 أيام، 3 أيام ويوم واحد من انتهاء الصلاحية. عمرك ما تعاود تدفع غرامة على وثيقة منتهية.',
-                          ),
-                        ),
-                        _aboutFeature(
-                          emoji: '🔧',
-                          title: t('PIÈCES & SOS', 'قطع الغيار والطوارئ'),
-                          body: t(
-                            'Pièce cassée ? Photographiez-la, VROUM vous dit ce que c\'est.\nEn panne ? Le bouton SOS trouve la dépanneuse ou le magasin de pièces le plus proche de vous.',
-                            'قطعة تكسرت؟ صوّرها، VROUM يقولك وش هي.\nطحت في عطب؟ زر SOS يلقى أقرب ونش أو محل قطع غيار ليك.',
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          t(
-                            'Pour voiture et moto. Conçu par des conducteurs algériens, pour les conducteurs algériens.',
-                            'للسيارة والدراجة النارية. مصمم من سائقين جزائريين، للسائقين الجزائريين.',
-                          ),
-                          style: TextStyle(
-                              fontSize: 13,
-                              height: 1.4,
-                              fontStyle: FontStyle.italic,
-                              color: Colors.grey.shade700),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          t('Notre promesse', 'وعدنا'),
-                          style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          t(
-                            'Vos données restent privées et sécurisées sur votre téléphone. VROUM DZ est gratuit pour 1 véhicule. Passez en Premium pour les véhicules illimités et les rappels par SMS.',
-                            'بياناتك تبقى خاصة وآمنة على هاتفك. VROUM DZ مجاني لمركبة واحدة. انتقل إلى Premium للمركبات غير المحدودة والتذكيرات عبر SMS.',
-                          ),
-                          style: TextStyle(
-                              fontSize: 13,
-                              height: 1.4,
-                              color: Colors.grey.shade800),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          t(
-                            'Une question ? Une idée ? On répond vite.',
-                            'عندك سؤال؟ فكرة؟ نجاوبوك بسرعة.',
-                          ),
-                          style: TextStyle(
-                              fontSize: 13, color: Colors.grey.shade700),
-                        ),
-                        const SizedBox(height: 16),
-                        Center(
-                          child: Column(
-                            children: [
-                              Text(
-                                'VROUM DZ v1.0',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.grey.shade600),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                t('Fait avec ❤️ en Algérie',
-                                    'صُنع بـ ❤️ في الجزائر'),
-                                style: TextStyle(
-                                    fontSize: 12, color: Colors.grey.shade600),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'vroumdz.support@gmail.com',
-                                style: TextStyle(
-                                    fontSize: 12, color: green),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Close button
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      style: TextButton.styleFrom(
-                        backgroundColor: green.withOpacity(0.1),
-                        foregroundColor: green,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(
-                        t('Fermer', 'إغلاق'),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _aboutFeature({
-    required String emoji,
-    required String title,
-    required String body,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 20)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 13.5, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 3),
-                Text(body,
-                    style: TextStyle(
-                        fontSize: 12.5,
-                        height: 1.4,
-                        color: Colors.grey.shade700)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   // ─── Labels véhicule ─────────────────────────────────────────────────────
@@ -650,169 +413,417 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _showPremiumSheet(
       BuildContext context, String Function(String, String) t) {
+    // Id d'une demande déjà envoyée mais pas encore validée par un admin
+    // (survit à la fermeture/réouverture de l'app — voir SettingsService).
+    final pendingRequestId = SettingsService.premiumRequestId;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
+        String planId = 'mensuel';
+        String methode = 'Baridimob';
+        File? recu;
+        bool sending = false;
+        bool checking = false;
+        String? checkError;
+        final phoneController =
+            TextEditingController(text: SettingsService.userTel ?? '');
+
+        Future<void> choisirRecu(void Function(void Function()) setSt) async {
+          final picker = ImagePicker();
+          final img = await picker.pickImage(
+              source: ImageSource.gallery, imageQuality: 80);
+          if (img == null) return;
+          setSt(() => recu = File(img.path));
+        }
+
+        Future<void> envoyer(
+            void Function(void Function()) setSt, BuildContext sheetCtx) async {
+          if (recu == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(t('Ajoute une photo du reçu.', 'أضف صورة الوصل.'))),
+            );
+            return;
+          }
+          var phone = phoneController.text.trim();
+          if (phone.isEmpty) {
+            final saisi = await showTelPickerDialog(
+              sheetCtx,
+              accentColor: widget.config.primaryColor,
+              valeurInitiale: SettingsService.userTel,
+            );
+            if (saisi == null || saisi.trim().isEmpty) return;
+            phone = saisi.trim();
+            phoneController.text = phone;
+          }
+          await SettingsService.setUserTel(phone);
+          setSt(() => sending = true);
+          try {
+            final requestId = await PremiumPaymentService.submitPremiumPayment(
+              recu: recu!,
+              phone: phone,
+              methode: methode,
+              planId: planId,
+            );
+            await SettingsService.setPremiumRequestId(requestId);
+            if (!ctx.mounted) return;
+            Navigator.pop(ctx);
+            showDialog(
+              context: context,
+              builder: (dctx) => AlertDialog(
+                title: Text(t('Preuve envoyée', 'تم إرسال الوصل')),
+                content: Text(t(
+                  'Ton paiement est en cours de vérification. Ton accès '
+                  'Premium sera activé dès validation (généralement sous 24h).',
+                  'دفعتك قيد التحقق. سيتم تفعيل Premium فور التحقق (عادة خلال 24 ساعة).',
+                )),
+                actions: [
+                  FilledButton(
+                    onPressed: () => Navigator.pop(dctx),
+                    child: Text(t('Compris', 'حسناً')),
                   ),
+                ],
+              ),
+            );
+          } catch (e) {
+            if (!sheetCtx.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Erreur : $e')),
+            );
+          } finally {
+            if (sheetCtx.mounted) setSt(() => sending = false);
+          }
+        }
+
+        Future<void> verifierStatut(
+            void Function(void Function()) setSt) async {
+          if (pendingRequestId == null) return;
+          setSt(() {
+            checking = true;
+            checkError = null;
+          });
+          try {
+            final res =
+                await PremiumPaymentService.checkStatus(pendingRequestId);
+            if (res.statut == 'valide') {
+              await SettingsService.setPremiumUntil(
+                  res.premiumEndDate ?? DateTime.now().add(const Duration(days: 30)));
+              await SettingsService.setPremiumRequestId(null);
+              if (!ctx.mounted) return;
+              Navigator.pop(ctx);
+              setState(() {});
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(t('🎉 Bienvenue en Premium !', '🎉 مرحباً بك في Premium !')),
+                  backgroundColor: widget.config.primaryColor,
                 ),
-                const SizedBox(height: 18),
-                Text(
-                  'VROUM Premium',
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  t(
-                    'Tout ce dont vous avez besoin pour gérer vos véhicules sans limite.',
-                    'كل ما تحتاجه لإدارة مركباتك بلا حدود.',
-                  ),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 13, color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 20),
-                _benefitRow(
-                  t('Véhicules illimités', 'مركبات غير محدودة'),
-                  t(
-                    'Ajoutez autant de voitures ou motos que vous voulez',
-                    'أضف أكبر عدد من السيارات أو الدراجات',
-                  ),
-                ),
-                _benefitRow(
-                  t('Rappels SMS & Appel', 'تذكيرات SMS ومكالمات'),
-                  t(
-                    'Ne ratez plus jamais une échéance d\'assurance ou de contrôle',
-                    'لن تفوت أبداً موعد تأمين أو مراقبة',
-                  ),
-                ),
-                _benefitRow(
-                  t('Support prioritaire', 'دعم ذو أولوية'),
-                  t(
-                    'Réponse en moins de 2h via WhatsApp',
-                    'رد في أقل من ساعتين عبر واتساب',
-                  ),
-                ),
-                _benefitRow(
-                  t('Accès anticipé', 'وصول مبكر'),
-                  t(
-                    'Nouvelles fonctionnalités en avant-première',
-                    'ميزات جديدة قبل الجميع',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Prix
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFECFDF5), Color(0xFFD1FAE5)],
+              );
+              return;
+            } else if (res.statut == 'refuse') {
+              await SettingsService.setPremiumRequestId(null);
+              setSt(() => checkError = t(
+                  'Paiement refusé. Contacte le support si tu penses que c\'est une erreur.',
+                  'تم رفض الدفع. تواصل مع الدعم إذا كنت تعتقد أن هذا خطأ.'));
+            } else {
+              setSt(() => checkError = t(
+                  'Toujours en attente de validation.', 'لا يزال قيد التحقق.'));
+            }
+          } catch (e) {
+            setSt(() => checkError = 'Erreur : $e');
+          } finally {
+            setSt(() => checking = false);
+          }
+        }
+
+        return StatefulBuilder(builder: (ctx, setSt) {
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFA7F3D0)),
-                  ),
-                  child: Column(
-                    children: [
-                      Text.rich(
-                        TextSpan(
+                    const SizedBox(height: 18),
+                    const Text(
+                      'VROUM Premium',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      t(
+                        'Tout ce dont vous avez besoin pour gérer vos véhicules sans limite.',
+                        'كل ما تحتاجه لإدارة مركباتك بلا حدود.',
+                      ),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 20),
+                    _benefitRow(
+                      t('Véhicules illimités', 'مركبات غير محدودة'),
+                      t('Ajoutez autant de voitures ou motos que vous voulez',
+                          'أضف أكبر عدد من السيارات أو الدراجات'),
+                    ),
+                    _benefitRow(
+                      t('Rappels SMS & Appel', 'تذكيرات SMS ومكالمات'),
+                      t('Ne ratez plus jamais une échéance d\'assurance ou de contrôle',
+                          'لن تفوت أبداً موعد تأمين أو مراقبة'),
+                    ),
+                    _benefitRow(
+                      t('Support prioritaire', 'دعم ذو أولوية'),
+                      t('Réponse en moins de 2h via WhatsApp', 'رد في أقل من ساعتين عبر واتساب'),
+                    ),
+                    _benefitRow(
+                      t('Accès anticipé', 'وصول مبكر'),
+                      t('Nouvelles fonctionnalités en avant-première', 'ميزات جديدة قبل الجميع'),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Demande déjà envoyée, en attente de validation ──
+                    if (pendingRequestId != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.amber.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            TextSpan(
-                              text: '490 DA',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w800,
-                                color: widget.config.primaryDark,
-                              ),
+                            Text(
+                              t('Paiement en cours de vérification', 'الدفع قيد التحقق'),
+                              style: const TextStyle(fontWeight: FontWeight.w700),
                             ),
-                            TextSpan(
-                              text: ' / mois',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: widget.config.primaryDark,
+                            const SizedBox(height: 4),
+                            Text(
+                              t(
+                                'Ton accès Premium s\'active automatiquement dès validation par un admin.',
+                                'سيتم تفعيل Premium تلقائياً فور التحقق من طرف المشرف.',
                               ),
+                              style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
                             ),
+                            if (checkError != null) ...[
+                              const SizedBox(height: 8),
+                              Text(checkError!,
+                                  style: const TextStyle(color: Colors.red, fontSize: 12.5)),
+                            ],
                           ],
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        t(
-                          'ou 4 900 DA / an (économisez 2 mois)',
-                          'أو 4900 دج / سنة (وفّر شهرين)',
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: checking ? null : () => verifierStatut(setSt),
+                          icon: checking
+                              ? const SizedBox(
+                                  width: 16, height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.refresh),
+                          label: Text(t('Vérifier mon paiement', 'التحقق من دفعتي')),
                         ),
-                        style: TextStyle(
-                            fontSize: 13, color: Colors.grey.shade600),
+                      ),
+                    ] else ...[
+                      // ── Choix du forfait ──
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _premiumPlanCard(
+                              selected: planId == 'mensuel',
+                              titre: '490 DA',
+                              sousTitre: t('/ mois', '/ شهر'),
+                              onTap: () => setSt(() => planId = 'mensuel'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _premiumPlanCard(
+                              selected: planId == 'annuel',
+                              titre: '4 900 DA',
+                              sousTitre: t('/ an · -2 mois', '/ سنة · وفّر شهرين'),
+                              onTap: () => setSt(() => planId = 'annuel'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+
+                      // ── Paiement BaridiMob / CCP / Virement ──
+                      DropdownButtonFormField<String>(
+                        value: methode,
+                        decoration: InputDecoration(
+                          labelText: t('Méthode de paiement', 'طريقة الدفع'),
+                          border: const OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'Baridimob', child: Text('BaridiMob')),
+                          DropdownMenuItem(value: 'CCP', child: Text('CCP')),
+                          DropdownMenuItem(value: 'Virement', child: Text('Virement bancaire')),
+                        ],
+                        onChanged: (v) => setSt(() => methode = v ?? 'Baridimob'),
+                      ),
+                      if (methode == 'Baridimob') ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.blue.shade100),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.phone_iphone, color: Colors.blueGrey),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      t('Envoie le montant sur ce numéro BaridiMob :',
+                                          'أرسل المبلغ إلى رقم BaridiMob هذا:'),
+                                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                    ),
+                                    Text(
+                                      widget.config.baridimobPhone,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold, fontSize: 16),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.copy, size: 20),
+                                tooltip: t('Copier le numéro', 'نسخ الرقم'),
+                                onPressed: () async {
+                                  await Clipboard.setData(
+                                      ClipboardData(text: widget.config.baridimobPhone));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(t('Numéro copié.', 'تم نسخ الرقم.'))),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          labelText: t('Ton numéro de téléphone', 'رقم هاتفك'),
+                          border: const OutlineInputBorder(),
+                          hintText: '0556 65 32 20',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => choisirRecu(setSt),
+                        icon: const Icon(Icons.photo_camera),
+                        label: Text(recu == null
+                            ? t('Ajouter la photo du reçu', 'إضافة صورة الوصل')
+                            : t('Reçu sélectionné ✓', 'تم اختيار الوصل ✓')),
+                      ),
+                      if (recu != null) ...[
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(recu!, height: 140, fit: BoxFit.cover),
+                        ),
+                      ],
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: sending ? null : () => envoyer(setSt, ctx),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: widget.config.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: sending
+                              ? const SizedBox(
+                                  width: 20, height: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : Text(
+                                  t('Envoyer la preuve de paiement', 'إرسال إثبات الدفع'),
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                ),
+                        ),
                       ),
                     ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      await SettingsService.setPremium(true);
-                      if (!ctx.mounted) return;
-                      Navigator.pop(ctx);
-                      setState(() {});
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(t(
-                            '🎉 Bienvenue en Premium !',
-                            '🎉 مرحباً بك في Premium !',
-                          )),
-                          backgroundColor: widget.config.primaryColor,
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.config.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(
+                        t('Plus tard', 'لاحقاً'),
+                        style: TextStyle(color: Colors.grey.shade600),
                       ),
-                      elevation: 0,
                     ),
-                    child: Text(
-                      t('Passer en Premium', 'الترقية إلى Premium'),
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w700),
-                    ),
-                  ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text(
-                    t('Plus tard', 'لاحقاً'),
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        );
+          );
+        });
       },
+    );
+  }
+
+  Widget _premiumPlanCard({
+    required bool selected,
+    required String titre,
+    required String sousTitre,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: selected
+              ? const LinearGradient(colors: [Color(0xFFECFDF5), Color(0xFFD1FAE5)])
+              : null,
+          color: selected ? null : Colors.grey.shade100,
+          border: Border.all(
+            color: selected ? const Color(0xFFA7F3D0) : Colors.grey.shade300,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Text(titre,
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: selected ? widget.config.primaryDark : Colors.black87)),
+            const SizedBox(height: 2),
+            Text(sousTitre, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1509,7 +1520,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.info_outline_rounded,
                         title: t('À propos', 'حول التطبيق'),
                         subtitle: widget.config.appName,
-                        onTap: () => _showAboutDialog(t),
                       ),
                     ),
                   ],

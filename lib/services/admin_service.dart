@@ -314,6 +314,38 @@ class AdminService {
     });
   }
 
+  // --- Paiements Premium individuel (automobiliste) -----------------------
+  // Collection top-level `premium_requests`, gérée exclusivement via les
+  // Cloud Functions dédiées (voir functions/index.js) : pas de repli
+  // Firestore direct ici, les règles Firestore n'autorisent rien sur
+  // cette collection (tout passe par l'Admin SDK côté serveur).
+
+  static Future<List<Map<String, dynamic>>> listPendingPremiumPayments() async {
+    final callable =
+        FirebaseFunctions.instance.httpsCallable('listPendingPremiumPayments');
+    final result = await callable.call();
+    final payments = (result.data?['payments'] as List?) ?? [];
+    return payments.cast<Map<String, dynamic>>();
+  }
+
+  static Future<void> validatePremiumPayment({required String requestId}) async {
+    final callable =
+        FirebaseFunctions.instance.httpsCallable('validatePremiumPayment');
+    await callable.call({'requestId': requestId});
+  }
+
+  static Future<void> rejectPremiumPayment({
+    required String requestId,
+    String? raison,
+  }) async {
+    final callable =
+        FirebaseFunctions.instance.httpsCallable('rejectPremiumPayment');
+    await callable.call({
+      'requestId': requestId,
+      if (raison != null) 'raison': raison,
+    });
+  }
+
   // --- Demandes ----------------------------------------------------------
 
   static Stream<List<PartRequest>> watchRequests({int limit = 50}) {

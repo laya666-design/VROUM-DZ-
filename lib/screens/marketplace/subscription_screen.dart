@@ -25,7 +25,8 @@ class SubscriptionScreen extends StatefulWidget {
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   String _planId = kSubscriptionPlans.first.id;
   bool _payingAuto = false;
-  bool _showManuel = false;
+  bool _showManuel = true;
+  bool _showCarte = false;
 
   // -- Paiement manuel (virement / CCP / Baridimob), en repli --
   File? _recu;
@@ -268,37 +269,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               Text('Choisis un forfait', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 10),
               ...kSubscriptionPlans.map(_forfaitCard),
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                onPressed: _payingAuto ? null : _payerAutomatique,
-                icon: _payingAuto
-                    ? const SizedBox(
-                        width: 18, height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.credit_card),
-                label: Text(_payingAuto
-                    ? 'Ouverture du paiement…'
-                    : 'Payer ${_planChoisi.prixDA} DA par carte (CIB / Edahabia)'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  backgroundColor: widget.config.primaryColor,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Paiement 100% automatique via Chargily Pay : ton abonnement '
-                's\'active dès la confirmation, sans rien envoyer.',
-                style: TextStyle(fontSize: 12, color: Colors.black45),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => setState(() => _showManuel = !_showManuel),
-                child: Text(_showManuel
-                    ? 'Masquer le paiement par virement/CCP'
-                    : 'Pas de carte ? Payer par virement / CCP / Baridimob'),
-              ),
+              const SizedBox(height: 12),
+              // ── Paiement par virement/CCP/BaridiMob : mis en avant pour
+              // le moment (Chargily reste en repli plus bas, en attendant
+              // le registre de commerce nécessaire à l'activation réelle). ──
               if (_showManuel) ...[
-                const Divider(height: 24),
                 DropdownButtonFormField<String>(
                   value: _methode,
                   decoration: const InputDecoration(
@@ -379,6 +354,39 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           width: 20, height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Text('Envoyer la preuve de paiement'),
+                ),
+              ],
+              const SizedBox(height: 20),
+              const Divider(height: 24),
+              TextButton.icon(
+                onPressed: () => setState(() => _showCarte = !_showCarte),
+                icon: const Icon(Icons.credit_card, size: 18),
+                label: Text(_showCarte
+                    ? 'Masquer le paiement par carte'
+                    : 'Payer par carte (CIB / Edahabia) à la place'),
+              ),
+              if (_showCarte) ...[
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: _payingAuto ? null : _payerAutomatique,
+                  icon: _payingAuto
+                      ? const SizedBox(
+                          width: 18, height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.credit_card),
+                  label: Text(_payingAuto
+                      ? 'Ouverture du paiement…'
+                      : 'Payer ${_planChoisi.prixDA} DA par carte (CIB / Edahabia)'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    backgroundColor: widget.config.primaryColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Paiement 100% automatique via Chargily Pay : ton abonnement '
+                  's\'active dès la confirmation, sans rien envoyer.',
+                  style: TextStyle(fontSize: 12, color: Colors.black45),
                 ),
               ],
             ],

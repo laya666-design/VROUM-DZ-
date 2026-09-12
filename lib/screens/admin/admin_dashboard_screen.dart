@@ -5,6 +5,7 @@ import '../../services/admin_service.dart';
 import '../../services/marketplace_models.dart';
 import '../../services/sos_models.dart';
 import 'admin_payments_screen.dart';
+import 'admin_premium_payments_screen.dart';
 
 /// Tableau de bord admin : magasins, paiements, demandes.
 class AdminDashboardScreen extends StatefulWidget {
@@ -22,7 +23,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
+    _tabs = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -59,6 +60,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           tabs: const [
             Tab(text: 'Magasins', icon: Icon(Icons.storefront, size: 18)),
             Tab(text: 'Paiements', icon: Icon(Icons.payment, size: 18)),
+            Tab(text: 'Premium', icon: Icon(Icons.workspace_premium, size: 18)),
             Tab(text: 'Demandes', icon: Icon(Icons.list_alt, size: 18)),
             Tab(text: 'Dépanneuses', icon: Icon(Icons.local_shipping, size: 18)),
           ],
@@ -69,6 +71,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         children: [
           _StoresTab(config: widget.config),
           AdminPaymentsScreen(config: widget.config, embedded: true),
+          AdminPremiumPaymentsScreen(config: widget.config, embedded: true),
           _RequestsTab(config: widget.config),
           _DepanneusesTab(config: widget.config),
         ],
