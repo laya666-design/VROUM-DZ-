@@ -97,13 +97,18 @@ class _HomeScreenState extends State<HomeScreen> {
     return ValueListenableBuilder<bool>(
       valueListenable: widget.isAr,
       builder: (context, isAr, _) {
-        // Profil choisi à l'onboarding (voiture / moto / les deux) :
-        // pilote quels onglets sont affichés. 'both' par défaut si
-        // jamais absent (ne devrait pas arriver, l'onboarding est
-        // obligatoire avant d'atteindre cet écran).
+        // Profil choisi à l'onboarding :
+        // voiture | moto | scooter | voiture_moto | voiture_scooter | both
         final profile = SettingsService.vehicleProfile ?? 'both';
-        final showVoiture = profile == 'voiture' || profile == 'both';
-        final showMoto = profile == 'moto' || profile == 'both';
+        final showVoiture = profile == 'voiture' ||
+            profile == 'voiture_moto' ||
+            profile == 'voiture_scooter' ||
+            profile == 'both';
+        final showMoto =
+            profile == 'moto' || profile == 'voiture_moto' || profile == 'both';
+        final showScooter = profile == 'scooter' ||
+            profile == 'voiture_scooter' ||
+            profile == 'both';
 
         // Clés uniques obligatoires pour IndexedStack : sans elles, Flutter
         // peut réutiliser les éléments Material/Ink entre onglets et déclencher
@@ -120,16 +125,32 @@ class _HomeScreenState extends State<HomeScreen> {
               key: const ValueKey('tab_motos'),
               config: widget.config,
               isAr: isAr,
-              types: const [TypeVehicule.moto, TypeVehicule.scooter],
-              titre: 'Motos & scooters',
-              titreAr: 'الدراجات النارية',
+              types: const [TypeVehicule.moto],
+              titre: 'Mes motos',
+              titreAr: 'دراجاتي النارية',
               sousTitre: 'Scanne assurance & CT — rappels avant expiration.',
               sousTitreAr: 'امسح التأمين والفحص — تذكيرات قبل الانتهاء.',
               iconePrincipale: Icons.two_wheeler,
-              labelAjout: 'Ajouter une moto / un scooter',
-              labelAjoutAr: 'إضافة دراجة نارية / سكوتر',
-              labelVide: 'Aucune moto ni scooter pour le moment',
-              labelVideAr: 'لا توجد دراجة حتى الآن',
+              labelAjout: 'Ajouter une moto',
+              labelAjoutAr: 'إضافة دراجة نارية',
+              labelVide: 'Aucune moto pour le moment',
+              labelVideAr: 'لا توجد دراجة نارية حتى الآن',
+            ),
+          if (showScooter)
+            VehiclesScreen(
+              key: const ValueKey('tab_scooters'),
+              config: widget.config,
+              isAr: isAr,
+              types: const [TypeVehicule.scooter],
+              titre: 'Mes scooters',
+              titreAr: 'سكوتراتي',
+              sousTitre: 'Scanne assurance & CT — rappels avant expiration.',
+              sousTitreAr: 'امسح التأمين والفحص — تذكيرات قبل الانتهاء.',
+              iconePrincipale: Icons.moped,
+              labelAjout: 'Ajouter un scooter',
+              labelAjoutAr: 'إضافة سكوتر',
+              labelVide: 'Aucun scooter pour le moment',
+              labelVideAr: 'لا يوجد سكوتر حتى الآن',
             ),
           PartsPortalScreen(
             key: const ValueKey('tab_pieces'),
@@ -154,6 +175,11 @@ class _HomeScreenState extends State<HomeScreen> {
             NavigationDestination(
               icon: const Icon(Icons.two_wheeler),
               label: isAr ? 'دراجاتي' : 'Motos',
+            ),
+          if (showScooter)
+            NavigationDestination(
+              icon: const Icon(Icons.moped),
+              label: isAr ? 'سكوتر' : 'Scooters',
             ),
           NavigationDestination(
             icon: const Icon(Icons.build),

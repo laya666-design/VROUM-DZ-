@@ -71,9 +71,8 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   final _engineCtrl = TextEditingController();
   final _fuelCtrl = TextEditingController();
 
-  /// Catalogue marques → modèles courants sur le marché algérien.
-  /// Évite la saisie libre (erreurs OCR) : l'utilisateur choisit dans la liste.
-  static const Map<String, List<String>> _catalogueMarques = {
+  /// Catalogue VOITURES — marques → modèles courants sur le marché algérien.
+  static const Map<String, List<String>> _catalogueVoitures = {
     'PEUGEOT': [
       '206', '207', '208', '301', '307', '308', '2008', '3008', '5008',
       'Partner', 'Expert', 'Boxer', '406', '407', '508',
@@ -188,7 +187,154 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     ],
   };
 
+  /// Catalogue MOTOS & SCOOTERS — marques → modèles courants en Algérie.
+  /// Catalogue MOTOS (deux-roues à cadre, pas scooters).
+  static const Map<String, List<String>> _catalogueMotos = {
+    'HONDA': [
+      'CG 125', 'CBR 150', 'CBR 250', 'CB 125', 'CB 150',
+      'XR 150', 'XR 190', 'Africa Twin', 'CRF',
+    ],
+    'YAMAHA': [
+      'YBR 125', 'R15', 'MT-15', 'MT-03', 'FZ 16', 'FZ 25',
+      'YZF-R3', 'Ténéré', 'WR',
+    ],
+    'SUZUKI': [
+      'Gixxer 150', 'Gixxer SF', 'Hayate', 'GSX-R', 'V-Strom',
+    ],
+    'BAJAJ': [
+      'Pulsar 150', 'Pulsar 180', 'Pulsar NS160', 'Pulsar NS200',
+      'Discover', 'Dominar 250', 'Dominar 400', 'CT 100',
+      'Platina', 'Avenger',
+    ],
+    'TVS': [
+      'Apache RTR 160', 'Apache RTR 200', 'Apache RR 310',
+      'Raider', 'XL100', 'Star City',
+    ],
+    'HERO': [
+      'Splendor', 'Passion', 'HF Deluxe', 'Xpulse 200', 'Glamour',
+    ],
+    'AS MOTORS': [
+      'RM125', 'RM150', 'RM200', 'City', 'Sport',
+    ],
+    'LONCIN': [
+      'LX125', 'LX150', 'GP',
+    ],
+    'ZONTES': [
+      'ZT125', 'ZT155', 'ZT250', 'ZT350', 'R350', 'GK350',
+    ],
+    'BENELLI': [
+      'TNT 150', 'TNT 25', 'Leoncino', 'TRK 251', 'TRK 502',
+      '302S', '502C', 'Imperiale',
+    ],
+    'CFMOTO': [
+      '300NK', '400NK', '650NK', '800MT', '300SR', '450SR',
+    ],
+    'KEEWAY': [
+      'RKF 125', 'RKS 125', 'Superlight', 'K-Light', 'V-Blade',
+    ],
+    'LIFAN': [
+      'KP150', 'KP200', 'KPR', 'LF150', 'X-Pect',
+    ],
+    'HAOJUE': [
+      'DR160', 'DK150', 'TR150',
+    ],
+    'VOGE': [
+      '300AC', '300R', '500DS', '500R', '650DSX',
+    ],
+    'KAWASAKI': [
+      'Ninja 250', 'Ninja 400', 'Z250', 'Z400', 'Versys',
+      'KLX', 'W175',
+    ],
+    'DAYUN': [
+      'DY125', 'DY150', 'Sports', 'Cruiser',
+    ],
+    'SANYA': [
+      'SY125', 'SY150',
+    ],
+    'APRILIA': [
+      'RS 125', 'Tuono', 'RS 660',
+    ],
+    'GENERIC': [
+      'Trigger', 'Cracker',
+    ],
+  };
+
+  /// Catalogue SCOOTERS uniquement.
+  static const Map<String, List<String>> _catalogueScooters = {
+    'HONDA': [
+      'Wave 110', 'Wave 125', 'PCX 125', 'PCX 160',
+      'Scoopy', 'Forza', 'SH 125', 'SH 150',
+    ],
+    'YAMAHA': [
+      'Crypton', 'NMAX 125', 'NMAX 155', 'XMAX', 'Aerox',
+      'Fascino', 'Mio',
+    ],
+    'SUZUKI': [
+      'Address 110', 'Address 125', 'Burgman', 'Access 125',
+    ],
+    'KYMCO': [
+      'Agility', 'Like 125', 'Like 150', 'X-Town', 'AK 550',
+      'People', 'Super 8',
+    ],
+    'SYM': [
+      'Jet 14', 'Jet X', 'Symphony', 'Cruisym', 'Maxsym',
+      'Fiddle', 'Orbit',
+    ],
+    'TVS': [
+      'Ntorq', 'Jupiter', 'Wego', 'Scooty',
+    ],
+    'HERO': [
+      'Pleasure', 'Destini', 'Maestro',
+    ],
+    'PIAGGIO': [
+      'Liberty', 'Medley', 'Beverly', 'MP3', 'Zip',
+    ],
+    'VESPA': [
+      'Primavera', 'Sprint', 'GTS', 'GTV', 'Elettrica',
+    ],
+    'PEUGEOT': [
+      'Django', 'Tweet', 'Kisbee', 'Metropolis', 'Speedfight',
+    ],
+    'APRILIA': [
+      'SR GT', 'SXR',
+    ],
+    'HAOJUE': [
+      'VZ150', 'KA150',
+    ],
+    'KEEWAY': [
+      'Fact', 'Zahara', 'Logik',
+    ],
+    'GENERIC': [
+      'XOR', 'Soho', 'Ideo',
+    ],
+    'DAYUN': [
+      'Scooter 125', 'Scooter 150',
+    ],
+    'SANYA': [
+      'Scooter',
+    ],
+    'AS MOTORS': [
+      'Scooter', 'City Scooter',
+    ],
+  };
+
+  /// Retourne le catalogue adapté au type de véhicule choisi.
+  /// - voiture  → catalogue voitures
+  /// - moto     → catalogue motos uniquement
+  /// - scooter  → catalogue scooters uniquement
+  Map<String, List<String>> get _catalogueActuel {
+    switch (widget.typeVehicule) {
+      case TypeVehicule.moto:
+        return _catalogueMotos;
+      case TypeVehicule.scooter:
+        return _catalogueScooters;
+      default:
+        return _catalogueVoitures;
+    }
+  }
+
   static const Map<String, Color> _couleurMarque = {
+    // Voitures
     'PEUGEOT': Color(0xFF1A1F71),
     'RENAULT': Color(0xFFFFCC33),
     'DACIA': Color(0xFF5B8C2A),
@@ -227,11 +373,36 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     'JAECOO': Color(0xFF14532D),
     'DFSK': Color(0xFFE11D48),
     'FOTON': Color(0xFF1D4ED8),
+    // Motos & scooters
+    'YAMAHA': Color(0xFF003399),
+    'BAJAJ': Color(0xFF1B4F9C),
+    'TVS': Color(0xFFED1C24),
+    'KYMCO': Color(0xFF00A3E0),
+    'SYM': Color(0xFF0055A5),
+    'HERO': Color(0xFFED1C24),
+    'AS MOTORS': Color(0xFF1E3A8A),
+    'LONCIN': Color(0xFF0F766E),
+    'ZONTES': Color(0xFF111827),
+    'BENELLI': Color(0xFF1C1917),
+    'CFMOTO': Color(0xFFDC2626),
+    'KEEWAY': Color(0xFF1D4ED8),
+    'LIFAN': Color(0xFFB91C1C),
+    'HAOJUE': Color(0xFF047857),
+    'VOGE': Color(0xFF7C2D12),
+    'PIAGGIO': Color(0xFF0EA5E9),
+    'VESPA': Color(0xFF15803D),
+    'KAWASAKI': Color(0xFF16A34A),
+    'DAYUN': Color(0xFF1E40AF),
+    'SANYA': Color(0xFF4B5563),
+    'APRILIA': Color(0xFFDC2626),
+    'GENERIC': Color(0xFF374151),
   };
 
-  /// Logos officiels embarqués en assets (fiables, offline, comme sur la photo).
+  /// Logos officiels embarqués en assets (fiables, offline).
   /// Fallback automatique sur l'initiale colorée si le fichier est absent.
+  /// Honda / Suzuki / Peugeot partagent le même logo voiture/moto.
   static const Map<String, String> _logoMarqueAssets = {
+    // Voitures
     'PEUGEOT': 'assets/logos/peugeot.png',
     'RENAULT': 'assets/logos/renault.png',
     'DACIA': 'assets/logos/dacia.png',
@@ -264,10 +435,33 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     'CHANGAN': 'assets/logos/changan.png',
     'JAC': 'assets/logos/jac.png',
     'DONGFENG': 'assets/logos/dongfeng.png',
-    // BAIC, DFSK, JAECOO : pas de logo local → fallback initiale colorée
     'EXEED': 'assets/logos/exeed.png',
     'OMODA': 'assets/logos/omoda.png',
     'FOTON': 'assets/logos/foton.png',
+    // Motos & scooters (ajouter les PNG dans assets/logos/ quand disponibles)
+    // Honda / Suzuki / Peugeot réutilisent déjà les logos ci-dessus.
+    'YAMAHA': 'assets/logos/yamaha.png',
+    'BAJAJ': 'assets/logos/bajaj.png',
+    'TVS': 'assets/logos/tvs.png',
+    'KYMCO': 'assets/logos/kymco.png',
+    'SYM': 'assets/logos/sym.png',
+    'HERO': 'assets/logos/hero.png',
+    'AS MOTORS': 'assets/logos/as_motors.png',
+    'LONCIN': 'assets/logos/loncin.png',
+    'ZONTES': 'assets/logos/zontes.png',
+    'BENELLI': 'assets/logos/benelli.png',
+    'CFMOTO': 'assets/logos/cfmoto.png',
+    'KEEWAY': 'assets/logos/keeway.png',
+    'LIFAN': 'assets/logos/lifan.png',
+    'HAOJUE': 'assets/logos/haojue.png',
+    'VOGE': 'assets/logos/voge.png',
+    'PIAGGIO': 'assets/logos/piaggio.png',
+    'VESPA': 'assets/logos/vespa.png',
+    'KAWASAKI': 'assets/logos/kawasaki.png',
+    'DAYUN': 'assets/logos/dayun.png',
+    'SANYA': 'assets/logos/sanya.png',
+    'APRILIA': 'assets/logos/aprilia.png',
+    'GENERIC': 'assets/logos/generic.png',
   };
 
   bool get _modeCreation => widget.vehicule == null;
@@ -310,12 +504,13 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   }
 
   void _fillControllers(CarteGriseInfo info) {
-    // Normalise la marque OCR vers une clé du catalogue si possible
-    // (ex: "Peugeot " → PEUGEOT) pour pré-sélectionner le bon logo.
+    // Normalise la marque OCR vers une clé du catalogue actif si possible
+    // (ex: "Peugeot " → PEUGEOT, "AS MOTORS" → AS MOTORS).
+    final catalogue = _catalogueActuel;
     final rawMarque = info.marque.trim().toUpperCase();
     String marque = rawMarque;
-    if (rawMarque.isNotEmpty && !_catalogueMarques.containsKey(rawMarque)) {
-      for (final key in _catalogueMarques.keys) {
+    if (rawMarque.isNotEmpty && !catalogue.containsKey(rawMarque)) {
+      for (final key in catalogue.keys) {
         if (rawMarque.contains(key) || key.contains(rawMarque)) {
           marque = key;
           break;
@@ -714,7 +909,7 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
 
   List<String> _modelesPourMarque(String marque) {
     final key = marque.toUpperCase().trim();
-    return List<String>.from(_catalogueMarques[key] ?? const <String>[]);
+    return List<String>.from(_catalogueActuel[key] ?? const <String>[]);
   }
 
   Widget _marqueAvatar(String marque, {double size = 36}) {
@@ -766,7 +961,7 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   }
 
   Future<void> _ouvrirSelecteurMarque() async {
-    final marques = _catalogueMarques.keys.toList()..sort();
+    final marques = _catalogueActuel.keys.toList()..sort();
     final current = _marqueCtrl.text.trim().toUpperCase();
     final chosen = await showModalBottomSheet<String>(
       context: context,

@@ -72,9 +72,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case 'voiture':
         return t('Voiture', 'سيارة');
       case 'moto':
-        return t('Moto / Scooter', 'دراجة نارية / سكوتر');
+        return t('Moto', 'دراجة نارية');
+      case 'scooter':
+        return t('Scooter', 'سكوتر');
+      case 'voiture_moto':
+        return t('Voiture + Moto', 'سيارة + دراجة');
+      case 'voiture_scooter':
+        return t('Voiture + Scooter', 'سيارة + سكوتر');
       default:
-        return t('Les deux', 'كلاهما');
+        return t('Tout (voiture, moto, scooter)', 'الكل');
     }
   }
 
@@ -94,70 +100,107 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
           child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Handle
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  t('Type de véhicule', 'نوع المركبة'),
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  t(
-                    'Cela détermine les onglets affichés dans l\'application',
-                    'يحدد هذا التبويبات المعروضة في التطبيق',
+                  const SizedBox(height: 18),
+                  Text(
+                    t('Type de véhicule', 'نوع المركبة'),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w700),
                   ),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 13, color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 16),
-                _vehicleOption(
-                  ctx: ctx,
-                  value: 'voiture',
-                  icon: Icons.directions_car,
-                  title: t('Voiture', 'سيارة'),
-                  subtitle: t(
-                    'Assurance, contrôle technique, carte grise…',
-                    'تأمين، مراقبة تقنية، بطاقة رمادية…',
+                  const SizedBox(height: 6),
+                  Text(
+                    t(
+                      'Cela détermine les onglets affichés dans l\'application',
+                      'يحدد هذا التبويبات المعروضة في التطبيق',
+                    ),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 13, color: Colors.grey.shade600),
                   ),
-                  selected: SettingsService.vehicleProfile == 'voiture',
-                ),
-                _vehicleOption(
-                  ctx: ctx,
-                  value: 'moto',
-                  icon: Icons.two_wheeler,
-                  title: t('Moto / Scooter', 'دراجة نارية / سكوتر'),
-                  subtitle: t(
-                    'Documents et pièces adaptés aux 2-roues',
-                    'وثائق وقطع مخصصة للدراجات',
+                  const SizedBox(height: 16),
+                  _vehicleOption(
+                    ctx: ctx,
+                    value: 'voiture',
+                    icon: Icons.directions_car,
+                    title: t('Voiture', 'سيارة'),
+                    subtitle: t(
+                      'Assurance, contrôle technique, carte grise…',
+                      'تأمين، مراقبة تقنية، بطاقة رمادية…',
+                    ),
+                    selected: SettingsService.vehicleProfile == 'voiture',
                   ),
-                  selected: SettingsService.vehicleProfile == 'moto',
-                ),
-                _vehicleOption(
-                  ctx: ctx,
-                  value: 'both',
-                  icon: Icons.sync_alt,
-                  title: t('Les deux', 'كلاهما'),
-                  subtitle: t(
-                    'Accès complet à toutes les fonctionnalités',
-                    'وصول كامل لجميع الميزات',
+                  _vehicleOption(
+                    ctx: ctx,
+                    value: 'moto',
+                    icon: Icons.two_wheeler,
+                    title: t('Moto', 'دراجة نارية'),
+                    subtitle: t(
+                      'Catalogue et documents adaptés aux motos',
+                      'كتالوج ووثائق مخصصة للدراجات النارية',
+                    ),
+                    selected: SettingsService.vehicleProfile == 'moto',
                   ),
-                  selected: SettingsService.vehicleProfile == 'both' ||
-                      SettingsService.vehicleProfile == null,
-                ),
-              ],
+                  _vehicleOption(
+                    ctx: ctx,
+                    value: 'scooter',
+                    icon: Icons.moped,
+                    title: t('Scooter', 'سكوتر'),
+                    subtitle: t(
+                      'Catalogue et documents adaptés aux scooters',
+                      'كتالوج ووثائق مخصصة للسكوتر',
+                    ),
+                    selected: SettingsService.vehicleProfile == 'scooter',
+                  ),
+                  _vehicleOption(
+                    ctx: ctx,
+                    value: 'voiture_moto',
+                    icon: Icons.directions_car,
+                    title: t('Voiture + Moto', 'سيارة + دراجة'),
+                    subtitle: t(
+                      'Onglets Voiture et Moto',
+                      'تبويب السيارة والدراجة',
+                    ),
+                    selected:
+                        SettingsService.vehicleProfile == 'voiture_moto',
+                  ),
+                  _vehicleOption(
+                    ctx: ctx,
+                    value: 'voiture_scooter',
+                    icon: Icons.directions_car,
+                    title: t('Voiture + Scooter', 'سيارة + سكوتر'),
+                    subtitle: t(
+                      'Onglets Voiture et Scooter',
+                      'تبويب السيارة والسكوتر',
+                    ),
+                    selected:
+                        SettingsService.vehicleProfile == 'voiture_scooter',
+                  ),
+                  _vehicleOption(
+                    ctx: ctx,
+                    value: 'both',
+                    icon: Icons.sync_alt,
+                    title: t('Tout (voiture, moto, scooter)', 'الكل'),
+                    subtitle: t(
+                      'Accès complet à toutes les fonctionnalités',
+                      'وصول كامل لجميع الميزات',
+                    ),
+                    selected: SettingsService.vehicleProfile == 'both' ||
+                        SettingsService.vehicleProfile == null,
+                  ),
+                ],
+              ),
             ),
           ),
         );
