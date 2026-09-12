@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../services/part_categories.dart';
 import '../../services/store_service.dart';
+import '../role_router.dart';
 import 'magasin_shell_screen.dart';
 
 /// Affiché une seule fois, juste après la toute première connexion par
@@ -89,16 +90,62 @@ class _StoreCompleteProfileScreenState
     });
   }
 
+  // Le compte Firebase existe déjà (créé avec actif: false) quand on
+  // arrive ici. "Retour" doit donc annuler proprement l'inscription en
+  // cours (déconnexion) plutôt que laisser un compte à moitié créé —
+  // sinon la prochaine ouverture de l'app relancerait cet écran sans
+  // que l'utilisateur comprenne pourquoi.
+  Future<void> _annulerInscription() async {
+    if (_loading) return;
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Annuler l\'inscription ?'),
+        content: const Text(
+          'Tu devras reconfirmer ton numéro de téléphone si tu reviens '
+          'plus tard.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Continuer l\'inscription'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Annuler'),
+          ),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+    await StoreService.signOut();
+    if (!mounted) return;
+    RoleRouter.changerDeProfil(
+      context,
+      config: widget.config,
+      isAr: ValueNotifier<bool>(false),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final showAutreField = _selectedCategories.contains(kCategorieAutre);
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _annulerInscription();
+      },
+      child: Scaffold(
       appBar: AppBar(
         backgroundColor: widget.config.primaryColor,
         foregroundColor: Colors.white,
         title: const Text('Ton magasin'),
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Retour',
+          onPressed: _annulerInscription,
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -205,6 +252,7 @@ class _StoreCompleteProfileScreenState
             ],
           ),
         ),
+      ),
       ),
     );
   }
