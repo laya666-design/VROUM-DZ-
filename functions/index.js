@@ -40,6 +40,14 @@ const PLANS = {
   annuel: { nom: 'Annuel', dureeJours: 365, prixDA: 18000 },
 };
 
+// Forfaits Premium individuel (automobiliste) — même logique que PLANS
+// ci-dessus mais tarifs différents (voir bottom sheet "VROUM Premium"
+// dans lib/screens/profile_screen.dart).
+const PREMIUM_PLANS = {
+  mensuel: { nom: 'Mensuel', dureeJours: 30, prixDA: 490 },
+  annuel: { nom: 'Annuel', dureeJours: 365, prixDA: 4900 },
+};
+
 /**
  * Notifie tous les magasins actifs (avec token FCM enregistré) dès
  * qu'une nouvelle demande de pièce est diffusée.
@@ -359,6 +367,149 @@ exports.rejectPayment = functions.https.onCall(async (data, context) => {
 
   return { success: true };
 });
+
+/**
+ * ── Premium individuel (automobiliste) — même principe que les preuves
+ * de paiement magasin, mais dans une collection top-level dédiée
+ * (`premium_requests`) car les comptes personnels n'ont pas de doc
+ * "store" pour héberger une sous-collection. L'identité du demandeur
+ * est son numéro de téléphone (saisi côté app, pas d'auth requise —
+ * cohérent avec le fait que le compte Premium reste local à l'appareil,
+ * voir SettingsService côté Flutter).
+ *
+ * Le montant n'est JAMAIS envoyé par le client : on ne fait confiance
+ * qu'au planId, le prix vient de PREMIUM_PLANS ci-dessus (même logique
+ * de sécurité que pour les abonnements magasin).
+ */
+exports.submitPremiumPayment = functions.https.onCall(async (data) => {
+  const { phone, methode, recuUrl, planId } = data;
+  if (!phone || !methode || !recuUrl) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'phone, methode et recuUrl sont requis.'
+    );
+  }
+  const plan = PREMIUM_PLANS[planId] ? planId : 'mensuel';
+
+  const db = admin.firestore();
+  const ref = db.collection('premium_requests').doc();
+  await ref.set({
+    phone: String(phone).trim(),
+    methode,
+    recuUrl,
+    planId: plan,
+    montant: PREMIUM_PLANS[plan].prixDA,
+    statut: 'en_attente',
+    dateEnvoi: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { success: true, requestId: ref.id };
+});
+
+/**
+ * Consultation publique du statut d'UNE demande précise, par son id
+ * (généré côté serveur, imprévisible — sert de jeton d'accès faible
+ * mais suffisant pour ce cas d'usage). Pas d'auth admin requise : c'est
+ * ce que l'app appelle régulièrement pour savoir si elle peut débloquer
+ * le Premium localement.
+ */
+exports.checkPremiumPaymentStatus = functions.https.onCall(async (data) => {
+  const { requestId } = data;
+  if (!requestId) {
+    throw new functions.https.HttpsError('invalid-argument', 'requestId requis.');
+  }
+  const snap = await admin.firestore().collection('premium_requests').doc(requestId).get();
+  if (!snap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Demande introuvable.');
+  }
+  const d = snap.data();
+  return {
+    statut: d.statut,
+    premiumEndDate: d.premiumEndDate ? d.premiumEndDate.toDate().toISOString() : null,
+  };
+});
+
+/**
+ * Liste toutes les demandes Premium en attente — réservée à un compte
+ * admin, même principe que listPendingPayments (magasins).
+ */
+exports.listPendingPremiumPayments = functions.https.onCall(async (data, context) => {
+  if (!context.auth || context.auth.token.admin !== true) {
+    throw new functions.https.HttpsError('permission-denied', 'Réservé à un compte admin.');
+  }
+  const snap = await admin
+    .firestore()
+    .collection('premium_requests')
+    .where('statut', '==', 'en_attente')
+    .orderBy('dateEnvoi', 'asc')
+    .get();
+
+  return {
+    payments: snap.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        requestId: doc.id,
+        phone: d.phone,
+        montant: d.montant,
+        methode: d.methode,
+        recuUrl: d.recuUrl,
+        planId: d.planId || 'mensuel',
+        dateEnvoi: d.dateEnvoi ? d.dateEnvoi.toDate().toISOString() : null,
+      };
+    }),
+  };
+});
+
+exports.validatePremiumPayment = functions.https.onCall(async (data, context) => {
+  if (!context.auth || context.auth.token.admin !== true) {
+    throw new functions.https.HttpsError('permission-denied', 'Réservé à un compte admin.');
+  }
+  const { requestId } = data;
+  if (!requestId) {
+    throw new functions.https.HttpsError('invalid-argument', 'requestId requis.');
+  }
+  const ref = admin.firestore().collection('premium_requests').doc(requestId);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Demande introuvable.');
+  }
+  const d = snap.data();
+  if (d.statut !== 'en_attente') {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      `Cette demande est déjà "${d.statut}".`
+    );
+  }
+  const plan = PREMIUM_PLANS[d.planId] || PREMIUM_PLANS.mensuel;
+  const premiumEndDate = admin.firestore.Timestamp.fromDate(
+    new Date(Date.now() + plan.dureeJours * 24 * 60 * 60 * 1000)
+  );
+  await ref.update({
+    statut: 'valide',
+    premiumEndDate,
+    validePar: context.auth.uid,
+    valideLe: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { success: true, premiumEndDate: premiumEndDate.toDate().toISOString() };
+});
+
+exports.rejectPremiumPayment = functions.https.onCall(async (data, context) => {
+  if (!context.auth || context.auth.token.admin !== true) {
+    throw new functions.https.HttpsError('permission-denied', 'Réservé à un compte admin.');
+  }
+  const { requestId, raison } = data;
+  if (!requestId) {
+    throw new functions.https.HttpsError('invalid-argument', 'requestId requis.');
+  }
+  await admin.firestore().collection('premium_requests').doc(requestId).update({
+    statut: 'refuse',
+    raisonRefus: raison || null,
+    traitePar: context.auth.uid,
+    traiteLe: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { success: true };
+});
+
 
 /**
  * Réinitialisation de mot de passe pour les comptes créés par téléphone
