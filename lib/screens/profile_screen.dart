@@ -624,25 +624,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                     ),
                     const SizedBox(height: 20),
-                    _benefitRow(
-                      t('Véhicules illimités', 'مركبات غير محدودة'),
-                      t('Ajoutez autant de voitures ou motos que vous voulez',
-                          'أضف أكبر عدد من السيارات أو الدراجات'),
-                    ),
-                    _benefitRow(
-                      t('Rappels SMS & Appel', 'تذكيرات SMS ومكالمات'),
-                      t('Ne ratez plus jamais une échéance d\'assurance ou de contrôle',
-                          'لن تفوت أبداً موعد تأمين أو مراقبة'),
-                    ),
-                    _benefitRow(
-                      t('Support prioritaire', 'دعم ذو أولوية'),
-                      t('Réponse en moins de 2h via WhatsApp', 'رد في أقل من ساعتين عبر واتساب'),
-                    ),
-                    _benefitRow(
-                      t('Accès anticipé', 'وصول مبكر'),
-                      t('Nouvelles fonctionnalités en avant-première', 'ميزات جديدة قبل الجميع'),
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
 
                     // ── Demande déjà envoyée, en attente de validation ──
                     if (pendingRequestId != null) ...[
@@ -825,6 +807,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                     ],
+                    const SizedBox(height: 22),
+                    Text(
+                      t('Pourquoi Premium ?', 'لماذا Premium ؟'),
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    _benefitRow(
+                      t('Véhicules illimités', 'مركبات غير محدودة'),
+                      t('Ajoutez autant de voitures ou motos que vous voulez',
+                          'أضف أكبر عدد من السيارات أو الدراجات'),
+                    ),
+                    _benefitRow(
+                      t('Rappels SMS & Appel', 'تذكيرات SMS ومكالمات'),
+                      t('Ne ratez plus jamais une échéance d\'assurance ou de contrôle',
+                          'لن تفوت أبداً موعد تأمين أو مراقبة'),
+                    ),
+                    _benefitRow(
+                      t('Support prioritaire', 'دعم ذو أولوية'),
+                      t('Réponse en moins de 2h via WhatsApp', 'رد في أقل من ساعتين عبر واتساب'),
+                    ),
+                    _benefitRow(
+                      t('Accès anticipé', 'وصول مبكر'),
+                      t('Nouvelles fonctionnalités en avant-première', 'ميزات جديدة قبل الجميع'),
+                    ),
+                    const SizedBox(height: 8),
                     TextButton(
                       onPressed: () => Navigator.pop(ctx),
                       child: Text(

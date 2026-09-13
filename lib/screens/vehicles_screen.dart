@@ -679,8 +679,6 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       if (v.year != null) '${v.year}',
       if (v.immatriculation.isNotEmpty) v.immatriculation,
     ];
-    final hasAssur = v.assuranceExpiration != null;
-    final hasCt = v.controleTechniqueExpiration != null;
 
     return Material(
       color: Colors.white,
@@ -811,59 +809,25 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   ],
                 ),
               ),
-              // Actions rapides
+              // Action rapide
               Padding(
                 padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _openVehicle(v),
-                        icon: Icon(
-                          hasAssur
-                              ? Icons.verified_user_outlined
-                              : Icons.document_scanner_outlined,
-                          size: 16,
-                        ),
-                        label: Text(
-                          hasAssur
-                              ? _t('Voir assurance', 'عرض التأمين')
-                              : _t('Scanner assurance', 'مسح التأمين'),
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF059669),
-                          side: const BorderSide(color: Color(0xFFA7F3D0)),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _openVehicle(v),
+                    icon: const Icon(Icons.description_outlined, size: 16),
+                    label: Text(
+                      _t('Voir les détails', 'عرض التفاصيل'),
+                      style: const TextStyle(fontSize: 13),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _openVehicle(v),
-                        icon: Icon(
-                          hasCt
-                              ? Icons.fact_check_outlined
-                              : Icons.document_scanner_outlined,
-                          size: 16,
-                        ),
-                        label: Text(
-                          hasCt
-                              ? _t('Voir CT', 'عرض الفحص')
-                              : _t('Scanner CT', 'مسح الفحص'),
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFD97706),
-                          side: const BorderSide(color: Color(0xFFFDE68A)),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: widget.config.primaryColor,
+                      side: BorderSide(color: widget.config.primaryColor.withOpacity(0.4)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      visualDensity: VisualDensity.compact,
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],
