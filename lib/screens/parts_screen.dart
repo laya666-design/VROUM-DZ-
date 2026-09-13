@@ -54,7 +54,8 @@ class _PartsScreenState extends State<PartsScreen> {
     // Respecte le profil véhicule (voiture / moto / les deux) choisi
     // à l'onboarding — sinon les motos n'apparaissaient jamais.
     final profile = SettingsService.vehicleProfile ?? 'both';
-    final types = <TypeVehicule>[];
+    // TypeVehicule.xxx sont des String (pas un enum).
+    final types = <String>[];
     if (profile == 'voiture' || profile == 'both') {
       types.add(TypeVehicule.voiture);
     }
