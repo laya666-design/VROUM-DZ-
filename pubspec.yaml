@@ -39,6 +39,9 @@ dependencies:
   geolocator: ^13.0.1
   cupertino_icons: ^1.0.6
   video_player: ^2.9.2
+  # Export PDF des documents véhicule (Premium).
+  pdf: ^3.11.1
+  printing: ^5.13.4
 
 dev_dependencies:
   flutter_test:
