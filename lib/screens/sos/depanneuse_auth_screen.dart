@@ -314,7 +314,7 @@ class _DepanneuseAuthScreenState extends State<DepanneuseAuthScreen> {
                     // faisait rien. La croix + le bouton retour système
                     // ramènent explicitement au choix de profil (les 3 cartes).
                     onPressed: retourProfil,
-                    icon: const Icon(Icons.arrow_back, size: 22),
+                    icon: const Icon(Icons.arrow_back, size: 22, color: Colors.black87),
                     tooltip: 'Retour',
                   ),
                   const Spacer(),

@@ -107,7 +107,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
             // l'utilisateur, il doit porter le logo VROUM DZ comme les autres.
             appBar: AppBar(
               backgroundColor: widget.config.primaryColor,
-              foregroundColor: Colors.black,
+              foregroundColor: Colors.white,
               toolbarHeight: 96,
               titleSpacing: 0,
               automaticallyImplyLeading: false,

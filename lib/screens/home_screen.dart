@@ -175,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Scaffold(
             appBar: AppBar(
               backgroundColor: widget.config.primaryColor,
-              foregroundColor: Colors.black,
+              foregroundColor: Colors.white,
               toolbarHeight: 96,
               titleSpacing: 0,
               flexibleSpace: ClipRect(

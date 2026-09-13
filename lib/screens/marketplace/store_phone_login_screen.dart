@@ -173,7 +173,7 @@ class _StorePhoneLoginScreenState extends State<StorePhoneLoginScreen> {
                 children: [
                   IconButton(
                     tooltip: 'Retour',
-                    icon: const Icon(Icons.arrow_back, size: 22),
+                    icon: const Icon(Icons.arrow_back, size: 22, color: Colors.black87),
                     onPressed: _retourProfil,
                   ),
                   const Spacer(),

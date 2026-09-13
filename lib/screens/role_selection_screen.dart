@@ -86,7 +86,7 @@ class RoleSelectionScreen extends StatelessWidget {
                           },
                           child: const Padding(
                             padding: EdgeInsets.all(8),
-                            child: Icon(Icons.arrow_back, size: 22),
+                            child: Icon(Icons.arrow_back, size: 22, color: AppColors.textPrimary),
                           ),
                         ),
                       ),

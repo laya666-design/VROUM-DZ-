@@ -401,9 +401,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   }
 
   Future<void> _openVehicle(Vehicule v) async {
-    // Carte Grise Magic n'a de sens que pour identifier un moteur ->
-    // affichée uniquement pour les voitures (pas motos/scooters).
-    final showCarteGrise = v.type == TypeVehicule.voiture;
+    // Carte Grise affichée pour voitures ET motos/scooters
+    // (demande utilisateur : détails carte grise visibles aussi en moto).
+    final showCarteGrise = true;
 
     await Navigator.of(context).push(
       MaterialPageRoute(

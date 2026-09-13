@@ -39,6 +39,34 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Si une demande Premium est en attente, vérifier automatiquement
+    // son statut à l'ouverture du profil pour appliquer le statut dès
+    // qu'un admin a validé (sans forcer l'utilisateur à rouvrir le sheet).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoCheckPremium());
+  }
+
+  Future<void> _autoCheckPremium() async {
+    final pendingId = SettingsService.premiumRequestId;
+    if (pendingId == null || SettingsService.isPremium) return;
+    try {
+      final res = await PremiumPaymentService.checkStatus(pendingId);
+      if (res.statut == 'valide') {
+        await SettingsService.setPremiumUntil(
+          res.premiumEndDate ?? DateTime.now().add(const Duration(days: 30)),
+        );
+        await SettingsService.setPremiumRequestId(null);
+        if (mounted) setState(() {});
+      } else if (res.statut == 'refuse') {
+        await SettingsService.setPremiumRequestId(null);
+      }
+    } catch (_) {
+      // Silencieux : l'utilisateur pourra toujours vérifier manuellement.
+    }
+  }
+
   // ─── Support ─────────────────────────────────────────────────────────────
 
   Future<void> _contactEmail() async {
@@ -1012,7 +1040,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _showLoginSheet(
       BuildContext context, String Function(String, String) t) async {
-    final nameCtrl = TextEditingController(text: SettingsService.userName ?? '');
+    final phoneCtrl = TextEditingController(text: SettingsService.userTel ?? '');
     var loading = false;
 
     await showModalBottomSheet<void>(
@@ -1056,19 +1084,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 6),
                       Text(
                         t(
-                          'Choisis un nom affiché et optionnellement connecte-toi avec Google.',
-                          'اختر اسمًا للعرض ويمكنك الاتصال بحساب Google.',
+                          'Entre ton numéro de téléphone pour l\'utiliser dans SOS et les demandes de pièces. Tu peux aussi te connecter avec Google.',
+                          'أدخل رقم هاتفك لاستخدامه في SOS وطلبات قطع الغيار. يمكنك أيضاً الاتصال بحساب Google.',
                         ),
                         style: TextStyle(
                             fontSize: 13, color: Colors.grey.shade600),
                       ),
                       const SizedBox(height: 16),
                       TextField(
-                        controller: nameCtrl,
-                        textCapitalization: TextCapitalization.words,
+                        controller: phoneCtrl,
+                        keyboardType: TextInputType.phone,
                         decoration: InputDecoration(
-                          labelText: t('Nom affiché', 'الاسم المعروض'),
-                          prefixIcon: const Icon(Icons.person_outline),
+                          labelText: t('Numéro de téléphone', 'رقم الهاتف'),
+                          hintText: '0556 65 32 20',
+                          prefixIcon: const Icon(Icons.phone_outlined),
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12)),
                         ),
@@ -1078,9 +1107,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onPressed: loading
                             ? null
                             : () async {
-                                final name = nameCtrl.text.trim();
-                                if (name.isEmpty) return;
-                                await SettingsService.setUserName(name);
+                                final phone = phoneCtrl.text.trim();
+                                final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+                                if (digits.length < 9) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(content: Text(t(
+                                      'Numéro invalide. Utilise le format 0556 65 32 20.',
+                                      'رقم غير صالح. استخدم الصيغة 0556 65 32 20.',
+                                    ))),
+                                  );
+                                  return;
+                                }
+                                await SettingsService.setUserTel(phone);
                                 if (ctx.mounted) Navigator.pop(ctx);
                                 if (mounted) setState(() {});
                               },
@@ -1091,7 +1129,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: Text(t('Enregistrer le nom', 'حفظ الاسم')),
+                        child: Text(t('Enregistrer le numéro', 'حفظ الرقم')),
                       ),
                       const SizedBox(height: 10),
                       OutlinedButton.icon(
@@ -1106,7 +1144,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   final photo = user?.photoURL;
                                   if (name != null && name.isNotEmpty) {
                                     await SettingsService.setUserName(name);
-                                    nameCtrl.text = name;
+                                  }
+                                  // Conserve le téléphone déjà saisi s'il y en a un
+                                  final existingTel = phoneCtrl.text.trim();
+                                  if (existingTel.isNotEmpty) {
+                                    await SettingsService.setUserTel(existingTel);
                                   }
                                   if (photo != null && photo.isNotEmpty) {
                                     await SettingsService.setAvatarPath(photo);
@@ -1143,6 +1185,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       if (FirebaseAuth.instance.currentUser != null ||
+                          (SettingsService.userTel?.isNotEmpty ?? false) ||
                           (SettingsService.userName?.isNotEmpty ?? false)) ...[
                         const SizedBox(height: 8),
                         TextButton(
@@ -1279,10 +1322,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  (SettingsService.userName?.isNotEmpty ??
-                                          false)
+                                  (SettingsService.userName?.isNotEmpty ?? false)
                                       ? SettingsService.userName!
-                                      : t('Invité', 'زائر'),
+                                      : (SettingsService.userTel?.isNotEmpty ?? false)
+                                          ? SettingsService.userTel!
+                                          : t('Invité', 'زائر'),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w800,
@@ -1295,8 +1339,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 GestureDetector(
                                   onTap: () => _showLoginSheet(context, t),
                                   child: Text(
-                                    (SettingsService.userName?.isNotEmpty ??
-                                            false)
+                                    ((SettingsService.userName?.isNotEmpty ?? false) ||
+                                            (SettingsService.userTel?.isNotEmpty ?? false))
                                         ? t('Modifier le profil',
                                             'تعديل الملف')
                                         : t('Se connecter', 'تسجيل الدخول'),

@@ -157,7 +157,7 @@ class _BuyerPhoneLoginScreenState extends State<BuyerPhoneLoginScreen> {
                 children: [
                   IconButton(
                     tooltip: 'Retour',
-                    icon: const Icon(Icons.close, size: 22),
+                    icon: const Icon(Icons.arrow_back, size: 22, color: Colors.black87),
                     onPressed: () {
                       if (Navigator.of(context).canPop()) {
                         Navigator.of(context).pop();

@@ -51,7 +51,20 @@ class _PartsScreenState extends State<PartsScreen> {
   @override
   void initState() {
     super.initState();
-    _vehicules = VehiculeService.getByTypes([TypeVehicule.voiture]);
+    // Respecte le profil véhicule (voiture / moto / les deux) choisi
+    // à l'onboarding — sinon les motos n'apparaissaient jamais.
+    final profile = SettingsService.vehicleProfile ?? 'both';
+    final types = <TypeVehicule>[];
+    if (profile == 'voiture' || profile == 'both') {
+      types.add(TypeVehicule.voiture);
+    }
+    if (profile == 'moto' || profile == 'both') {
+      types.addAll([TypeVehicule.moto, TypeVehicule.scooter]);
+    }
+    if (types.isEmpty) {
+      types.addAll([TypeVehicule.voiture, TypeVehicule.moto, TypeVehicule.scooter]);
+    }
+    _vehicules = VehiculeService.getByTypes(types);
     if (_vehicules.isNotEmpty) _vehiculeSelectionne = _vehicules.first;
   }
 
