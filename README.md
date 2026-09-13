@@ -25,12 +25,13 @@ el_bouni_pieces_auto/
 Si le dossier `android/` n'est pas complet, scaffold-le avec Flutter :
 
 ```bash
-flutter create . --org com.elbouni.ajalaks --platforms android
+flutter create . --org com.elbouni.ajalaks --project-name el_bouni_pieces_auto --platforms android
 # remets ensuite le lib/ et android/app/src/main/AndroidManifest.xml fournis ici
 ```
 
-Vérifie que `android/app/build.gradle` a bien :
-`applicationId "com.elbouni.ajalaks"`
+Vérifie que `android/app/build.gradle.kts` a bien :
+`applicationId = "com.elbouni.ajalaks.el_bouni_pieces_auto"`
+(org + nom du projet — c'est aussi ce que contient `google-services.json`, ne pas changer l'un sans l'autre)
 
 ## Clé API Gemini — sécurité
 
