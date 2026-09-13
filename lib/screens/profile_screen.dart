@@ -65,6 +65,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _openPolitiqueConfidentialite() async {
+    final uri = Uri.parse('https://fakerni-b96c2.web.app');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _showAbout(bool isAr) {
+    String t(String fr, String ar) => isAr ? ar : fr;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(widget.config.appName),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              t(
+                'VROUM DZ t\'aide à garder tes documents de véhicule à jour '
+                '(assurance, contrôle technique), à trouver des pièces '
+                'détachées près de chez toi, et à appeler une dépanneuse en '
+                'cas de panne — partout en Algérie.',
+                'يساعدك VROUM DZ على تحديث وثائق سيارتك (التأمين، الفحص '
+                'التقني)، إيجاد قطع الغيار بالقرب منك، والاتصال بسيارة سطحة '
+                'عند العطل — في جميع أنحاء الجزائر.',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              t('Version 1.0.0', 'الإصدار 1.0.0'),
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: _openPolitiqueConfidentialite,
+            child: Text(t('Confidentialité', 'الخصوصية')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t('Fermer', 'إغلاق')),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─── Labels véhicule ─────────────────────────────────────────────────────
 
   String _vehicleProfileLabel(String Function(String, String) t) {
@@ -1520,6 +1572,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.info_outline_rounded,
                         title: t('À propos', 'حول التطبيق'),
                         subtitle: widget.config.appName,
+                        onTap: () => _showAbout(isAr),
                       ),
                     ),
                   ],
