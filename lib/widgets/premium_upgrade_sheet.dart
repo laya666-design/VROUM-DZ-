@@ -1,13 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../config/app_config.dart';
 import '../services/premium_payment_service.dart';
 import '../services/vehicule_service.dart';
 import '../screens/sos/tel_picker_dialog.dart';
 
-/// Bottom sheet Premium partagé (Profil + Véhicules / Motos).
-/// Envoi d'une preuve de paiement BaridiMob → validation admin.
+/// Bottom sheet Premium identique à celui du Profil
+/// (prix, BaridiMob, reçu, avantages).
 Future<void> showPremiumUpgradeSheet({
   required BuildContext context,
   required AppConfig config,
@@ -79,7 +80,7 @@ Future<void> showPremiumUpgradeSheet({
                   'Ta demande Premium est en cours de validation. '
                   'Tu recevras l\'accès dès qu\'un admin aura confirmé le paiement. '
                   'Tu peux vérifier le statut depuis l\'onglet Profil.',
-                  'طلب Premium قيد التحقق. ستحصل على الوصول بمجرد تأكيد الدفع من قبل المشرف. يمكنك التحقق من الحالة من تبويب الملف الشخصي.',
+                  'طلب Premium قيد التحقق. ستحصل على الوصول بمجرد تأكيد الدفع من قبل المشرف.',
                 )),
                 actions: [
                   TextButton(
@@ -142,6 +143,87 @@ Future<void> showPremiumUpgradeSheet({
         }
       }
 
+      Widget planCard({
+        required bool selected,
+        required String titre,
+        required String sousTitre,
+        required VoidCallback onTap,
+      }) {
+        return Material(
+          color: selected
+              ? config.primaryColor.withOpacity(0.12)
+              : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: selected
+                      ? config.primaryColor
+                      : Colors.grey.shade300,
+                  width: selected ? 2 : 1,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    titre,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: selected
+                          ? config.primaryColor
+                          : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    sousTitre,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
+      Widget benefitRow(String title, String subtitle) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.check_circle, color: config.primaryColor, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 14)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
       return StatefulBuilder(builder: (ctx, setSt) {
         return Padding(
           padding: EdgeInsets.only(
@@ -157,48 +239,36 @@ Future<void> showPremiumUpgradeSheet({
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Icon(Icons.workspace_premium,
-                            color: config.primaryColor, size: 28),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            t('Passe en Premium', 'الترقية إلى Premium'),
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 18),
+                    const Text(
+                      'VROUM Premium',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
                     Text(
                       t(
-                        'La version gratuite permet de gérer 1 élément dans cette '
-                        'rubrique. Passe en Premium pour en ajouter sans limite, '
-                        'exporter tes documents en PDF, et utiliser l\'app sans '
-                        'publicité.',
-                        'تسمح النسخة المجانية بإدارة عنصر واحد فقط في هذا القسم. '
-                        'قم بالترقية إلى Premium لإضافة عناصر بلا حدود، وتصدير '
-                        'مستنداتك بصيغة PDF، واستخدام التطبيق بدون إعلانات.',
+                        'Tout ce dont vous avez besoin pour gérer vos véhicules sans limite.',
+                        'كل ما تحتاجه لإدارة مركباتك بلا حدود.',
                       ),
+                      textAlign: TextAlign.center,
+                      style:
+                          TextStyle(fontSize: 13, color: Colors.grey.shade600),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
+
                     if (pendingRequestId != null) ...[
                       Container(
+                        width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFEF3C7),
@@ -212,17 +282,20 @@ Future<void> showPremiumUpgradeSheet({
                                 'Une demande est déjà en attente de validation.',
                                 'يوجد طلب قيد الانتظار.',
                               ),
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600),
                             ),
                             if (checkError != null) ...[
                               const SizedBox(height: 6),
                               Text(checkError!,
-                                  style: TextStyle(color: Colors.red.shade700)),
+                                  style:
+                                      TextStyle(color: Colors.red.shade700)),
                             ],
                             const SizedBox(height: 8),
                             FilledButton(
-                              onPressed:
-                                  checking ? null : () => verifierStatut(setSt),
+                              onPressed: checking
+                                  ? null
+                                  : () => verifierStatut(setSt),
                               style: FilledButton.styleFrom(
                                   backgroundColor: config.primaryColor),
                               child: checking
@@ -230,37 +303,120 @@ Future<void> showPremiumUpgradeSheet({
                                       width: 20,
                                       height: 20,
                                       child: CircularProgressIndicator(
-                                          strokeWidth: 2, color: Colors.white),
+                                          strokeWidth: 2,
+                                          color: Colors.white),
                                     )
-                                  : Text(t('Vérifier le statut', 'تحقق من الحالة')),
+                                  : Text(t('Vérifier le statut',
+                                      'تحقق من الحالة')),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                     ],
-                    Text(t('Plan', 'الخطة'),
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    SegmentedButton<String>(
-                      segments: [
-                        ButtonSegment(
-                            value: 'mensuel',
-                            label: Text(t('Mensuel', 'شهري'))),
-                        ButtonSegment(
-                            value: 'annuel',
-                            label: Text(t('Annuel', 'سنوي'))),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: planCard(
+                            selected: planId == 'mensuel',
+                            titre: '490 DA',
+                            sousTitre: t('/ mois', '/ شهر'),
+                            onTap: () => setSt(() => planId = 'mensuel'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: planCard(
+                            selected: planId == 'annuel',
+                            titre: '4 900 DA',
+                            sousTitre:
+                                t('/ an · -2 mois', '/ سنة · وفّر شهرين'),
+                            onTap: () => setSt(() => planId = 'annuel'),
+                          ),
+                        ),
                       ],
-                      selected: {planId},
-                      onSelectionChanged: (s) =>
-                          setSt(() => planId = s.first),
                     ),
+                    const SizedBox(height: 18),
+
+                    DropdownButtonFormField<String>(
+                      value: methode,
+                      decoration: InputDecoration(
+                        labelText: t('Méthode de paiement', 'طريقة الدفع'),
+                        border: const OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'Baridimob', child: Text('BaridiMob')),
+                        DropdownMenuItem(value: 'CCP', child: Text('CCP')),
+                        DropdownMenuItem(
+                            value: 'Virement',
+                            child: Text('Virement bancaire')),
+                      ],
+                      onChanged: (v) =>
+                          setSt(() => methode = v ?? 'Baridimob'),
+                    ),
+                    if (methode == 'Baridimob') ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.blue.shade100),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.phone_iphone,
+                                color: Colors.blueGrey),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    t(
+                                      'Envoie le montant sur ce numéro BaridiMob :',
+                                      'أرسل المبلغ إلى رقم BaridiMob هذا:',
+                                    ),
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.black54),
+                                  ),
+                                  Text(
+                                    config.baridimobPhone,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.copy, size: 20),
+                              tooltip: t('Copier le numéro', 'نسخ الرقم'),
+                              onPressed: () async {
+                                await Clipboard.setData(ClipboardData(
+                                    text: config.baridimobPhone));
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(t('Numéro copié.',
+                                            'تم نسخ الرقم.'))),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     TextField(
                       controller: phoneController,
                       keyboardType: TextInputType.phone,
                       decoration: InputDecoration(
-                        labelText: t('Téléphone', 'الهاتف'),
+                        labelText:
+                            t('Ton numéro de téléphone', 'رقم هاتفك'),
                         prefixIcon: const Icon(Icons.phone_outlined),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12)),
@@ -269,10 +425,15 @@ Future<void> showPremiumUpgradeSheet({
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
                       onPressed: sending ? null : () => choisirRecu(setSt),
-                      icon: const Icon(Icons.receipt_long),
+                      icon: Icon(recu == null
+                          ? Icons.camera_alt_outlined
+                          : Icons.check_circle_outline),
                       label: Text(recu == null
                           ? t('Ajouter la photo du reçu', 'أضف صورة الوصل')
                           : t('Reçu sélectionné ✓', 'تم اختيار الوصل ✓')),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     FilledButton(
@@ -290,6 +451,51 @@ Future<void> showPremiumUpgradeSheet({
                             )
                           : Text(t('Envoyer la preuve de paiement',
                               'إرسال إثبات الدفع')),
+                    ),
+                    const SizedBox(height: 24),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        t('Pourquoi Premium ?', 'لماذا Premium ؟'),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    benefitRow(
+                      t('Véhicules illimités', 'مركبات غير محدودة'),
+                      t(
+                          'Ajoutez autant de voitures ou motos que vous voulez',
+                          'أضف أكبر عدد من السيارات أو الدراجات'),
+                    ),
+                    benefitRow(
+                      t('Export PDF des documents', 'تصدير المستندات PDF'),
+                      t(
+                          'Une fiche récapitulative de ton véhicule, prête à partager',
+                          'بطاقة ملخصة لمركبتك، جاهزة للمشاركة'),
+                    ),
+                    benefitRow(
+                      t('Sans publicité', 'بدون إعلانات'),
+                      t('Utilise l\'app sans aucune bannière',
+                          'استخدم التطبيق بدون أي إعلان'),
+                    ),
+                    benefitRow(
+                      t('Support prioritaire', 'دعم ذو أولوية'),
+                      t('Réponse en moins de 2h via WhatsApp',
+                          'رد في أقل من ساعتين عبر واتساب'),
+                    ),
+                    benefitRow(
+                      t('Accès anticipé', 'وصول مبكر'),
+                      t('Nouvelles fonctionnalités en avant-première',
+                          'ميزات جديدة قبل الجميع'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(
+                        t('Plus tard', 'لاحقاً'),
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
                     ),
                   ],
                 ),

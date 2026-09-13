@@ -12,6 +12,8 @@ import '../services/models.dart';
 import '../services/vehicule.dart';
 import '../services/vehicule_service.dart';
 import 'marketplace/mes_demandes_screen.dart';
+import 'marketplace/buyer_phone_login_screen.dart';
+import 'sos/tel_picker_dialog.dart';
 
 class PartsScreen extends StatefulWidget {
   final AppConfig config;
@@ -213,10 +215,115 @@ class _PartsScreenState extends State<PartsScreen> {
   /// Diffuse réellement la demande aux magasins via Firestore (Phase 4).
   /// Sans cet appel, le bouton "Envoyer la demande" n'atteignait aucun
   /// magasin — c'est corrigé ici.
+  /// Oblige un numéro de téléphone (ou une connexion acheteur) avant
+  /// d'envoyer la demande aux magasins — sinon le magasin ne peut pas rappeler.
+  Future<bool> _assurerContact() async {
+    // Déjà connecté au portail acheteur (téléphone ou compte)
+    if (MarketplaceService.isPhoneLoggedIn ||
+        MarketplaceService.hasSession) {
+      return true;
+    }
+    // Numéro déjà enregistré localement (SOS / profil)
+    if ((SettingsService.userTel ?? '').trim().isNotEmpty) {
+      return true;
+    }
+
+    final choix = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  _t('Contact requis', 'مطلوب رقم للتواصل'),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _t(
+                    'Pour envoyer ta demande aux magasins, indique ton numéro '
+                    'de téléphone (ils pourront te rappeler) ou connecte-toi.',
+                    'لإرسال طلبك إلى المتاجر، أدخل رقم هاتفك (ليتمكنوا من الاتصال بك) أو سجّل الدخول.',
+                  ),
+                  style: TextStyle(color: Colors.grey.shade700, height: 1.35),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () => Navigator.pop(ctx, 'tel'),
+                  icon: const Icon(Icons.phone),
+                  label: Text(_t('Donner mon numéro', 'إعطاء رقمي')),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: widget.config.primaryColor,
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.pop(ctx, 'login'),
+                  icon: const Icon(Icons.login),
+                  label: Text(_t('Se connecter', 'تسجيل الدخول')),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, null),
+                  child: Text(_t('Annuler', 'إلغاء')),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (choix == null || !mounted) return false;
+
+    if (choix == 'tel') {
+      final tel = await showTelPickerDialog(
+        context,
+        accentColor: widget.config.primaryColor,
+        valeurInitiale: SettingsService.userTel,
+      );
+      if (tel == null || tel.trim().isEmpty) return false;
+      await SettingsService.setUserTel(tel.trim());
+      return true;
+    }
+
+    if (choix == 'login') {
+      final ok = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BuyerPhoneLoginScreen(
+            config: widget.config,
+            isAr: widget.isAr,
+          ),
+        ),
+      );
+      return ok == true ||
+          MarketplaceService.isPhoneLoggedIn ||
+          MarketplaceService.hasSession;
+    }
+
+    return false;
+  }
+
   Future<void> _envoyerDemande() async {
     final img = _image;
     final part = _part;
     if (img == null || part == null) return;
+
+    final contactOk = await _assurerContact();
+    if (!contactOk || !mounted) return;
 
     setState(() => _sending = true);
     try {

@@ -1225,7 +1225,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context, isAr, _) {
         String t(String fr, String ar) => isAr ? ar : fr;
         final isPremium = SettingsService.isPremium;
-        final vehicleCount = VehiculeService.getAll().length;
+        final allVehicles = VehiculeService.getAll();
+        // Prochain document (assurance ou CT le plus proche)
+        DateTime? nextDocDate;
+        String? nextDocLabel;
+        String? nextDocVehicle;
+        final List<Map<String, dynamic>> docAlerts = [];
+        for (final v in allVehicles) {
+          final entries = <(String, DateTime?)>[
+            ('Assurance', v.assuranceExpiration),
+            ('CT', v.controleTechniqueExpiration),
+          ];
+          for (final e in entries) {
+            final d = e.$2;
+            if (d == null) continue;
+            final days = d.difference(DateTime.now()).inDays;
+            docAlerts.add({
+              'vehicule': v.nom,
+              'type': e.$1,
+              'days': days,
+              'date': d,
+            });
+            if (nextDocDate == null || d.isBefore(nextDocDate)) {
+              nextDocDate = d;
+              nextDocLabel = e.$1;
+              nextDocVehicle = v.nom;
+            }
+          }
+        }
+        docAlerts.sort((a, b) => (a['days'] as int).compareTo(b['days'] as int));
+
+        String prochainDocValue;
+        Color? prochainDocColor;
+        if (nextDocDate == null) {
+          prochainDocValue = t('—', '—');
+          prochainDocColor = null;
+        } else {
+          final days = nextDocDate.difference(DateTime.now()).inDays;
+          final shortType = nextDocLabel == 'CT' ? 'CT' : t('Ass.', 'تأمين');
+          if (days < 0) {
+            prochainDocValue = t('$shortType expiré', '$shortType منتهي');
+            prochainDocColor = const Color(0xFFF87171);
+          } else if (days == 0) {
+            prochainDocValue = t('$shortType auj.', '$shortType اليوم');
+            prochainDocColor = const Color(0xFFFBBF24);
+          } else {
+            prochainDocValue = '$shortType $days j';
+            prochainDocColor = days <= 30
+                ? const Color(0xFFFBBF24)
+                : const Color(0xFF4ADE80);
+          }
+        }
+        final telOk = (SettingsService.userTel ?? '').trim().isNotEmpty;
+        final wilayaVal = (SettingsService.wilaya ?? '').trim().isEmpty
+            ? '—'
+            : SettingsService.wilaya!;
 
         return ScreenBackground(
           category: BackgroundCategory.generique,
@@ -1391,34 +1445,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                       const SizedBox(height: 14),
-                      // Stats dashboard (C)
+                      // Option A : prochain doc · wilaya · tél SOS (cliquables)
                       Row(
                         children: [
                           Expanded(
                             child: _statPill(
-                              value: '$vehicleCount',
-                              label: vehicleCount <= 1
-                                  ? t('Véhicule', 'مركبة')
-                                  : t('Véhicules', 'مركبات'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _statPill(
-                              value: _vehicleProfileLabel(t),
-                              label: t('Profil', 'الملف'),
+                              value: prochainDocValue,
+                              label: t('Prochain doc', 'أقرب وثيقة'),
                               isText: true,
+                              valueColor: prochainDocColor,
+                              onTap: () => _showDocAlertsSheet(
+                                context,
+                                t,
+                                docAlerts,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: _statPill(
-                              value: isPremium
-                                  ? t('∞', '∞')
-                                  : '1',
-                              label: isPremium
-                                  ? t('Illimité', 'غير محدود')
-                                  : t('Limite', 'الحد'),
+                              value: wilayaVal,
+                              label: t('Wilaya', 'الولاية'),
+                              isText: true,
+                              onTap: () async {
+                                final w = await showWilayaPickerDialog(
+                                  context,
+                                  accentColor: widget.config.primaryColor,
+                                  valeurInitiale: SettingsService.wilaya,
+                                );
+                                if (w != null && w.trim().isNotEmpty) {
+                                  await SettingsService.setWilaya(w);
+                                  if (mounted) setState(() {});
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _statPill(
+                              value: telOk
+                                  ? t('OK', 'حسناً')
+                                  : t('Manquant', 'ناقص'),
+                              label: t('Tél. SOS', 'هاتف الطوارئ'),
+                              isText: true,
+                              valueColor: telOk
+                                  ? const Color(0xFF4ADE80)
+                                  : const Color(0xFFF87171),
+                              onTap: () async {
+                                final tel = await showTelPickerDialog(
+                                  context,
+                                  accentColor: widget.config.primaryColor,
+                                  valeurInitiale: SettingsService.userTel,
+                                );
+                                if (tel != null && tel.trim().isNotEmpty) {
+                                  await SettingsService.setUserTel(tel.trim());
+                                  if (mounted) setState(() {});
+                                }
+                              },
                             ),
                           ),
                         ],
@@ -1427,6 +1510,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 18),
+
+                // ── PREMIUM BANNIÈRE FINE (A) ─────────────────────────────
+                if (!isPremium) ...[
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => _showPremiumSheet(context, t),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF0F172A),
+                              Color(0xFF1E293B),
+                              Color(0xFF422006),
+                            ],
+                          ),
+                          border: Border.all(
+                            color: const Color(0xFFFBBF24).withOpacity(0.35),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.workspace_premium,
+                                color: Color(0xFFFBBF24), size: 26),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    t('Passer en Premium',
+                                        'الترقية إلى Premium'),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14.5,
+                                    ),
+                                  ),
+                                  Text(
+                                    t(
+                                      'Véhicules illimités · Export PDF · Sans pub',
+                                      'مركبات غير محدودة · تصدير PDF · بدون إعلانات',
+                                    ),
+                                    style: TextStyle(
+                                      color: Colors.grey.shade400,
+                                      fontSize: 11.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.arrow_forward_ios,
+                                color: Color(0xFFFBBF24), size: 14),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
 
                 // ── RACCOURCI PRO ────────────────────────────────────────
                 Material(
@@ -1511,70 +1658,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 // Paramètres accessibles via ⚙ en haut à droite du header.
 
-                // ── PREMIUM BANNIÈRE FINE (A) ─────────────────────────────
-                if (!isPremium) ...[
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () => _showPremiumSheet(context, t),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFF0F172A),
-                              Color(0xFF1E293B),
-                              Color(0xFF422006),
-                            ],
-                          ),
-                          border: Border.all(
-                            color: const Color(0xFFFBBF24).withOpacity(0.35),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.workspace_premium,
-                                color: Color(0xFFFBBF24), size: 26),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    t('Passer en Premium',
-                                        'الترقية إلى Premium'),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 14.5,
-                                    ),
-                                  ),
-                                  Text(
-                                    t(
-                                      'Véhicules illimités · Export PDF · Sans pub',
-                                      'مركبات غير محدودة · تصدير PDF · بدون إعلانات',
-                                    ),
-                                    style: TextStyle(
-                                      color: Colors.grey.shade400,
-                                      fontSize: 11.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Icon(Icons.arrow_forward_ios,
-                                color: Color(0xFFFBBF24), size: 14),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-
                 // ── AIDE (D) ─────────────────────────────────────────────
                 _sectionLabel(t('Aide', 'المساعدة')),
                 _groupCard(
@@ -1641,8 +1724,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String value,
     required String label,
     bool isText = false,
+    Color? valueColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    final child = Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.08),
@@ -1657,7 +1742,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white,
+              color: valueColor ?? Colors.white,
               fontWeight: FontWeight.w800,
               fontSize: isText ? 12 : 18,
             ),
@@ -1674,6 +1759,124 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
+    );
+    if (onTap == null) return child;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: child,
+      ),
+    );
+  }
+
+  void _showDocAlertsSheet(
+    BuildContext context,
+    String Function(String, String) t,
+    List<Map<String, dynamic>> alerts,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  t('Documents véhicules', 'وثائق المركبات'),
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  t(
+                    'Appuie sur une ligne pour te rappeler de renouveler. '
+                    'Modifie les dates dans l’onglet Véhicules / Motos.',
+                    'اضغط على سطر للتذكير بالتجديد. عدّل التواريخ من تبويب المركبات.',
+                  ),
+                  style: TextStyle(
+                      fontSize: 12.5, color: Colors.grey.shade600, height: 1.35),
+                ),
+                const SizedBox(height: 14),
+                if (alerts.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      t(
+                        'Aucun document renseigné. Ajoute les dates d’assurance et de CT sur tes véhicules.',
+                        'لا توجد وثائق. أضف تواريخ التأمين والفحص التقني على مركباتك.',
+                      ),
+                      style: TextStyle(color: Colors.grey.shade700),
+                    ),
+                  )
+                else
+                  ...alerts.take(8).map((a) {
+                    final days = a['days'] as int;
+                    final type = a['type'] as String;
+                    final typeLabel = type == 'CT'
+                        ? t('Contrôle technique', 'الفحص التقني')
+                        : t('Assurance', 'التأمين');
+                    String status;
+                    Color color;
+                    if (days < 0) {
+                      status = t('Expiré', 'منتهي');
+                      color = Colors.red.shade600;
+                    } else if (days <= 30) {
+                      status = t('Dans $days j', 'خلال $days يوم');
+                      color = Colors.orange.shade700;
+                    } else {
+                      status = t('Dans $days j', 'خلال $days يوم');
+                      color = Colors.green.shade700;
+                    }
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        type == 'CT'
+                            ? Icons.fact_check_outlined
+                            : Icons.shield_outlined,
+                        color: color,
+                      ),
+                      title: Text(
+                        '${a['vehicule']}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(typeLabel),
+                      trailing: Text(
+                        status,
+                        style: TextStyle(
+                            color: color, fontWeight: FontWeight.w700),
+                      ),
+                    );
+                  }),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(t('Fermer', 'إغلاق')),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
