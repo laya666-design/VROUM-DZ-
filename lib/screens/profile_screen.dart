@@ -1471,7 +1471,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 final w = await showWilayaPickerDialog(
                                   context,
                                   accentColor: widget.config.primaryColor,
-                                  valeurInitiale: SettingsService.wilaya,
                                 );
                                 if (w != null && w.trim().isNotEmpty) {
                                   await SettingsService.setWilaya(w);
