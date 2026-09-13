@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../config/app_config.dart';
 import '../widgets/screen_background.dart';
 import 'home_screen.dart';
@@ -54,39 +53,6 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
     );
   }
 
-  // Ce Splash → Onboarding est un pushReplacement : il n'y a jamais de
-  // route précédente à dépiler (canPop() est toujours false ici). "Retour"
-  // n'a donc qu'un sens possible : quitter l'app, avec confirmation pour
-  // éviter une fermeture accidentelle. Convention commune à tous les
-  // écrans "premier de la pile" de l'app (voir aussi StoreLoginScreen,
-  // DepanneuseAuthScreen).
-  Future<void> _quitterApp(bool isAr) async {
-    final confirme = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(isAr ? 'مغادرة التطبيق؟' : 'Quitter l\'app ?'),
-        content: Text(
-          isAr
-              ? 'هذه هي الشاشة الأولى، لا يوجد ما هو أبعد للرجوع إليه.'
-              : 'C\'est le tout premier écran, il n\'y a rien avant.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(isAr ? 'إلغاء' : 'Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(isAr ? 'مغادرة' : 'Quitter'),
-          ),
-        ],
-      ),
-    );
-    if (confirme == true) {
-      SystemNavigator.pop();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
@@ -96,12 +62,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
 
         return Directionality(
           textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
-          child: PopScope(
-            canPop: false,
-            onPopInvokedWithResult: (didPop, _) {
-              if (!didPop) _quitterApp(isAr);
-            },
-            child: Scaffold(
+          child: Scaffold(
             // Même bandeau logo que le reste de l'app (voir home_screen.dart)
             // : cet écran d'onboarding est le tout premier vu par
             // l'utilisateur, il doit porter le logo VROUM DZ comme les autres.
@@ -111,11 +72,6 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
               toolbarHeight: 96,
               titleSpacing: 0,
               automaticallyImplyLeading: false,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                tooltip: t('Retour', 'رجوع'),
-                onPressed: () => _quitterApp(isAr),
-              ),
               flexibleSpace: ClipRect(
                 child: Stack(
                   fit: StackFit.expand,
@@ -243,7 +199,6 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
                   ),
                 ),
               ),
-            ),
             ),
           ),
         );

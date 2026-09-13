@@ -188,68 +188,6 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     ],
   };
 
-  /// Catalogue marques → modèles pour motos & scooters (marché algérien).
-  /// Filtré selon le typeVehicule choisi (premier écran / section Motos).
-  static const Map<String, List<String>> _catalogueMarquesMoto = {
-    'YAMAHA': [
-      'YZF-R1', 'YZF-R3', 'YZF-R6', 'MT-07', 'MT-09', 'MT-15', 'XMAX',
-      'NMAX', 'Aerox', 'Fazer', 'Ténéré', 'Crypton', 'Ray ZR',
-    ],
-    'HONDA': [
-      'CBR150', 'CBR250', 'CBR500', 'CBR600', 'CBR1000', 'CB500', 'CB650',
-      'PCX', 'SH150', 'SH300', 'Forza', 'Scoopy', 'Wave', 'CG125', 'XR150',
-    ],
-    'SUZUKI': [
-      'GSX-R150', 'GSX-R600', 'GSX-R750', 'GSX-R1000', 'Gixxer', 'Address',
-      'Burgman', 'Access', 'V-Strom', 'Hayabusa',
-    ],
-    'KAWASAKI': [
-      'Ninja 250', 'Ninja 300', 'Ninja 400', 'Ninja 650', 'Ninja ZX-6R',
-      'Ninja ZX-10R', 'Z250', 'Z400', 'Z650', 'Z900', 'Versys',
-    ],
-    'SYM': [
-      'Jet 14', 'Jet X', 'Orbit', 'Symphony', 'Crox', 'Fiddle', 'Wolf',
-      'Maxsym', 'Joyride',
-    ],
-    'KYMCO': [
-      'Agility', 'Like', 'People', 'Xciting', 'AK550', 'Downtown', 'Super 8',
-    ],
-    'PIAGGIO': [
-      'Vespa Primavera', 'Vespa Sprint', 'Vespa GTS', 'Liberty', 'Beverly',
-      'Medley', 'MP3',
-    ],
-    'VESPA': [
-      'Primavera', 'Sprint', 'GTS', 'Elettrica', '946',
-    ],
-    'CFMOTO': [
-      '300NK', '400NK', '650NK', '700CL-X', '800MT', '250SR', '450SS',
-    ],
-    'BAJAJ': [
-      'Pulsar 150', 'Pulsar 180', 'Pulsar 200', 'Pulsar NS200', 'Discover',
-      'Avenger', 'Dominar', 'CT100',
-    ],
-    'TVS': [
-      'Apache RTR 160', 'Apache RTR 200', 'Ntorq', 'Jupiter', 'Scooty',
-      'Raider', 'Ronin',
-    ],
-    'HERO': [
-      'Splendor', 'Passion', 'HF Deluxe', 'Xtreme', 'Destini', 'Pleasure',
-    ],
-    'APRILIA': [
-      'RS 125', 'RS 457', 'Tuono', 'SXR 50', 'SXR 160',
-    ],
-    'DUCATI': [
-      'Monster', 'Panigale', 'Scrambler', 'Multistrada', 'Diavel',
-    ],
-    'BMW MOTO': [
-      'G 310 R', 'G 310 GS', 'F 750 GS', 'F 850 GS', 'R 1250 GS', 'S 1000 RR',
-    ],
-    'KTM': [
-      'Duke 125', 'Duke 200', 'Duke 250', 'Duke 390', 'RC 125', 'RC 200',
-      'RC 390', 'Adventure',
-    ],
-  };
-
   static const Map<String, Color> _couleurMarque = {
     'PEUGEOT': Color(0xFF1A1F71),
     'RENAULT': Color(0xFFFFCC33),
@@ -289,21 +227,6 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     'JAECOO': Color(0xFF14532D),
     'DFSK': Color(0xFFE11D48),
     'FOTON': Color(0xFF1D4ED8),
-    // Motos & scooters
-    'YAMAHA': Color(0xFF0033A0),
-    'KAWASAKI': Color(0xFF00A651),
-    'SYM': Color(0xFFE30613),
-    'KYMCO': Color(0xFF1B4F9C),
-    'PIAGGIO': Color(0xFF1D1D1B),
-    'VESPA': Color(0xFF1D1D1B),
-    'CFMOTO': Color(0xFF00A0E3),
-    'BAJAJ': Color(0xFF0054A3),
-    'TVS': Color(0xFFED1C24),
-    'HERO': Color(0xFFED1C24),
-    'APRILIA': Color(0xFF000000),
-    'DUCATI': Color(0xFFCC0000),
-    'BMW MOTO': Color(0xFF0066B1),
-    'KTM': Color(0xFFFF6600),
   };
 
   /// Logos officiels embarqués en assets (fiables, offline, comme sur la photo).
@@ -389,12 +312,10 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   void _fillControllers(CarteGriseInfo info) {
     // Normalise la marque OCR vers une clé du catalogue si possible
     // (ex: "Peugeot " → PEUGEOT) pour pré-sélectionner le bon logo.
-    // Utilise le catalogue filtré selon le type de véhicule.
     final rawMarque = info.marque.trim().toUpperCase();
     String marque = rawMarque;
-    final catalogue = _catalogueActif;
-    if (rawMarque.isNotEmpty && !catalogue.containsKey(rawMarque)) {
-      for (final key in catalogue.keys) {
+    if (rawMarque.isNotEmpty && !_catalogueMarques.containsKey(rawMarque)) {
+      for (final key in _catalogueMarques.keys) {
         if (rawMarque.contains(key) || key.contains(rawMarque)) {
           marque = key;
           break;
@@ -791,19 +712,9 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     return _couleurMarque[key] ?? widget.config.primaryColor;
   }
 
-  /// Retourne le catalogue adapté au type de véhicule (voiture vs moto/scooter).
-  /// Applique le filtre selon le choix du premier écran / section.
-  Map<String, List<String>> get _catalogueActif {
-    final t = widget.typeVehicule;
-    if (t == TypeVehicule.moto || t == TypeVehicule.scooter) {
-      return _catalogueMarquesMoto;
-    }
-    return _catalogueMarques;
-  }
-
   List<String> _modelesPourMarque(String marque) {
     final key = marque.toUpperCase().trim();
-    return List<String>.from(_catalogueActif[key] ?? const <String>[]);
+    return List<String>.from(_catalogueMarques[key] ?? const <String>[]);
   }
 
   Widget _marqueAvatar(String marque, {double size = 36}) {
@@ -855,8 +766,7 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   }
 
   Future<void> _ouvrirSelecteurMarque() async {
-    // Filtrage selon le type choisi (premier écran / section Voiture ou Motos)
-    final marques = _catalogueActif.keys.toList()..sort();
+    final marques = _catalogueMarques.keys.toList()..sort();
     final current = _marqueCtrl.text.trim().toUpperCase();
     final chosen = await showModalBottomSheet<String>(
       context: context,
