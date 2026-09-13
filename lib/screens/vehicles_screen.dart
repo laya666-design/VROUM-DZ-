@@ -391,7 +391,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       return;
     }
     try {
-      await PdfExportService.exportVehicule(v, isAr: widget.isAr.value);
+      await PdfExportService.exportVehicule(v, isAr: widget.isAr);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
