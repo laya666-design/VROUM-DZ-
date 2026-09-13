@@ -227,7 +227,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String Function(String, String) t,
     bool isAr,
   ) {
-    final isPremium = SettingsService.isPremium;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -366,27 +365,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   }
                                 },
                               ),
-                              if (isPremium) ...[
-                                _darkDivider(),
-                                _darkSettingTile(
-                                  icon: Icons.notifications_active_outlined,
-                                  title: t('Rappels SMS / Appel',
-                                      'تذكيرات SMS / مكالمة'),
-                                  subtitle: SettingsService.smsRemindersEnabled
-                                      ? t('Activés', 'مفعّلة')
-                                      : t('Désactivés', 'معطّلة'),
-                                  trailing: Switch(
-                                    value: SettingsService.smsRemindersEnabled,
-                                    activeColor: widget.config.primaryColor,
-                                    onChanged: (val) async {
-                                      await SettingsService
-                                          .setSmsRemindersEnabled(val);
-                                      setSheet(() {});
-                                      if (mounted) setState(() {});
-                                    },
-                                  ),
-                                ),
-                              ],
                             ],
                           ),
                         ],
@@ -819,9 +797,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           'أضف أكبر عدد من السيارات أو الدراجات'),
                     ),
                     _benefitRow(
-                      t('Rappels SMS & Appel', 'تذكيرات SMS ومكالمات'),
-                      t('Ne ratez plus jamais une échéance d\'assurance ou de contrôle',
-                          'لن تفوت أبداً موعد تأمين أو مراقبة'),
+                      t('Export PDF des documents', 'تصدير المستندات PDF'),
+                      t('Une fiche récapitulative de ton véhicule, prête à partager',
+                          'بطاقة ملخصة لمركبتك، جاهزة للمشاركة'),
+                    ),
+                    _benefitRow(
+                      t('Sans publicité', 'بدون إعلانات'),
+                      t('Utilise l\'app sans aucune bannière', 'استخدم التطبيق بدون أي إعلان'),
                     ),
                     _benefitRow(
                       t('Support prioritaire', 'دعم ذو أولوية'),
@@ -1527,8 +1509,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   Text(
                                     t(
-                                      'Véhicules illimités · Rappels SMS',
-                                      'مركبات غير محدودة · تذكيرات SMS',
+                                      'Véhicules illimités · Export PDF · Sans pub',
+                                      'مركبات غير محدودة · تصدير PDF · بدون إعلانات',
                                     ),
                                     style: TextStyle(
                                       color: Colors.grey.shade400,

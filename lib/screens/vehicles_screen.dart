@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
 import '../services/ocr_service.dart';
+import '../services/pdf_export_service.dart';
 import '../services/vehicule.dart';
 import '../services/vehicule_service.dart';
 import '../widgets/ad_banner.dart';
@@ -342,32 +343,14 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 _t(
                   'La version gratuite permet de gérer 1 élément dans cette '
                   'rubrique. Passe en Premium pour en ajouter sans limite, '
-                  'et pour activer les rappels par SMS et appel.',
+                  'exporter tes documents en PDF, et utiliser l\'app sans '
+                  'publicité.',
                   'تسمح النسخة المجانية بإدارة عنصر واحد فقط في هذا القسم. '
-                  'قم بالترقية إلى Premium لإضافة عناصر بلا حدود، وتفعيل '
-                  'التذكيرات عبر الرسائل النصية والمكالمات.',
+                  'قم بالترقية إلى Premium لإضافة عناصر بلا حدود، وتصدير '
+                  'مستنداتك بصيغة PDF، واستخدام التطبيق بدون إعلانات.',
                 ),
               ),
               const SizedBox(height: 16),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                    _t('Rappels par SMS / Appel', 'تذكيرات عبر SMS / مكالمة')),
-                subtitle: Text(
-                  _t(
-                    'En plus des notifications sur le téléphone. '
-                    'Bientôt disponible.',
-                    'بالإضافة إلى إشعارات الهاتف. قريباً.',
-                  ),
-                  style: const TextStyle(fontSize: 12),
-                ),
-                value: SettingsService.smsRemindersEnabled,
-                onChanged: (val) async {
-                  await SettingsService.setSmsRemindersEnabled(val);
-                  setSheetState(() {});
-                },
-              ),
-              const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
@@ -402,6 +385,21 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     );
   }
 
+  Future<void> _exporterPdf(Vehicule v) async {
+    if (!SettingsService.isPremium) {
+      _showPremiumSheet();
+      return;
+    }
+    try {
+      await PdfExportService.exportVehicule(v, isAr: widget.isAr.value);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_t('Erreur export PDF : $e', 'خطأ في تصدير PDF : $e'))),
+      );
+    }
+  }
+
   Future<void> _openVehicle(Vehicule v) async {
     // Carte Grise Magic n'a de sens que pour identifier un moteur ->
     // affichée uniquement pour les voitures (pas motos/scooters).
@@ -423,6 +421,13 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 }
               },
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.picture_as_pdf_outlined),
+                tooltip: _t('Exporter en PDF', 'تصدير PDF'),
+                onPressed: () => _exporterPdf(v),
+              ),
+            ],
           ),
           // Une seule page, 3 sections dans l'ordre logique (identité du
           // véhicule d'abord, puis les deux documents à renouveler) —
@@ -1279,7 +1284,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               // Le + (à droite de « Mes véhicules ») gère aussi le passage Premium.
               _buildHeroHeader(),
               const SizedBox(height: 12),
-              const AdBanner(),
+              if (!SettingsService.isPremium) const AdBanner(),
               if (_vehicules.isEmpty) ...[
                 const SizedBox(height: 10),
                 _buildEmptyState(),

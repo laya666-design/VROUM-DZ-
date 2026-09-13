@@ -120,19 +120,6 @@ class SettingsService {
     }
   }
 
-  // --- Rappels SMS / Appel (Premium) ---
-  // Mock pour l'instant : stocke juste la préférence localement.
-  // L'envoi réel nécessite un service tiers payant (ex: Twilio) + un
-  // backend pour déclencher les envois — pas encore construit.
-  static const String _smsRemindersKey = 'smsRemindersEnabled';
-
-  static bool get smsRemindersEnabled =>
-      _box.get(_smsRemindersKey, defaultValue: false) as bool;
-
-  static Future<void> setSmsRemindersEnabled(bool value) async {
-    await _box.put(_smsRemindersKey, value);
-  }
-
   // --- Profil véhicule (voiture / moto / les deux) ---
   // Choisi une fois à l'onboarding, avant l'accès à l'app, pour n'afficher
   // que les rubriques pertinentes. Modifiable ensuite depuis l'onglet
