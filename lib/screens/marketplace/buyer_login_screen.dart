@@ -93,6 +93,12 @@ class _BuyerLoginScreenState extends State<BuyerLoginScreen> {
         backgroundColor: widget.config.primaryColor,
         foregroundColor: Colors.white,
         title: const Text('Portail acheteur'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+          },
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

@@ -16,6 +16,7 @@ import 'admin/admin_login_screen.dart';
 import 'role_router.dart';
 import 'sos/tel_picker_dialog.dart';
 import 'sos/wilaya_picker_dialog.dart';
+import 'emergency_numbers_screen.dart';
 
 /// Onglet Profil amélioré :
 /// - Carte compte claire (badge + nombre de véhicules)
@@ -1578,6 +1579,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _sectionLabel(t('Aide', 'المساعدة')),
                 _groupCard(
                   children: [
+                    _groupTile(
+                      icon: Icons.emergency_rounded,
+                      title: t('Numéros d\'urgence', 'أرقام الطوارئ'),
+                      subtitle: t('Police, SAMU, protection civile…',
+                          'شرطة، سامو، حماية مدنية…'),
+                      iconColor: const Color(0xFFEF4444),
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => EmergencyNumbersScreen(
+                              config: widget.config,
+                              isAr: isAr,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    _groupDivider(),
                     _groupTile(
                       icon: Icons.chat_rounded,
                       title: 'WhatsApp',

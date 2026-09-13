@@ -11,6 +11,7 @@ import 'carte_grise_screen.dart';
 import 'controle_technique_screen.dart';
 import 'insurance_screen.dart';
 import 'rappels_screen.dart';
+import '../widgets/premium_upgrade_sheet.dart';
 
 class VehiclesScreen extends StatefulWidget {
   final AppConfig config;
@@ -319,54 +320,14 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   }
 
   void _showPremiumSheet() {
-    showModalBottomSheet(
+    // Même flux réel que dans Profil (preuve de paiement → validation admin).
+    showPremiumUpgradeSheet(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.workspace_premium,
-                      color: widget.config.primaryColor, size: 28),
-                  const SizedBox(width: 8),
-                  Text(_t('Passe en Premium', 'الترقية إلى Premium'),
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _t(
-                  'La version gratuite permet de gérer 1 élément dans cette '
-                  'rubrique. Passe en Premium pour en ajouter sans limite, '
-                  'exporter tes documents en PDF, et utiliser l\'app sans '
-                  'publicité.',
-                  'تسمح النسخة المجانية بإدارة عنصر واحد فقط في هذا القسم. '
-                  'قم بالترقية إلى Premium لإضافة عناصر بلا حدود، وتصدير '
-                  'مستنداتك بصيغة PDF، واستخدام التطبيق بدون إعلانات.',
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: widget.config.primaryColor,
-                  ),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                  },
-                  child: Text(_t('Bientôt disponible', 'قريباً')),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      config: widget.config,
+      t: _t,
+      onPremiumActivated: () {
+        if (mounted) setState(() {});
+      },
     );
   }
 

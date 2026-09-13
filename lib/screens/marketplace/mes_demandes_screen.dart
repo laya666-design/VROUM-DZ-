@@ -553,7 +553,15 @@ class _MesDemandesScreenState extends State<MesDemandesScreen> {
                 icon: const Icon(Icons.close),
                 onPressed: _toggleSelectionMode,
               )
-            : null,
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Retour',
+                onPressed: () {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                },
+              ),
         actions: [
           if (_selectionMode) ...[
             IconButton(

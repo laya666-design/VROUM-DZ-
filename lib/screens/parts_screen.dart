@@ -51,22 +51,20 @@ class _PartsScreenState extends State<PartsScreen> {
   @override
   void initState() {
     super.initState();
-    // Respecte le profil véhicule (voiture / moto / les deux) choisi
-    // à l'onboarding — sinon les motos n'apparaissaient jamais.
-    final profile = SettingsService.vehicleProfile ?? 'both';
-    // TypeVehicule.xxx sont des String (pas un enum).
-    final types = <String>[];
-    if (profile == 'voiture' || profile == 'both') {
-      types.add(TypeVehicule.voiture);
+    _reloadVehicules();
+  }
+
+  /// Charge TOUS les véhicules (voiture + moto + scooter) pour le
+  /// sélecteur de pièces — l'utilisateur doit pouvoir cibler une moto
+  /// enregistrée même s'il a aussi des voitures.
+  void _reloadVehicules() {
+    _vehicules = VehiculeService.getAll();
+    if (_vehicules.isEmpty) {
+      _vehiculeSelectionne = null;
+    } else if (_vehiculeSelectionne == null ||
+        !_vehicules.any((v) => v.id == _vehiculeSelectionne!.id)) {
+      _vehiculeSelectionne = _vehicules.first;
     }
-    if (profile == 'moto' || profile == 'both') {
-      types.addAll([TypeVehicule.moto, TypeVehicule.scooter]);
-    }
-    if (types.isEmpty) {
-      types.addAll([TypeVehicule.voiture, TypeVehicule.moto, TypeVehicule.scooter]);
-    }
-    _vehicules = VehiculeService.getByTypes(types);
-    if (_vehicules.isNotEmpty) _vehiculeSelectionne = _vehicules.first;
   }
 
   @override
@@ -445,6 +443,15 @@ class _PartsScreenState extends State<PartsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Liste toujours à jour (voitures + motos).
+    final vehicules = VehiculeService.getAll();
+    _vehicules = vehicules;
+    if (_vehicules.isEmpty) {
+      _vehiculeSelectionne = null;
+    } else if (_vehiculeSelectionne == null ||
+        !_vehicules.any((v) => v.id == _vehiculeSelectionne!.id)) {
+      _vehiculeSelectionne = _vehicules.isNotEmpty ? _vehicules.first : null;
+    }
     final part = _part;
     return SafeArea(
       child: SingleChildScrollView(
