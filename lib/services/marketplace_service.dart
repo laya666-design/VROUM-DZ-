@@ -52,16 +52,21 @@ class MarketplaceService {
 
   /// Email actuellement utilisé pour l'authentification Firebase de ce
   /// numéro : l'email technique par défaut, sauf si une récupération de
-  /// mot de passe a déjà eu lieu (voir StoreService, même mécanisme —
-  /// champ `authEmail` dans `buyer_accounts/<numero>`).
+  /// mot de passe a déjà eu lieu (voir StoreService, même mécanisme).
+  /// Passe par la Cloud Function getAuthEmailByPhone plutôt qu'une
+  /// lecture Firestore directe de buyer_accounts/<numero> : à ce stade
+  /// (avant la connexion), aucune règle ne peut autoriser cette lecture
+  /// côté client — l'ancienne version échouait silencieusement et
+  /// retombait toujours sur l'email technique, cassant la reconnexion de
+  /// tout compte ayant déjà récupéré son mot de passe une fois.
   static Future<String> _authEmailPourNumero(String numero) async {
     final technique = _emailTechniqueDepuisNumero(numero);
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('buyer_accounts')
-          .doc(numero)
-          .get();
-      final authEmail = doc.data()?['authEmail'] as String?;
+      final callable =
+          FirebaseFunctions.instance.httpsCallable('getAuthEmailByPhone');
+      final result =
+          await callable.call({'telephone': numero, 'type': 'buyer'});
+      final authEmail = result.data['email'] as String?;
       return (authEmail != null && authEmail.isNotEmpty) ? authEmail : technique;
     } catch (_) {
       return technique;
