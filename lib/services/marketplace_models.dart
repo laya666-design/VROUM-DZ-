@@ -4,6 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class PartRequest {
   final String id;
   final String clientId; // identifiant anonyme du demandeur (device/uid)
+  // Numéro de contact du client, saisi une fois via _assurerContact() côté
+  // portail acheteur (parts_screen.dart) puis réutilisé comme identifiant
+  // de contact pour toutes ses demandes suivantes. Sans ce champ, le
+  // magasin n'avait aucun moyen de rappeler le client (clientId seul est
+  // un uid Firebase anonyme, pas un numéro).
+  final String? clientTel;
   final String pieceNom;
   final String reference;
   final List<String> compatibilite;
@@ -24,6 +30,7 @@ class PartRequest {
   PartRequest({
     required this.id,
     required this.clientId,
+    this.clientTel,
     required this.pieceNom,
     required this.reference,
     required this.compatibilite,
@@ -47,6 +54,7 @@ class PartRequest {
     return PartRequest(
       id: doc.id,
       clientId: d['clientId']?.toString() ?? '',
+      clientTel: d['clientTel']?.toString(),
       pieceNom: d['pieceNom']?.toString() ?? '',
       reference: d['reference']?.toString() ?? '',
       compatibilite: (d['compatibilite'] as List?)
@@ -67,6 +75,7 @@ class PartRequest {
 
   Map<String, dynamic> toMap() => {
         'clientId': clientId,
+        if (clientTel != null && clientTel!.isNotEmpty) 'clientTel': clientTel,
         'pieceNom': pieceNom,
         'reference': reference,
         'compatibilite': compatibilite,

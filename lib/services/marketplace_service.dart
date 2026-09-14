@@ -159,6 +159,12 @@ class MarketplaceService {
     return FirebaseAuth.instance.currentUser?.uid;
   }
 
+  /// Numéro de téléphone réel connu pour ce compte (compte acheteur
+  /// téléphone+mot de passe uniquement) — à distinguer de [clientId], qui
+  /// peut être un simple uid Firebase anonyme sans aucun numéro derrière.
+  static String? get knownPhone =>
+      (_phoneAsId != null && _phoneAsId!.isNotEmpty) ? _phoneAsId : null;
+
 
   /// Connexion Google — pour acheteur (conducteur)
   static Future<void> signInWithGoogle() async {
@@ -238,14 +244,20 @@ class MarketplaceService {
   }
 
   /// Diffuse une demande de pièce à tous les magasins actifs.
+  /// [telephone] est le numéro de contact du client (déjà garanti connu
+  /// côté appelant via _assurerContact()) — sans lui, un magasin qui veut
+  /// rappeler le client avant de répondre n'avait aucun moyen de le faire.
   static Future<String> broadcastRequest({
     required File photo,
     required String pieceNom,
     required String reference,
     required List<String> compatibilite,
+    String? telephone,
     File? noteVocale,
   }) async {
     final uid = await ensureSignedIn();
+    final numero =
+        telephone != null ? StoreService.normaliserNumeroLocal(telephone) : null;
     final id = FirebaseFirestore.instance.collection(_requestsCollection).doc().id;
 
     final photoUrl = await CloudinaryService.uploadImage(
@@ -270,6 +282,7 @@ class MarketplaceService {
     final request = PartRequest(
       id: id,
       clientId: uid,
+      clientTel: numero,
       pieceNom: pieceNom,
       reference: reference,
       compatibilite: compatibilite,

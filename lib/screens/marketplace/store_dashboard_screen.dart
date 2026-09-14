@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_config.dart';
 import '../../services/marketplace_models.dart';
 import '../../services/notification_service.dart';
@@ -684,6 +685,11 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
 
   /// Affiche le détail complet d'une commande (photo + infos + note vocale + Répondre).
   /// Avant, un simple tap sur la carte n'ouvrait que la photo.
+  Future<void> _appelerClient(String tel) async {
+    final uri = Uri(scheme: 'tel', path: tel);
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
   void _afficherDetailCommande(PartRequest r) {
     // Consulter = marquer comme lu → le badge diminue
     _marquerVue(r.id);
@@ -800,6 +806,47 @@ class _StoreDashboardScreenState extends State<StoreDashboardScreen> {
                             'Date de la demande',
                             _formatDate(r.dateCreation),
                           ),
+                          if (r.clientTel != null &&
+                              r.clientTel!.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Material(
+                              color: Colors.green.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () => _appelerClient(r.clientTel!),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 12),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.call,
+                                          color: Colors.green),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Appeler le client',
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.w600),
+                                            ),
+                                            Text(
+                                              r.clientTel!,
+                                              style: TextStyle(
+                                                  color: Colors.grey.shade700),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
 
                           // Note vocale du client
                           if (r.aUneNoteVocale) ...[

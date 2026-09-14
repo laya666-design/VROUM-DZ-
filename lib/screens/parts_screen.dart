@@ -218,9 +218,14 @@ class _PartsScreenState extends State<PartsScreen> {
   /// Oblige un numéro de téléphone (ou une connexion acheteur) avant
   /// d'envoyer la demande aux magasins — sinon le magasin ne peut pas rappeler.
   Future<bool> _assurerContact() async {
-    // Déjà connecté au portail acheteur (téléphone ou compte)
-    if (MarketplaceService.isPhoneLoggedIn ||
-        MarketplaceService.hasSession) {
+    // Déjà connecté au portail acheteur avec un vrai numéro (compte
+    // téléphone + mot de passe). ATTENTION : ne PAS utiliser
+    // MarketplaceService.hasSession ici — cette session existe déjà dès
+    // l'ouverture de l'onglet Pièces (connexion Firebase anonyme
+    // automatique pour écouter "Mes demandes" en arrière-plan), donc ce
+    // check passait toujours à true et le numéro n'était jamais demandé,
+    // même à la toute première demande envoyée.
+    if (MarketplaceService.isPhoneLoggedIn) {
       return true;
     }
     // Numéro déjà enregistré localement (SOS / profil)
@@ -309,9 +314,10 @@ class _PartsScreenState extends State<PartsScreen> {
           ),
         ),
       );
-      return ok == true ||
-          MarketplaceService.isPhoneLoggedIn ||
-          MarketplaceService.hasSession;
+      // Même remarque que plus haut : hasSession ne prouve pas qu'un
+      // vrai contact existe (session anonyme systématique dès l'ouverture
+      // de l'onglet), on ne s'appuie que sur isPhoneLoggedIn.
+      return ok == true || MarketplaceService.isPhoneLoggedIn;
     }
 
     return false;
@@ -332,6 +338,10 @@ class _PartsScreenState extends State<PartsScreen> {
         pieceNom: part.nom,
         reference: part.reference,
         compatibilite: part.compatibilite,
+        // Numéro garanti connu par _assurerContact() ci-dessus : le
+        // compte téléphone d'abord si connecté, sinon celui enregistré
+        // localement — c'est lui que les magasins verront pour rappeler.
+        telephone: MarketplaceService.knownPhone ?? SettingsService.userTel,
         noteVocale: _noteVocale,
       );
       if (!mounted) return;
