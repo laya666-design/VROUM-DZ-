@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../config/app_config.dart';
 import '../../services/admin_service.dart';
+import '../../services/biometric_service.dart';
 import '../../services/marketplace_models.dart';
 import '../../services/sos_models.dart';
 import 'admin_payments_screen.dart';
@@ -38,6 +39,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
+  void _openSettings() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const _AdminSettingsSheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,6 +55,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         foregroundColor: Colors.white,
         title: const Text('Admin'),
         actions: [
+          IconButton(
+            tooltip: 'Paramètres',
+            icon: const Icon(Icons.settings),
+            onPressed: _openSettings,
+          ),
           IconButton(
             tooltip: 'Déconnexion',
             icon: const Icon(Icons.logout),
@@ -75,6 +89,117 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           _RequestsTab(config: widget.config),
           _DepanneusesTab(config: widget.config),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Paramètres admin (déverrouillage biométrique)
+// ---------------------------------------------------------------------------
+
+class _AdminSettingsSheet extends StatefulWidget {
+  const _AdminSettingsSheet();
+
+  @override
+  State<_AdminSettingsSheet> createState() => _AdminSettingsSheetState();
+}
+
+class _AdminSettingsSheetState extends State<_AdminSettingsSheet> {
+  bool _loading = true;
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+  bool _updating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final available = await BiometricService.isAvailable();
+    final enabled = await BiometricService.isEnabled();
+    if (!mounted) return;
+    setState(() {
+      _biometricAvailable = available;
+      _biometricEnabled = enabled;
+      _loading = false;
+    });
+  }
+
+  Future<void> _toggle(bool value) async {
+    setState(() => _updating = true);
+    // On ne réactive l'option que si une confirmation biométrique
+    // immédiate réussit, pour éviter d'activer un verrou que
+    // l'utilisateur ne pourra pas lever ensuite.
+    if (value) {
+      final confirmed = await BiometricService.authenticate(
+        reason: 'Confirme ton identité pour activer le déverrouillage biométrique',
+      );
+      if (!confirmed) {
+        if (mounted) setState(() => _updating = false);
+        return;
+      }
+    }
+    await BiometricService.setEnabled(value);
+    if (!mounted) return;
+    setState(() {
+      _biometricEnabled = value;
+      _updating = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Paramètres',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (!_biometricAvailable)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Le déverrouillage biométrique n\'est pas disponible sur '
+                  'cet appareil (capteur absent ou aucune empreinte/visage '
+                  'enregistré dans les réglages du téléphone).',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              )
+            else
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                secondary: _updating
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.fingerprint),
+                title: const Text('Déverrouillage biométrique'),
+                subtitle: const Text(
+                  'Confirmer avec l\'empreinte ou le visage à chaque '
+                  'ouverture de l\'espace Admin, au lieu de retaper l\'email '
+                  'et le mot de passe.',
+                ),
+                value: _biometricEnabled,
+                onChanged: _updating ? null : _toggle,
+              ),
+          ],
+        ),
       ),
     );
   }

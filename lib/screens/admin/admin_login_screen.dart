@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../services/admin_service.dart';
+import '../../services/biometric_service.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_forgot_password_screen.dart';
 import '../../widgets/google_signin_button.dart';
@@ -36,6 +37,13 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   /// et le mot de passe si le token porte déjà le claim admin).
   bool _checkingSession = true;
 
+  /// true si une session Firebase admin valide existe déjà mais que la
+  /// confirmation biométrique (activée précédemment) reste à faire —
+  /// on affiche alors un simple bouton "Déverrouiller" plutôt que le
+  /// formulaire email/mot de passe complet.
+  bool _biometricLocked = false;
+  bool _biometricChecking = false;
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +55,22 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     if (user != null) {
       final isAdmin = await AdminService.isCurrentUserAdmin();
       if (isAdmin) {
+        final biometricEnabled = await BiometricService.isEnabled();
+        if (biometricEnabled && await BiometricService.isAvailable()) {
+          final unlocked = await BiometricService.authenticate();
+          if (!unlocked) {
+            // Session Firebase toujours valide, mais l'utilisateur n'a
+            // pas confirmé son empreinte/visage : on ne rentre pas tout
+            // seul dans le tableau de bord, on propose de réessayer.
+            if (mounted) {
+              setState(() {
+                _biometricLocked = true;
+                _checkingSession = false;
+              });
+            }
+            return;
+          }
+        }
         if (!mounted) return;
         Navigator.pushReplacement(
           context,
@@ -60,6 +84,57 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     if (mounted) setState(() => _checkingSession = false);
   }
 
+  Future<void> _retryBiometric() async {
+    setState(() => _biometricChecking = true);
+    final unlocked = await BiometricService.authenticate();
+    if (!mounted) return;
+    if (unlocked) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AdminDashboardScreen(config: widget.config),
+        ),
+      );
+      return;
+    }
+    setState(() => _biometricChecking = false);
+  }
+
+  /// Après une connexion email/téléphone/Google réussie : si l'appareil
+  /// supporte la biométrie et que l'option n'est pas encore activée, on
+  /// propose de l'activer pour la prochaine fois. Ne bloque jamais la
+  /// connexion en cours (l'admin accède au tableau de bord quoi qu'il
+  /// réponde).
+  Future<void> _maybeOfferBiometricEnrollment() async {
+    if (await BiometricService.isEnabled()) return;
+    if (!await BiometricService.isAvailable()) return;
+    if (!mounted) return;
+    final accept = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Connexion biométrique'),
+        content: const Text(
+          'Utiliser ton empreinte ou ton visage pour retrouver l\'espace '
+          'Admin plus vite la prochaine fois, sans retaper l\'email et le '
+          'mot de passe ?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Non merci'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Activer'),
+          ),
+        ],
+      ),
+    );
+    if (accept == true) {
+      await BiometricService.setEnabled(true);
+    }
+  }
+
 
   Future<void> _signInWithGoogle() async {
     setState(() {
@@ -69,6 +144,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     });
     try {
       await AdminService.signInWithGoogle();
+      if (!mounted) return;
+      await _maybeOfferBiometricEnrollment();
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -112,6 +189,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         return;
       }
       if (!mounted) return;
+      await _maybeOfferBiometricEnrollment();
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -133,6 +212,57 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       return Scaffold(
         appBar: AppBar(title: const Text('Espace Admin')),
         body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_biometricLocked) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Espace Admin')),
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.fingerprint, size: 72),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Session admin retrouvée. Confirme ton identité pour '
+                    'continuer.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: _biometricChecking ? null : _retryBiometric,
+                    icon: _biometricChecking
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.fingerprint),
+                    label: const Text('Déverrouiller'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _biometricChecking
+                        ? null
+                        : () async {
+                            // Repli : se déconnecter pour revenir au
+                            // formulaire email/mot de passe classique
+                            // (utile si l'empreinte enregistrée a changé).
+                            await AdminService.signOut();
+                            if (!mounted) return;
+                            setState(() => _biometricLocked = false);
+                          },
+                    child: const Text('Se connecter autrement'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       );
     }
     return Scaffold(
