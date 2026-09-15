@@ -181,21 +181,14 @@ class StoreService {
   /// mot de passe a déjà eu lieu — auquel cas c'est le vrai email fourni
   /// à ce moment-là (champ `authEmail`, mis à jour par
   /// `attacherEmailRecuperationTelephone`).
-  /// Passe par la Cloud Function getAuthEmailByPhone plutôt qu'une
-  /// lecture Firestore directe de stores/<numero> : à ce stade (avant la
-  /// connexion), la règle Firestore de "stores" exige déjà d'être
-  /// authentifié comme propriétaire — impossible ici puisqu'on cherche
-  /// justement l'email pour SE connecter. L'ancienne version échouait
-  /// silencieusement et cassait la reconnexion de tout magasin ayant déjà
-  /// récupéré son mot de passe une fois.
   static Future<String> _authEmailPourNumero(String numero) async {
     final technique = _emailTechniqueDepuisNumero(numero);
     try {
-      final callable =
-          FirebaseFunctions.instance.httpsCallable('getAuthEmailByPhone');
-      final result =
-          await callable.call({'telephone': numero, 'type': 'store'});
-      final authEmail = result.data['email'] as String?;
+      final doc = await FirebaseFirestore.instance
+          .collection(_storesCollection)
+          .doc(numero)
+          .get();
+      final authEmail = doc.data()?['authEmail'] as String?;
       return (authEmail != null && authEmail.isNotEmpty) ? authEmail : technique;
     } catch (_) {
       return technique;
