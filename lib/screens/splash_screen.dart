@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:video_player/video_player.dart';
 import '../config/app_config.dart';
 import 'role_router.dart';
 
-/// Splash plein écran avec la roue qui tourne (VROUM).
+/// Splash plein écran en 2 temps :
+/// 1) vidéo d'intro (assets/video/splash_intro.mp4)
+/// 2) demande de permission notifications
+/// 3) vidéo de la roue qui tourne (assets/video/splash_wheel.mp4)
 /// Puis route selon le rôle (ou RoleSelectionScreen au premier lancement).
 class SplashScreen extends StatefulWidget {
   final AppConfig config;
@@ -19,39 +23,77 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
+enum _SplashStage { intro, wheel }
+
 class _SplashScreenState extends State<SplashScreen> {
   late VideoPlayerController _controller;
+  _SplashStage _stage = _SplashStage.intro;
   bool _initialized = false;
-  bool _navigated = false;
+  bool _advancing = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.asset('assets/video/splash_wheel.mp4')
+    _playVideo('assets/video/splash_intro.mp4', onDone: _afterIntro);
+  }
+
+  void _playVideo(String asset, {required VoidCallback onDone}) {
+    _initialized = false;
+    _advancing = false;
+    _controller = VideoPlayerController.asset(asset)
       ..initialize().then((_) {
         if (!mounted) return;
         setState(() => _initialized = true);
         _controller.setLooping(false);
         _controller.setVolume(0);
         _controller.play();
-        _controller.addListener(_onVideoUpdate);
+        _controller.addListener(() => _onVideoUpdate(onDone));
       }).catchError((e) {
-        _goToApp();
+        onDone();
       });
 
-    Future.delayed(const Duration(seconds: 8), _goToApp);
+    // Filet de sécurité si la vidéo ne se termine jamais correctement.
+    Future.delayed(const Duration(seconds: 8), () {
+      if (!_advancing) {
+        _advancing = true;
+        onDone();
+      }
+    });
   }
 
-  void _onVideoUpdate() {
-    if (_controller.value.position >= _controller.value.duration &&
-        !_navigated) {
-      _goToApp();
+  void _onVideoUpdate(VoidCallback onDone) {
+    if (_advancing) return;
+    if (_controller.value.position >= _controller.value.duration) {
+      _advancing = true;
+      onDone();
     }
   }
 
+  Future<void> _afterIntro() async {
+    if (!mounted || _stage != _SplashStage.intro) return;
+    _advancing = true;
+
+    // Demandée ici (et pas dans main()) pour que la popup système
+    // n'apparaisse qu'après la vidéo d'intro, et avant la vidéo de la roue.
+    try {
+      await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    } catch (_) {
+      // Si ça échoue (permission déjà tranchée, etc.), on continue quand
+      // même vers la suite du splash.
+    }
+
+    if (!mounted) return;
+    await _controller.dispose();
+    setState(() => _stage = _SplashStage.wheel);
+    _playVideo('assets/video/splash_wheel.mp4', onDone: _goToApp);
+  }
+
   void _goToApp() {
-    if (_navigated || !mounted) return;
-    _navigated = true;
+    if (!mounted || _stage != _SplashStage.wheel) return;
 
     // Le choix de l'écran suivant vit dans RoleRouter, partagé avec
     // RoleSelectionScreen — jamais dupliqué ici.
@@ -69,7 +111,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   void dispose() {
-    _controller.removeListener(_onVideoUpdate);
     _controller.dispose();
     super.dispose();
   }

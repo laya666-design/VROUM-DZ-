@@ -50,12 +50,10 @@ void main() async {
 
   // Push FCM : magasin (nouvelles demandes) + dépanneuse (alertes SOS)
   // même app fermée / téléphone en poche.
+  // NOTE : la demande de permission (requestPermission) est volontairement
+  // déplacée après le splash vidéo (voir splash_screen.dart) pour que
+  // l'utilisateur voie d'abord la vidéo VROUM avant la popup système.
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
   // Affiche aussi les notifications quand l'app est au premier plan.
   await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
     alert: true,

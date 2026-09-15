@@ -91,35 +91,33 @@ class _ResetPasswordEmailDialogContentState
 
     return AlertDialog(
       title: const Text('Mot de passe oublié'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Indique ton adresse email : on t\'y envoie un lien pour '
-              'choisir un nouveau mot de passe.\n\n'
-              'La première fois, cet email reste associé à ton compte '
-              'pour les prochaines réinitialisations.',
-              style: TextStyle(fontSize: 13, color: Colors.black54),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Indique ton adresse email : on t\'y envoie un lien pour '
+            'choisir un nouveau mot de passe.\n\n'
+            'La première fois, cet email reste associé à ton compte '
+            'pour les prochaines réinitialisations.',
+            style: TextStyle(fontSize: 13, color: Colors.black54),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: widget.emailController,
+            keyboardType: TextInputType.emailAddress,
+            enabled: !_loading,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              border: OutlineInputBorder(),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: widget.emailController,
-              keyboardType: TextInputType.emailAddress,
-              enabled: !_loading,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
-            ],
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
           ],
-        ),
+        ],
       ),
       actions: [
         TextButton(
