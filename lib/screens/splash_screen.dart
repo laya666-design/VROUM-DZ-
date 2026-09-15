@@ -73,18 +73,30 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted || _stage != _SplashStage.intro) return;
     _advancing = true;
 
+    // Écran neutre (fond noir, sans vidéo) pendant la demande de
+    // permission : ça garantit une vraie coupure visuelle entre les deux
+    // vidéos, qui sinon peuvent sembler "collées" si Android a déjà
+    // mémorisé la décision d'un test précédent et ne réaffiche pas la
+    // popup (comportement système normal, hors de notre contrôle après
+    // la 1ère décision).
+    if (mounted) setState(() => _initialized = false);
+
     // Demandée ici (et pas dans main()) pour que la popup système
     // n'apparaisse qu'après la vidéo d'intro, et avant la vidéo de la roue.
-    try {
-      await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-    } catch (_) {
+    final permission = FirebaseMessaging.instance
+        .requestPermission(alert: true, badge: true, sound: true)
+        .catchError((_) {
       // Si ça échoue (permission déjà tranchée, etc.), on continue quand
       // même vers la suite du splash.
-    }
+      return null;
+    });
+
+    // Délai minimum pour garantir la coupure visuelle même quand la popup
+    // ne s'affiche pas (permission déjà accordée/refusée auparavant).
+    await Future.wait([
+      permission,
+      Future.delayed(const Duration(milliseconds: 700)),
+    ]);
 
     if (!mounted) return;
     await _controller.dispose();

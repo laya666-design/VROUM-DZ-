@@ -524,14 +524,27 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   }
 
   /// Cherche d'abord un code VF* (Peugeot/Renault/Citroën) dans le texte OCR,
-  /// sinon le premier code alphanumérique plausible.
+  /// sinon le premier code alphanumérique plausible CONTENANT AU MOINS UN
+  /// CHIFFRE (un vrai châssis/code type en a toujours : WVWZZZAUZJR005052,
+  /// VF3XG8HHC...). Un mot purement alphabétique (ex. "D'ALGER", nom de
+  /// commune lu en haut de la carte grise) ne doit JAMAIS être pris pour un
+  /// châssis — bug observé : "DALGER" confondu avec le numéro de châssis.
   String _extractBestChassisOrType(String raw) {
     final upper = raw.toUpperCase();
     // Priorité : codes type algériens VF1/VF3/VF7 (ex. VF3XG8HHC)
     final vf = RegExp(r'\b(VF[137][A-HJ-NPR-Z0-9]{4,14})\b').firstMatch(upper);
     if (vf != null) return vf.group(1)!;
-    final any = RegExp(r'\b([A-HJ-NPR-Z0-9]{6,17})\b').firstMatch(upper);
-    return any?.group(1) ?? '';
+    // Sinon : premier candidat 6-17 caractères qui contient au moins un
+    // chiffre (élimine les mots de l'adresse/commune sans chiffre).
+    final matches =
+        RegExp(r'\b([A-HJ-NPR-Z0-9]{6,17})\b').allMatches(upper);
+    for (final m in matches) {
+      final candidate = m.group(1)!;
+      if (RegExp(r'[0-9]').hasMatch(candidate)) {
+        return candidate;
+      }
+    }
+    return '';
   }
 
   /// Secours local : OCR ML Kit + détection marque arabe/latin + WMI.
@@ -596,7 +609,20 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
         if (local != null && !local.estVide) {
           _info = local;
           _fillControllers(local);
-          _error = null;
+          // Le serveur IA (qui lit l'arabe) n'a pas répondu : on utilise le
+          // secours local, qui ne lit QUE le latin. La marque (souvent en
+          // arabe sur la carte grise) peut donc manquer — on le signale
+          // clairement au lieu de laisser croire que tout a été lu.
+          _error = _t(
+            'Connexion au serveur de reconnaissance indisponible : '
+                'seuls certains champs (visibles en latin) ont pu être '
+                'lus localement. Vérifie surtout la marque et complète '
+                'les champs manquants, ou réessaie dans quelques instants '
+                'avec une meilleure connexion.',
+            'الاتصال بخادم التعرف غير متوفر: تم قراءة بعض الحقول محليًا '
+                'فقط (بالأحرف اللاتينية). تحقق خاصة من الماركة وأكمل '
+                'الحقول الناقصة، أو أعد المحاولة لاحقًا مع اتصال أفضل.',
+          );
         } else {
           _error = _t('Erreur : ${json['error']}', 'خطأ: ${json['error']}');
         }
