@@ -675,42 +675,6 @@ exports.getAdminEmailByPhone = functions.https.onCall(async (data) => {
   return { email: userRecord.email };
 });
 
-/**
- * Retrouve l'email Firebase Auth actuel d'un compte magasin ou acheteur à
- * partir de son numéro de téléphone — nécessaire avant l'appel à
- * signInWithEmailAndPassword côté client, puisque cet email a pu changer
- * (voir attacherEmailRecuperationTelephone ci-dessus) depuis l'email
- * technique par défaut ("@elbouni.local"/"@vroumclient.local").
- *
- * Remplace une lecture Firestore directe côté client (stores/{numero} ou
- * buyer_accounts/{numero}) qui échouait silencieusement avant la
- * connexion : les règles Firestore exigent d'être déjà authentifié comme
- * propriétaire du document pour le lire, ce qui est impossible à ce stade
- * précis (on cherche justement l'email pour SE connecter). Conséquence
- * concrète du bug : un compte ayant déjà récupéré son mot de passe une
- * fois ne pouvait plus jamais se reconnecter ensuite (le client retentait
- * avec l'ancien email technique, qui n'existe plus sur ce compte). Même
- * mécanisme que getAdminEmailByPhone plus haut.
- */
-exports.getAuthEmailByPhone = functions.https.onCall(async (data) => {
-  const numero = (data.telephone || '').toString().replace(/[^0-9]/g, '');
-  const type = data.type === 'buyer' ? 'buyer' : 'store';
-
-  if (numero.length !== 10 || !numero.startsWith('0')) {
-    throw new functions.https.HttpsError('invalid-argument', 'Numéro invalide.');
-  }
-
-  const domaineTechnique = type === 'buyer' ? 'vroumclient.local' : 'elbouni.local';
-  const emailTechniqueParDefaut = `${numero}@${domaineTechnique}`;
-  const collection = type === 'buyer' ? 'buyer_accounts' : 'stores';
-
-  const db = admin.firestore();
-  const doc = await db.collection(collection).doc(numero).get();
-  const email = (doc.exists && doc.data().authEmail) || emailTechniqueParDefaut;
-
-  return { email };
-});
-
 function db_ref(storeId, paymentId) {
   return admin
     .firestore()
