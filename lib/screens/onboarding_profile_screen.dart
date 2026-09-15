@@ -111,11 +111,7 @@ class _OnboardingProfileScreenState extends State<OnboardingProfileScreen> {
               toolbarHeight: 96,
               titleSpacing: 0,
               automaticallyImplyLeading: false,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                tooltip: t('Retour', 'رجوع'),
-                onPressed: () => _quitterApp(isAr),
-              ),
+              // Pas de flèche retour : c'est le tout premier écran de l'app.
               flexibleSpace: ClipRect(
                 child: Stack(
                   fit: StackFit.expand,
