@@ -2,26 +2,36 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 
-/// Version Cloudflare Worker + Groq
-/// La cle API Groq est protegee cote serveur (Worker), jamais exposee dans l app.
+/// Version Cloudflare Worker + Google Gemini (API compatible OpenAI).
+/// La cle API Gemini est protegee cote serveur (Worker), jamais exposee dans l app.
+///
+/// Migre depuis Groq : le modele qwen/qwen3.6-27b (deja une migration
+/// precedente depuis llama-3.2-90b-vision-preview) est un modele "preview"
+/// chez Groq, explicitement documente comme pouvant etre retire sans
+/// preavis — cause du blocage "model_not_found" rencontre en prod (c'est
+/// ce qui faisait disparaitre les donnees carte grise/assurance/CT malgre
+/// une cle Gemini deja configuree cote Worker : ce fichier appelait encore
+/// l'ancien modele Groq). Gemini 2.5 Flash est un modele stable (GA),
+/// multimodal, disponible gratuitement (Algerie incluse) avec un palier
+/// bien plus large que Groq.
 
 class GeminiService {
   static const String _workerUrl =
       'https://tight-smoke-4dfa.laya666.workers.dev';
 
-  Future<String> _callGroq(
+  Future<String> _callVisionModel(
     String prompt,
     File file, {
     String reasoningEffort = 'none',
   }) async {
-    // Compresse / limite la taille pour rester sous le plafond ITPM Groq
-    // (7000 tokens/min en on_demand). Une photo 4K en base64 dépasse
-    // facilement 3000 tokens d'entrée à elle seule.
+    // Gemini tolere un plafond de tokens/minute bien plus large que Groq
+    // (palier gratuit ~250k TPM) ; la compression 1600px / qualite 85 deja
+    // faite cote ecran suffit largement, pas besoin d etre plus strict ici.
     final bytes = await file.readAsBytes();
     final base64Image = base64Encode(bytes);
 
     final body = {
-      "model": "qwen/qwen3.6-27b",
+      "model": "gemini-2.5-flash",
       "messages": [
         {
           "role": "user",
@@ -36,11 +46,15 @@ class GeminiService {
       ],
       "temperature": 0.2,
       "reasoning_effort": reasoningEffort,
-      // OTPM on_demand = 1000 ; on reste largement en dessous.
+      // 600 tokens suffisent pour un JSON de reponse ; reasoning_effort a
+      // 'none' desactive completement le raisonnement sur Gemini 2.5.
       "max_completion_tokens": reasoningEffort == 'none' ? 600 : 2500,
     };
 
-    // Retry automatique sur rate_limit (ITPM/OTPM) : attend ~16s puis 1 essai.
+    // Retry automatique sur limite de debit (HTTP 429) : attend ~16s puis
+    // 1 essai. On verifie d abord le code HTTP (fiable quel que soit le
+    // fournisseur derriere le Worker), avec un filet de secours sur le
+    // texte de l erreur pour les cas ou le 429 n est pas exact.
     Object? lastError;
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
@@ -50,11 +64,13 @@ class GeminiService {
           body: jsonEncode(body),
         );
 
+        final isRateLimited = response.statusCode == 429;
         final data = jsonDecode(response.body);
 
-        if (data['error'] != null) {
-          final err = data['error'].toString();
-          if (err.contains('rate_limit') && attempt == 0) {
+        if (data['error'] != null || isRateLimited) {
+          final err =
+              (data['error'] ?? 'HTTP ${response.statusCode}').toString();
+          if ((isRateLimited || _looksLikeRateLimit(err)) && attempt == 0) {
             lastError = err;
             await Future<void>.delayed(const Duration(seconds: 17));
             continue;
@@ -69,21 +85,33 @@ class GeminiService {
         return content as String;
       } catch (e) {
         lastError = e;
-        final msg = e.toString();
-        if (msg.contains('rate_limit') && attempt == 0) {
+        if (_looksLikeRateLimit(e.toString()) && attempt == 0) {
           await Future<void>.delayed(const Duration(seconds: 17));
           continue;
         }
         rethrow;
       }
     }
-    throw Exception(lastError?.toString() ?? 'Erreur inconnue Groq');
+    throw Exception(lastError?.toString() ?? 'Erreur inconnue du serveur IA');
+  }
+
+  /// Vrai si le texte d erreur ressemble a une limite de debit, quel que
+  /// soit le fournisseur (Groq: rate_limit/ITPM/OTPM ; Gemini:
+  /// RESOURCE_EXHAUSTED/quota).
+  bool _looksLikeRateLimit(String msg) {
+    final m = msg.toLowerCase();
+    return m.contains('rate_limit') ||
+        m.contains('resource_exhausted') ||
+        m.contains('quota') ||
+        m.contains('429') ||
+        m.contains('itpm') ||
+        m.contains('otpm');
   }
 
   /// Transforme une erreur technique en message lisible pour l'utilisateur.
   String _friendlyOcrError(Object e) {
     final msg = e.toString();
-    if (msg.contains('rate_limit') || msg.contains('ITPM') || msg.contains('OTPM')) {
+    if (_looksLikeRateLimit(msg)) {
       return 'Serveur momentanément saturé. Attends 20 secondes puis '
           'réessaie avec la même photo.';
     }
@@ -137,7 +165,7 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
 REGLE: magasins doit toujours etre un tableau vide [].
 ''';
 
-      final raw = await _callGroq(prompt, file);
+      final raw = await _callVisionModel(prompt, file);
       return _parseJson(raw);
     } catch (e) {
       return {'error': _friendlyOcrError(e), 'magasins': []};
@@ -196,7 +224,7 @@ REGLE: ne jamais inventer. Si aucune date n est lisible sur le document,
 mets null.
 ''';
 
-      final raw = await _callGroq(prompt, file);
+      final raw = await _callVisionModel(prompt, file);
       final json = _parseJson(raw);
       json.remove('magasins');
       return json;
@@ -298,7 +326,7 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
 }
 ''';
 
-      final raw = await _callGroq(prompt, file);
+      final raw = await _callVisionModel(prompt, file);
       final json = _parseJson(raw);
       json.remove('magasins');
       // Filet de sécurité : corrige une marque clairement incohérente avec le
@@ -437,7 +465,7 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
 REGLE CRITIQUE: magasins = [] toujours vide. Ne jamais inventer de telephone.
 ''';
 
-      final raw = await _callGroq(prompt, file);
+      final raw = await _callVisionModel(prompt, file);
       return _parseJson(raw);
     } catch (e) {
       return {'error': _friendlyOcrError(e), 'magasins': []};
