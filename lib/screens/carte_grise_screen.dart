@@ -57,10 +57,6 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   bool _loading = false;
   String? _error;
   CarteGriseInfo? _info;
-  /// Debug temporaire : réponse brute du modèle vision, affichée quand le
-  /// résultat extrait est vide ou quasi vide — permet de diagnostiquer sans
-  /// deviner. À retirer une fois le pipeline Gemini stabilisé.
-  String? _debugRaw;
   /// true une fois que l'utilisateur a explicitement validé le scan
   /// (évite d'enregistrer des erreurs OCR/IA sans relecture).
   bool _confirmed = false;
@@ -195,6 +191,10 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   /// Catalogue marques → modèles pour motos & scooters (marché algérien).
   /// Filtré selon le typeVehicule choisi (premier écran / section Motos).
   static const Map<String, List<String>> _catalogueMarquesMoto = {
+    'AS MOTORS': [
+      'RM125', 'RM150', 'RM200', 'RM250', 'RX125', 'RX150', 'CG125', 'CG150',
+      'Custom 125', 'Custom 150', 'Sport 125', 'Sport 150',
+    ],
     'YAMAHA': [
       'YZF-R1', 'YZF-R3', 'YZF-R6', 'MT-07', 'MT-09', 'MT-15', 'XMAX',
       'NMAX', 'Aerox', 'Fazer', 'Ténéré', 'Crypton', 'Ray ZR',
@@ -294,6 +294,7 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     'DFSK': Color(0xFFE11D48),
     'FOTON': Color(0xFF1D4ED8),
     // Motos & scooters
+    'AS MOTORS': Color(0xFFE30613),
     'YAMAHA': Color(0xFF0033A0),
     'KAWASAKI': Color(0xFF00A651),
     'SYM': Color(0xFFE30613),
@@ -396,10 +397,19 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     // Utilise le catalogue filtré selon le type de véhicule.
     final rawMarque = info.marque.trim().toUpperCase();
     String marque = rawMarque;
+    // Variantes AS MOTORS (très courantes sur les motos DZ)
+    if (marque == 'ASMOTORS' ||
+        marque == 'AS-MOTORS' ||
+        marque == 'AS MOTOR' ||
+        marque == 'AS-MOTOR' ||
+        marque == 'AS') {
+      marque = 'AS MOTORS';
+    }
     final catalogue = _catalogueActif;
-    if (rawMarque.isNotEmpty && !catalogue.containsKey(rawMarque)) {
+    if (rawMarque.isNotEmpty && !catalogue.containsKey(marque)) {
       for (final key in catalogue.keys) {
-        if (rawMarque.contains(key) || key.contains(rawMarque)) {
+        if (marque.contains(key) || key.contains(marque) ||
+            marque.replaceAll(' ', '') == key.replaceAll(' ', '')) {
           marque = key;
           break;
         }
@@ -528,25 +538,32 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   }
 
   /// Cherche d'abord un code VF* (Peugeot/Renault/Citroën) dans le texte OCR,
-  /// sinon le premier code alphanumérique plausible.
-  ///
-  /// BUG CORRIGÉ : l'ancienne regex acceptait n'importe quelle suite de
-  /// 6-17 lettres/chiffres, y compris des mots 100% alphabétiques. Un OCR
-  /// on-device (ML Kit) lit très bien les noms de commune en haut du
-  /// document (gros caractères nets) mais mal le tableau du bas (plastique
-  /// froissé/reflet) — résultat : "ANNABA" ou "D'ALGER" (lu "DALGER", 6
-  /// lettres) étaient pris pour un châssis avant même d'atteindre le vrai
-  /// code. Un châssis/code type réel mélange TOUJOURS lettres et chiffres
-  /// (ex. WVWZZZAUZJR005052, VF3XG8HHC) : on exige donc au moins un chiffre
-  /// dans le token, ce qui élimine les noms de ville par construction.
+  /// sinon un code DZKRM* (AS MOTORS), sinon le premier code alphanumérique
+  /// plausible qui n'est PAS une ville algérienne.
+  static const _villesBloquees = {
+    'ANNABA', 'ALGER', 'ALGERIE', 'ALGERIA', 'ORAN', 'CONSTANTINE',
+    'SETIF', 'BLIDA', 'BATNA', 'BEJAIA', 'TIZI', 'SKIKDA', 'DALGER',
+    'DJELFA', 'TIARET', 'MOSTAGANEM', 'TEBESSA', 'BISKRA', 'TLEMCEN',
+    'BOUMERDES', 'BOUIRA', 'JIJEL', 'GHARDAIA', 'OUARGLA', 'COMMUNE',
+    'WILAYA', 'BELABBES', 'SIDI',
+  };
+
   String _extractBestChassisOrType(String raw) {
     final upper = raw.toUpperCase();
     // Priorité : codes type algériens VF1/VF3/VF7 (ex. VF3XG8HHC)
     final vf = RegExp(r'\b(VF[137][A-HJ-NPR-Z0-9]{4,14})\b').firstMatch(upper);
     if (vf != null) return vf.group(1)!;
-    final any = RegExp(r'\b(?=[A-HJ-NPR-Z0-9]*[0-9])[A-HJ-NPR-Z0-9]{6,17}\b')
-        .firstMatch(upper);
-    return any?.group(0) ?? '';
+    // Moto AS MOTORS : DZKRM…
+    final dzk = RegExp(r'\b(DZKRM[A-Z0-9]{2,12})\b').firstMatch(upper);
+    if (dzk != null) return dzk.group(1)!;
+    // Premier code alphanumérique plausible (avec au moins 1 chiffre)
+    for (final m in RegExp(r'\b([A-HJ-NPR-Z0-9]{6,17})\b').allMatches(upper)) {
+      final code = m.group(1)!;
+      if (_villesBloquees.contains(code)) continue;
+      if (!RegExp(r'[0-9]').hasMatch(code)) continue; // pure lettres = souvent ville
+      return code;
+    }
+    return '';
   }
 
   /// Secours local : OCR ML Kit + détection marque arabe/latin + WMI.
@@ -559,6 +576,18 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
       var marque = OcrService.detectMarqueLocale(raw) ?? '';
       final chassis = _extractBestChassisOrType(raw);
       final fromWmi = chassis.isNotEmpty ? _marqueFromChassis(chassis) : null;
+      final upper = raw.toUpperCase();
+
+      // Moto AS MOTORS (très répandue en DZ) : indices type/chassis
+      if (marque.isEmpty || marque == 'AS') {
+        if (upper.contains('AS MOTORS') ||
+            upper.contains('AS-MOTORS') ||
+            upper.contains('ASMOTORS') ||
+            upper.contains('DZKRM') ||
+            RegExp(r'\bRM[0-9]{2,3}\b').hasMatch(upper)) {
+          marque = 'AS MOTORS';
+        }
+      }
 
       // VF3/VF1/VF7 (code type clair) corrigent toujours une mauvaise marque
       if (fromWmi == 'PEUGEOT' ||
@@ -569,8 +598,16 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
         marque = fromWmi;
       }
       if (marque.isEmpty && chassis.isEmpty) return null;
+
+      // Modele moto depuis TYPE RM125 etc.
+      String modele = '';
+      final rm = RegExp(r'\b(RM[0-9]{2,3})\b').firstMatch(upper);
+      if (rm != null) modele = rm.group(1)!;
+
       return CarteGriseInfo(
         marque: marque,
+        modele: modele,
+        type: modele,
         chassis: chassis,
       );
     } catch (_) {
@@ -582,7 +619,6 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     setState(() {
       _error = null;
       _info = null;
-      _debugRaw = null;
       _confirmed = false;
     });
 
@@ -617,7 +653,6 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
           _error = _t('Erreur : ${json['error']}', 'خطأ: ${json['error']}');
         }
       } else {
-        _debugRaw = json['_debug_raw']?.toString();
         var info = CarteGriseInfo.fromJson(json);
         // Le modèle vision (lecture ciblée de la case الصنف) fait foi pour
         // la marque. L'OCR local ne sert que de secours quand la marque
@@ -693,6 +728,23 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
             type: info.type,
             annee: info.annee,
             chassis: chassisForWmi.isNotEmpty ? chassisForWmi : info.chassis,
+            puissanceFiscale: info.puissanceFiscale,
+            immatriculation: info.immatriculation,
+            engineCode: info.engineCode,
+            fuelType: info.fuelType,
+          );
+        }
+        // Filet final : jamais de ville comme chassis
+        final ch = info.chassis.toUpperCase().trim();
+        if (ch.isNotEmpty &&
+            (_villesBloquees.contains(ch) ||
+                (ch.length <= 8 && !RegExp(r'[0-9]').hasMatch(ch)))) {
+          info = CarteGriseInfo(
+            marque: info.marque,
+            modele: info.modele,
+            type: info.type,
+            annee: info.annee,
+            chassis: '',
             puissanceFiscale: info.puissanceFiscale,
             immatriculation: info.immatriculation,
             engineCode: info.engineCode,
@@ -1274,32 +1326,6 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
             ),
             child: Text(_error!,
                 style: const TextStyle(color: Color(0xFF991B1B))),
-          ),
-        // Debug temporaire : montre ce que le modèle a réellement répondu
-        // quand le résultat extrait est vide ou quasi vide (marque ET
-        // modèle vides), même si _error n'est pas déclenché (ex: le
-        // châssis a été rempli par autre chose). Permet de diagnostiquer
-        // sans deviner — à retirer une fois le pipeline stabilisé.
-        if (_debugRaw != null &&
-            (_info == null || (_info!.marque.isEmpty && _info!.modele.isEmpty)))
-          Container(
-            margin: const EdgeInsets.only(top: 8),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFD1D5DB)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Debug — réponse IA brute (à envoyer si le bug persiste) :',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF6B7280), fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                SelectableText(_debugRaw!,
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF374151), fontFamily: 'monospace')),
-              ],
-            ),
           ),
         if (_info != null) ...[
           Container(

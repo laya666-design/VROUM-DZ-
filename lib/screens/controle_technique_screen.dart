@@ -98,8 +98,8 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
 
     final picked = await _picker.pickImage(
       source: source,
-      imageQuality: 70,
-      maxWidth: 1600,
+      imageQuality: 90,
+      maxWidth: 1800,
     );
     if (picked == null) return;
 
@@ -110,32 +110,56 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
     });
 
     try {
-      // Règle métier CT :
-      // 1) OCR local → toutes les dates + motifs VISITE PERIODIQUE
-      // 2) Gemini → date_prochain_controle (souvent mieux sur tampon rose)
-      // 3) On prend la PLUS RÉCENTE des deux sources.
+      // Règle métier CT (définitive) :
+      // 1) OCR local → TOUTES les dates du document (plus motifs VISITE PERIODIQUE)
+      // 2) Gemini → date_prochain_controle (utile sur tampon rose mal lu par OCR)
+      // 3) On prend TOUJOURS la PLUS RÉCENTE parmi OCR + IA + toutes dates OCR brutes.
+      //    Jamais une ancienne date d'immatriculation si une date 2026+ est présente.
       final rawText = await _ocr.extractText(file);
       final fromOcr = OcrService.extractDateVisitePeriodique(rawText);
+      final allOcrDates = OcrService.extractDates(rawText);
 
       ControleTechniqueInfo info = ControleTechniqueInfo();
       try {
         final json = await _gemini.analyzeControleTechnique(file);
-        info = ControleTechniqueInfo.fromJson(json);
+        if (json['error'] == null) {
+          info = ControleTechniqueInfo.fromJson(json);
+        }
       } catch (_) {
-        // Complément IA optionnel.
+        // Complément IA optionnel — l'OCR local reste la source de vérité des dates.
       }
       _info = info;
 
       final fromAi = info.dateProchainControleParsed;
+      // Candidats : date OCR "visite", date IA, et TOUTES les dates OCR du doc
+      final candidates = <DateTime>[
+        ...allOcrDates,
+        if (fromOcr != null) fromOcr,
+        if (fromAi != null) fromAi,
+      ];
       DateTime? expiration;
-      if (fromOcr != null && fromAi != null) {
-        expiration = fromOcr.isAfter(fromAi) ? fromOcr : fromAi;
-      } else {
-        expiration = fromOcr ?? fromAi;
+      if (candidates.isNotEmpty) {
+        candidates.sort();
+        expiration = candidates.last; // PLUS RÉCENTE de toutes
       }
 
       if (expiration != null) {
         _status = ExpiryStatus(expirationDate: expiration);
+        // Aligne le champ affiché sur la date retenue
+        if (info.dateProchainControle.isEmpty ||
+            fromAi == null ||
+            expiration.isAfter(fromAi)) {
+          final d = expiration;
+          final dd = d.day.toString().padLeft(2, '0');
+          final mm = d.month.toString().padLeft(2, '0');
+          info = ControleTechniqueInfo(
+            centre: info.centre,
+            numero: info.numero,
+            kilometrage: info.kilometrage,
+            dateProchainControle: '$dd/$mm/${d.year}',
+          );
+          _info = info;
+        }
       } else {
         _error = _t(
           'Aucune date reconnue sur cette photo. Cadre bien tout le '

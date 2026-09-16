@@ -52,16 +52,21 @@ class ControleTechniqueInfo {
     );
   }
 
-  /// Parse le champ dd/MM/yyyy renvoyé par Gemini, ou null si absent/invalide.
+  /// Parse le champ dd/MM/yyyy (ou dd-MM-yyyy / dd.MM.yyyy) renvoyé par
+  /// Gemini, ou null si absent/invalide.
   DateTime? get dateProchainControleParsed {
     final s = dateProchainControle.trim();
-    final m = RegExp(r'^(\d{1,2})/(\d{1,2})/(\d{4})$').firstMatch(s);
+    if (s.isEmpty || s.toLowerCase() == 'null') return null;
+    final m = RegExp(r'(\d{1,2})\s*[\/\.\-]\s*(\d{1,2})\s*[\/\.\-]\s*(\d{2,4})')
+        .firstMatch(s);
     if (m == null) return null;
     final day = int.tryParse(m.group(1)!);
     final month = int.tryParse(m.group(2)!);
-    final year = int.tryParse(m.group(3)!);
+    var year = int.tryParse(m.group(3)!);
     if (day == null || month == null || year == null) return null;
+    if (year < 100) year += 2000;
     if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    if (year < 2000 || year > 2100) return null;
     try {
       return DateTime(year, month, day);
     } catch (_) {

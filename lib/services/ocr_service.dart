@@ -179,7 +179,14 @@ class OcrService {
     if (RegExp(r'\bVF1[A-Z0-9]{2,}').hasMatch(upper)) return 'RENAULT';
     if (RegExp(r'\bVF7[A-Z0-9]{2,}').hasMatch(upper)) return 'CITROEN';
 
-    // 3) Latin
+    // 3) Latin (voitures + motos)
+    // AS MOTORS en premier (motos très courantes en DZ)
+    if (upper.contains('AS MOTORS') ||
+        upper.contains('AS-MOTORS') ||
+        upper.contains('ASMOTORS') ||
+        RegExp(r'\bAS\s*MOTORS?\b').hasMatch(upper)) {
+      return 'AS MOTORS';
+    }
     const latin = [
       'PEUGEOT', 'TOYOTA', 'RENAULT', 'NISSAN', 'HYUNDAI', 'KIA',
       'VOLKSWAGEN', 'DACIA', 'CITROEN', 'CITROËN', 'FIAT', 'CHEVROLET',
@@ -187,6 +194,9 @@ class OcrService {
       'MERCEDES', 'BMW', 'SEAT', 'SKODA', 'AUDI',
       'CHERY', 'JETOUR', 'HAVAL', 'GWM', 'GEELY', 'BYD', 'CHANGAN',
       'JAC', 'DONGFENG', 'BAIC', 'EXEED', 'OMODA', 'JAECOO', 'DFSK', 'FOTON',
+      // Motos
+      'YAMAHA', 'KAWASAKI', 'BAJAJ', 'TVS', 'HERO', 'SYM', 'KYMCO',
+      'PIAGGIO', 'VESPA', 'CFMOTO', 'APRILIA', 'DUCATI', 'KTM',
     ];
     if (RegExp(r'\bMG\b').hasMatch(upper)) return 'MG';
     for (final m in latin) {
