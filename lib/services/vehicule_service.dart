@@ -73,16 +73,39 @@ class SettingsService {
     syncDarkModeNotifier();
   }
 
-  static Box get _box => Hive.box(boxName);
+  /// Accès défensif : si Hive n'a pas pu s'ouvrir (crash rare au lancement),
+  /// on ne fait plus planter l'app — les getters utilisent des valeurs par
+  /// défaut via _boxOrNull.
+  static Box? get _boxOrNull {
+    try {
+      if (!Hive.isBoxOpen(boxName)) return null;
+      return Hive.box(boxName);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Box get _box {
+    final b = _boxOrNull;
+    if (b == null) {
+      throw StateError(
+        'SettingsService non initialisé (Hive box "$boxName" fermée). '
+        'Appeler SettingsService.init() avant toute lecture.',
+      );
+    }
+    return b;
+  }
 
   /// true si le Premium est actif — soit sans date d'expiration connue
   /// (compatibilité avec l'ancien flux gratuit), soit avec une date
   /// d'expiration encore dans le futur (flux BaridiMob validé par un
   /// admin, voir PremiumPaymentService).
   static bool get isPremium {
-    final v = _box.get(_premiumKey, defaultValue: false) as bool;
+    final box = _boxOrNull;
+    if (box == null) return false;
+    final v = box.get(_premiumKey, defaultValue: false) as bool;
     if (!v) return false;
-    final endStr = _box.get(_premiumEndKey) as String?;
+    final endStr = box.get(_premiumEndKey) as String?;
     if (endStr == null) return true;
     final end = DateTime.tryParse(endStr);
     if (end == null) return true;
@@ -127,8 +150,11 @@ class SettingsService {
   static const String _vehicleProfileKey = 'vehicleProfile';
 
   /// 'voiture', 'moto', 'both', ou null si pas encore choisi.
-  static String? get vehicleProfile =>
-      _box.get(_vehicleProfileKey) as String?;
+  static String? get vehicleProfile {
+    final box = _boxOrNull;
+    if (box == null) return null;
+    return box.get(_vehicleProfileKey) as String?;
+  }
 
   static bool get hasChosenVehicleProfile => vehicleProfile != null;
 
@@ -192,8 +218,11 @@ class SettingsService {
   /// Notifier écouté par MaterialApp pour basculer clair/sombre à chaud.
   static final ValueNotifier<bool> darkModeNotifier = ValueNotifier(false);
 
-  static bool get isDarkMode =>
-      _box.get(_darkModeKey, defaultValue: false) as bool;
+  static bool get isDarkMode {
+    final box = _boxOrNull;
+    if (box == null) return false;
+    return box.get(_darkModeKey, defaultValue: false) as bool;
+  }
 
   static Future<void> setDarkMode(bool value) async {
     await _box.put(_darkModeKey, value);
@@ -242,8 +271,11 @@ class SettingsService {
   // Choisi une seule fois au premier lancement. 1 compte = 1 rôle.
   static const String _userRoleKey = 'userRole';
 
-  static UserRole? get userRole =>
-      UserRole.fromStorage(_box.get(_userRoleKey) as String?);
+  static UserRole? get userRole {
+    final box = _boxOrNull;
+    if (box == null) return null;
+    return UserRole.fromStorage(box.get(_userRoleKey) as String?);
+  }
 
   static bool get hasChosenRole => userRole != null;
 

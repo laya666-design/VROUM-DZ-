@@ -44,57 +44,89 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+
+  // Initialisation robuste : chaque étape non-critique est isolée dans un
+  // try/catch pour que l'app démarre TOUJOURS, même si un service (AdMob,
+  // notifications, Hive, FCM…) échoue sur un appareil de testeur.
+  // C'est la cause n°1 des "s'arrête systématiquement" au lancement en
+  // release / tests internes Play.
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e, st) {
+    debugPrint('Firebase.initializeApp failed: $e\n$st');
+  }
 
   // Push FCM : magasin (nouvelles demandes) + dépanneuse (alertes SOS)
   // même app fermée / téléphone en poche.
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-  // Affiche aussi les notifications quand l'app est au premier plan.
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    final n = message.notification;
-    if (n == null) return;
-    // Alerte SOS (dépanneuse) → canal max importance (sonne en poche).
-    final isSos = message.data.containsKey('alertId') ||
-        (n.title?.toLowerCase().contains('alerte') ?? false) ||
-        (n.title?.toLowerCase().contains('panne') ?? false);
-    if (isSos) {
-      NotificationService.showSos(
-        title: n.title ?? 'Alerte panne',
-        body: n.body ?? '',
-      );
-    } else {
-      NotificationService.showNow(
-        title: n.title ?? 'VROUM DZ',
-        body: n.body ?? '',
-      );
-    }
-  });
+  try {
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    // Affiche aussi les notifications quand l'app est au premier plan.
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      final n = message.notification;
+      if (n == null) return;
+      // Alerte SOS (dépanneuse) → canal max importance (sonne en poche).
+      final isSos = message.data.containsKey('alertId') ||
+          (n.title?.toLowerCase().contains('alerte') ?? false) ||
+          (n.title?.toLowerCase().contains('panne') ?? false);
+      if (isSos) {
+        NotificationService.showSos(
+          title: n.title ?? 'Alerte panne',
+          body: n.body ?? '',
+        );
+      } else {
+        NotificationService.showNow(
+          title: n.title ?? 'VROUM DZ',
+          body: n.body ?? '',
+        );
+      }
+    });
+  } catch (e, st) {
+    debugPrint('FirebaseMessaging setup failed: $e\n$st');
+  }
 
   // "Se souvenir de moi" côté magasin : déconnecte si l'utilisateur avait
   // décoché la case lors de sa dernière connexion.
-  await StoreService.applyRememberMePreference();
+  try {
+    await StoreService.applyRememberMePreference();
+  } catch (e, st) {
+    debugPrint('StoreService.applyRememberMePreference failed: $e\n$st');
+  }
 
   // Stockage local (Hive) pour la gestion multi-véhicules — Phase 1.
-  await VehiculeService.init();
-  await SettingsService.init();
+  try {
+    await VehiculeService.init();
+    await SettingsService.init();
+  } catch (e, st) {
+    debugPrint('Hive / SettingsService init failed: $e\n$st');
+  }
 
   // Rappels locaux J-30/J-15/J-7 avant expiration.
-  await NotificationService.init();
+  try {
+    await NotificationService.init();
+  } catch (e, st) {
+    debugPrint('NotificationService.init failed: $e\n$st');
+  }
 
-  // Bannière publicitaire (AdMob).
-  await MobileAds.instance.initialize();
+  // Bannière publicitaire (AdMob). Ne doit jamais faire planter le lancement.
+  try {
+    await MobileAds.instance.initialize();
+  } catch (e, st) {
+    debugPrint('MobileAds.initialize failed: $e\n$st');
+  }
 
   runApp(const AjalakApp());
 }
