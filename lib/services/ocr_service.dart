@@ -95,7 +95,7 @@ class OcrService {
   }
 
   /// Détecte une marque connue dans un texte OCR brut (arabe ou latin).
-  /// Utile en secours si l'IA Groq échoue (rate limit) ou renvoie null.
+  /// Utile en secours si l'IA échoue (rate limit) ou renvoie null.
   ///
   /// Priorité : texte arabe de la case الصنف (بيجو → PEUGEOT, etc.),
   /// puis latin, puis indices de code type VF3/VF1.
