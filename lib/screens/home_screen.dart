@@ -92,6 +92,22 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Onglet Pièces désactivé pour le moment (aucun magasin inscrit sur la
+  // marketplace) : au lieu de basculer sur PartsPortalScreen, on affiche
+  // juste un message "bientôt disponible".
+  void _onPiecesTapBloque(bool isAr) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isAr
+              ? 'قريباً — سوق القطع غير متاح حالياً'
+              : 'Bientôt disponible — la marketplace pièces arrive prochainement',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
@@ -144,6 +160,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ];
 
+        // Index de l'onglet "Pièces" dans la liste finale des destinations
+        // (dépend du nombre d'onglets véhicules affichés avant lui).
+        final piecesIndex = (showVoiture ? 1 : 0) + (showMoto ? 1 : 0);
+
         final destinations = <NavigationDestination>[
           if (showVoiture)
             NavigationDestination(
@@ -156,8 +176,10 @@ class _HomeScreenState extends State<HomeScreen> {
               label: isAr ? 'دراجاتي' : 'Motos',
             ),
           NavigationDestination(
-            icon: const Icon(Icons.build),
-            label: isAr ? 'القطع' : 'Pièces',
+            // Icône et libellé grisés pour indiquer que l'onglet est
+            // désactivé temporairement (pas encore de magasin inscrit).
+            icon: Icon(Icons.build, color: Colors.grey.shade400),
+            label: isAr ? 'القطع (قريباً)' : 'Pièces (bientôt)',
           ),
           NavigationDestination(
             icon: const Icon(Icons.person),
@@ -245,7 +267,15 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             bottomNavigationBar: NavigationBar(
               selectedIndex: safeIndex,
-              onDestinationSelected: (i) => setState(() => _index = i),
+              onDestinationSelected: (i) {
+                if (i == piecesIndex) {
+                  // Onglet désactivé : on affiche juste le message, on ne
+                  // change pas d'onglet.
+                  _onPiecesTapBloque(isAr);
+                  return;
+                }
+                setState(() => _index = i);
+              },
               destinations: destinations,
             ),
           ),
