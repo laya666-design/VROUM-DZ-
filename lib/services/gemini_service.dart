@@ -332,6 +332,10 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
       // Filet de sécurité : corrige une marque clairement incohérente avec le
       // préfixe chassis (WMI) si le chassis est suffisamment long.
       _correctMarqueFromChassis(json);
+      // Debug temporaire : garde la réponse brute du modèle pour pouvoir
+      // diagnostiquer un cas "rien reconnu" sans deviner à l'aveugle.
+      // Affiché uniquement quand l'écran juge le résultat vide/inutile.
+      json['_debug_raw'] = raw.length > 500 ? raw.substring(0, 500) : raw;
       return json;
     } catch (e) {
       return {'error': _friendlyOcrError(e)};

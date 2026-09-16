@@ -57,6 +57,10 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   bool _loading = false;
   String? _error;
   CarteGriseInfo? _info;
+  /// Debug temporaire : réponse brute du modèle vision, affichée quand le
+  /// résultat extrait est vide ou quasi vide — permet de diagnostiquer sans
+  /// deviner. À retirer une fois le pipeline Gemini stabilisé.
+  String? _debugRaw;
   /// true une fois que l'utilisateur a explicitement validé le scan
   /// (évite d'enregistrer des erreurs OCR/IA sans relecture).
   bool _confirmed = false;
@@ -567,6 +571,7 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
     setState(() {
       _error = null;
       _info = null;
+      _debugRaw = null;
       _confirmed = false;
     });
 
@@ -601,6 +606,7 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
           _error = _t('Erreur : ${json['error']}', 'خطأ: ${json['error']}');
         }
       } else {
+        _debugRaw = json['_debug_raw']?.toString();
         var info = CarteGriseInfo.fromJson(json);
         // Le modèle vision (lecture ciblée de la case الصنف) fait foi pour
         // la marque. L'OCR local ne sert que de secours quand la marque
@@ -1257,6 +1263,32 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
             ),
             child: Text(_error!,
                 style: const TextStyle(color: Color(0xFF991B1B))),
+          ),
+        // Debug temporaire : montre ce que le modèle a réellement répondu
+        // quand le résultat extrait est vide ou quasi vide (marque ET
+        // modèle vides), même si _error n'est pas déclenché (ex: le
+        // châssis a été rempli par autre chose). Permet de diagnostiquer
+        // sans deviner — à retirer une fois le pipeline stabilisé.
+        if (_debugRaw != null &&
+            (_info == null || (_info!.marque.isEmpty && _info!.modele.isEmpty)))
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFD1D5DB)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Debug — réponse IA brute (à envoyer si le bug persiste) :',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF6B7280), fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                SelectableText(_debugRaw!,
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF374151), fontFamily: 'monospace')),
+              ],
+            ),
           ),
         if (_info != null) ...[
           Container(
