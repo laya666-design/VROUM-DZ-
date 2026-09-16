@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "994131871524-6rqshuc1e6g5ll89v8085qtfpok1gop2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.elbouni.ajalaks.el_bouni_pieces_auto",
+            "certificate_hash": "9cf179b74ae8943b830e25c2e693f3e7660a9941"
+          }
+        },
+        {
+          "client_id": "994131871524-lq1m6ci9qp5l4lg8ohm447cjcpvdebnu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.elbouni.ajalaks.el_bouni_pieces_auto",
+            "certificate_hash": "de3ecb1cf7e0e571fd69e2482c7c285ddad768ac"
+          }
+        },
+        {
           "client_id": "994131871524-mcvfdhrl1u587fd8e1oshm9llu2pim5d.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
