@@ -529,13 +529,24 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
 
   /// Cherche d'abord un code VF* (Peugeot/Renault/Citroën) dans le texte OCR,
   /// sinon le premier code alphanumérique plausible.
+  ///
+  /// BUG CORRIGÉ : l'ancienne regex acceptait n'importe quelle suite de
+  /// 6-17 lettres/chiffres, y compris des mots 100% alphabétiques. Un OCR
+  /// on-device (ML Kit) lit très bien les noms de commune en haut du
+  /// document (gros caractères nets) mais mal le tableau du bas (plastique
+  /// froissé/reflet) — résultat : "ANNABA" ou "D'ALGER" (lu "DALGER", 6
+  /// lettres) étaient pris pour un châssis avant même d'atteindre le vrai
+  /// code. Un châssis/code type réel mélange TOUJOURS lettres et chiffres
+  /// (ex. WVWZZZAUZJR005052, VF3XG8HHC) : on exige donc au moins un chiffre
+  /// dans le token, ce qui élimine les noms de ville par construction.
   String _extractBestChassisOrType(String raw) {
     final upper = raw.toUpperCase();
     // Priorité : codes type algériens VF1/VF3/VF7 (ex. VF3XG8HHC)
     final vf = RegExp(r'\b(VF[137][A-HJ-NPR-Z0-9]{4,14})\b').firstMatch(upper);
     if (vf != null) return vf.group(1)!;
-    final any = RegExp(r'\b([A-HJ-NPR-Z0-9]{6,17})\b').firstMatch(upper);
-    return any?.group(1) ?? '';
+    final any = RegExp(r'\b(?=[A-HJ-NPR-Z0-9]*[0-9])[A-HJ-NPR-Z0-9]{6,17}\b')
+        .firstMatch(upper);
+    return any?.group(0) ?? '';
   }
 
   /// Secours local : OCR ML Kit + détection marque arabe/latin + WMI.
