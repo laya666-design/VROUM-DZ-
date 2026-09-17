@@ -222,3 +222,21 @@ jobs:
           path: build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
           overwrite: true
+
+      # APK release (meme minify/proguard que l'AAB) installable directement
+      # via `adb install`, pour diagnostiquer un crash release sans passer
+      # par le Play Store (Play re-signe l'AAB avec sa propre cle — cet APK
+      # est signe avec le keystore release local, donc pas strictement
+      # identique, mais le code Dart/R8/minify est identique).
+      - name: Build APK (release, signe - pour test direct adb)
+        if: env.RELEASE_KEYSTORE_BASE64 != ''
+        run: flutter build apk --release
+
+      - name: Upload artifact (release APK — test direct)
+        if: env.RELEASE_KEYSTORE_BASE64 != ''
+        uses: actions/upload-artifact@v6
+        with:
+          name: VROUM-DZ-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
+          overwrite: true
