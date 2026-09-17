@@ -10,6 +10,13 @@ import 'sos/tel_picker_dialog.dart';
 import 'sos/wilaya_picker_dialog.dart';
 import 'vehicles_screen.dart';
 
+// Déverrouillage temporaire de l'onglet Pièces pour la phase de test
+// interne (aucun magasin réel inscrit sur la marketplace, mais les
+// comptes de test permettent de valider le parcours complet). Repasser
+// à false avant la publication grand public pour réafficher le message
+// "bientôt disponible".
+const bool kOngletPiecesDeverrouille = true;
+
 class HomeScreen extends StatefulWidget {
   final AppConfig config;
   final ValueNotifier<bool> isAr;
@@ -176,10 +183,14 @@ class _HomeScreenState extends State<HomeScreen> {
               label: isAr ? 'دراجاتي' : 'Motos',
             ),
           NavigationDestination(
-            // Icône et libellé grisés pour indiquer que l'onglet est
-            // désactivé temporairement (pas encore de magasin inscrit).
-            icon: Icon(Icons.build, color: Colors.grey.shade400),
-            label: isAr ? 'القطع (قريباً)' : 'Pièces (bientôt)',
+            // Grisé + libellé "(bientôt)" seulement si l'onglet est
+            // encore verrouillé (kOngletPiecesDeverrouille == false).
+            icon: kOngletPiecesDeverrouille
+                ? const Icon(Icons.build)
+                : Icon(Icons.build, color: Colors.grey.shade400),
+            label: kOngletPiecesDeverrouille
+                ? (isAr ? 'القطع' : 'Pièces')
+                : (isAr ? 'القطع (قريباً)' : 'Pièces (bientôt)'),
           ),
           NavigationDestination(
             icon: const Icon(Icons.person),
@@ -268,8 +279,8 @@ class _HomeScreenState extends State<HomeScreen> {
             bottomNavigationBar: NavigationBar(
               selectedIndex: safeIndex,
               onDestinationSelected: (i) {
-                if (i == piecesIndex) {
-                  // Onglet désactivé : on affiche juste le message, on ne
+                if (i == piecesIndex && !kOngletPiecesDeverrouille) {
+                  // Onglet verrouillé : on affiche juste le message, on ne
                   // change pas d'onglet.
                   _onPiecesTapBloque(isAr);
                   return;
