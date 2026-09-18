@@ -1246,7 +1246,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               // Le + (à droite de « Mes véhicules ») gère aussi le passage Premium.
               _buildHeroHeader(),
               const SizedBox(height: 12),
-              if (!SettingsService.isPremium) const AdBanner(),
+              if (!SettingsService.isPremium) AdBanner(isAr: widget.isAr),
               if (_vehicules.isEmpty) ...[
                 const SizedBox(height: 10),
                 _buildEmptyState(),
