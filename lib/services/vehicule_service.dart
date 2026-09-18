@@ -290,4 +290,21 @@ class SettingsService {
   static Future<void> clearUserRole() async {
     await _box.delete(_userRoleKey);
   }
+
+  // --- Consentement scan de documents (carte grise/assurance/CT) ---
+  // Demandé une seule fois, avant le tout premier scan (voir
+  // document_consent_gate.dart) : conforme à l'exigence de consentement
+  // exprès de la loi 18-07/25-11 (Algérie) avant traitement de données
+  // personnelles, notamment leur envoi à un service d'IA tiers (Gemini).
+  static const String _documentScanConsentKey = 'documentScanConsent';
+
+  static bool get hasDocumentScanConsent {
+    final box = _boxOrNull;
+    if (box == null) return false;
+    return box.get(_documentScanConsentKey, defaultValue: false) as bool;
+  }
+
+  static Future<void> setDocumentScanConsent(bool value) async {
+    await _box.put(_documentScanConsentKey, value);
+  }
 }
