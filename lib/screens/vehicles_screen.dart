@@ -1158,6 +1158,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 builder: (_) => RappelsScreen(
                   config: widget.config,
                   isAr: widget.isAr,
+                  onOpenVehicle: _openVehicle,
                 ),
               ),
             );
