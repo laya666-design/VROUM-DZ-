@@ -38,24 +38,25 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun getSigningSha1(): String {
-        val signatures: Array<Signature> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        val signatureList: List<Signature> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             @Suppress("DEPRECATION")
             val info = packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
             val signingInfo = info.signingInfo
                 ?: return "AUCUNE INFO DE SIGNATURE (signingInfo null)"
-            if (signingInfo.hasMultipleSigners()) {
+            val raw = if (signingInfo.hasMultipleSigners()) {
                 signingInfo.apkContentsSigners
             } else {
                 signingInfo.signingCertificateHistory
             }
+            raw?.filterNotNull() ?: emptyList()
         } else {
             @Suppress("DEPRECATION")
             val info = packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
             @Suppress("DEPRECATION")
-            info.signatures
+            info.signatures?.filterNotNull() ?: emptyList()
         }
 
-        val sig = signatures.firstOrNull()
+        val sig = signatureList.firstOrNull()
             ?: return "AUCUNE SIGNATURE TROUVEE"
         val digest = MessageDigest.getInstance("SHA-1").digest(sig.toByteArray())
         return digest.joinToString(":") { b -> "%02X".format(b) }
