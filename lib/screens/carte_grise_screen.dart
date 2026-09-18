@@ -7,6 +7,7 @@ import '../services/models.dart';
 import '../services/ocr_service.dart';
 import '../services/vehicule.dart';
 import '../services/vehicule_service.dart';
+import '../widgets/document_consent_gate.dart';
 
 /// Carte Grise Magic : scanne la carte grise (jaune) algérienne pour en
 /// extraire automatiquement le type, l'année, le châssis et la puissance,
@@ -616,6 +617,9 @@ class _CarteGriseScreenState extends State<CarteGriseScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    final ok = await ensureDocumentScanConsent(context, isAr: widget.isAr);
+    if (!ok) return;
+
     setState(() {
       _error = null;
       _info = null;
