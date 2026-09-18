@@ -1,0 +1,124 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
+/// Canal natif (MainActivity.kt) qui lit le SHA-1 de signature réel de
+/// l'APK tel qu'installé — pas celui qu'on suppose être utilisé.
+const MethodChannel _signatureChannel = MethodChannel('vroum/app_signature');
+
+/// Point UNIQUE pour Google Sign-In dans toute l'app.
+///
+/// - Utilise l'API google_sign_in 6.x (constructeur + signIn)
+/// - serverClientId = client Web Firebase (obligatoire pour idToken)
+/// - Message d'erreur clair pour ApiException 10 (SHA / package)
+class GoogleAuthHelper {
+  /// Client Web OAuth du projet Firebase fakerni-b96c2
+  /// (google-services.json → oauth_client type 3).
+  static const String webClientId =
+      '994131871524-dbn081ucefsf4vi4v0jl1m4gc11di90p.apps.googleusercontent.com';
+
+  /// Package Android attendu (doit matcher Firebase + applicationId Gradle).
+  static const String expectedPackage =
+      'com.elbouni.ajalaks.el_bouni_pieces_auto';
+
+  /// SHA-1 du keystore debug du dépôt (android/keystore/debug.keystore).
+  static const String expectedSha1 =
+      'F0:3D:AB:51:B8:48:D0:6F:32:7C:68:A6:9F:40:33:AD:25:E5:BF:36';
+
+  /// Les 3 empreintes SHA-1 enregistrées côté Firebase au 18/09/2026 :
+  /// debug (ci-dessus), clé d'importation (upload key), clé de signature
+  /// Play (App signing key). Sert uniquement à afficher un diagnostic
+  /// clair si le SHA-1 réel ne correspond à aucune d'elles.
+  static const Map<String, String> _knownFirebaseSha1s = {
+    'F0:3D:AB:51:B8:48:D0:6F:32:7C:68:A6:9F:40:33:AD:25:E5:BF:36': 'debug (debug.keystore du dépôt)',
+    'DE:3E:CB:1C:F7:E0:E5:71:FD:69:E2:48:2C:7C:28:5D:DA:D7:68:AC': "clé d'importation (upload key)",
+    '9C:F1:79:B7:4A:E8:94:3B:83:0E:25:C2:E6:93:F3:E7:66:0A:99:41': 'clé de signature Play (App signing key)',
+  };
+
+  /// Lit le SHA-1 de signature RÉEL de l'APK tel qu'installé sur ce
+  /// téléphone, via le canal natif (MainActivity.kt). C'est la seule
+  /// source fiable : élimine toute supposition sur quelle clé a réellement
+  /// signé le build en train de tourner.
+  static Future<String> _readRuntimeSha1() async {
+    try {
+      final sha1 = await _signatureChannel.invokeMethod<String>('getSigningSha1');
+      return sha1 ?? 'introuvable (canal natif a renvoyé null)';
+    } catch (e) {
+      return 'introuvable (erreur canal natif : $e)';
+    }
+  }
+
+  /// Lance le flux Google et retourne le [UserCredential] Firebase.
+  /// Lance une [Exception] avec un message lisible en cas d'échec.
+  static Future<UserCredential> signIn() async {
+    final googleSignIn = GoogleSignIn(
+      serverClientId: webClientId,
+      scopes: const ['email', 'profile'],
+    );
+
+    try {
+      // Force un compte propre si une session Google native est corrompue.
+      try {
+        await googleSignIn.signOut();
+      } catch (_) {}
+
+      final GoogleSignInAccount? account = await googleSignIn.signIn();
+      if (account == null) {
+        throw Exception('Connexion Google annulée.');
+      }
+
+      final GoogleSignInAuthentication auth = await account.authentication;
+      if (auth.idToken == null) {
+        throw Exception(
+          'Google n\'a pas renvoyé de jeton (idToken null). '
+          'Vérifie que le client Web OAuth est correct dans Firebase.',
+        );
+      }
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: auth.accessToken,
+        idToken: auth.idToken,
+      );
+
+      return await FirebaseAuth.instance.signInWithCredential(credential);
+    } on PlatformException catch (e) {
+      throw Exception(await _messagePourPlatformException(e));
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? 'Erreur Firebase Auth (${e.code}).');
+    }
+  }
+
+  static Future<String> _messagePourPlatformException(PlatformException e) async {
+    final code = e.code.toLowerCase();
+    final msg = '${e.message ?? ''} ${e.details ?? ''}'.toLowerCase();
+
+    // ApiException: 10 = DEVELOPER_ERROR → SHA-1 / package / OAuth
+    if (code.contains('sign_in_failed') ||
+        msg.contains('apiexception: 10') ||
+        msg.contains('api exception: 10') ||
+        msg.contains('developer_error') ||
+        msg.contains(': 10')) {
+      final runtimeSha1 = await _readRuntimeSha1();
+      final match = _knownFirebaseSha1s[runtimeSha1.toUpperCase()];
+      final diagnostic = match != null
+          ? 'Ce SHA-1 correspond à : $match.\n'
+              'Il est déjà dans Firebase → la cause N\'EST PAS le certificat.\n'
+              'Regarder plutôt : écran de consentement OAuth, ou logs Logcat complets.'
+          : 'Ce SHA-1 NE correspond à AUCUNE des 3 empreintes connues dans Firebase.\n'
+              'C\'est très probablement la cause : ajouter ce SHA-1 exact dans\n'
+              'Firebase → Paramètres projet → Ajouter une empreinte.';
+
+      return 'Connexion Google refusée (erreur 10).\n\n'
+          'SHA-1 RÉEL de cet APK (lu sur l\'appareil) :\n'
+          '$runtimeSha1\n\n'
+          '$diagnostic\n\n'
+          'Package attendu : $expectedPackage';
+    }
+
+    if (msg.contains('network') || code.contains('network')) {
+      return 'Réseau indisponible. Vérifie ta connexion et réessaie.';
+    }
+
+    return 'Connexion Google impossible (${e.code}).';
+  }
+}
