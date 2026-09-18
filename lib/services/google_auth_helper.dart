@@ -24,10 +24,12 @@ class GoogleAuthHelper {
   /// - Debug (android/keystore/debug.keystore du dépôt)
   /// - Play Console – certificat d'upload
   /// - Play App Signing – certificat de signature final
+  /// - Build local / autre machine (détecté le 18/09/2026)
   static const List<String> allowedSha1 = [
-    'F0:3D:AB:51:B8:48:D0:6F:32:7C:68:A6:9F:40:33:AD:25:E5:BF:36', // debug
+    'F0:3D:AB:51:B8:48:D0:6F:32:7C:68:A6:9F:40:33:AD:25:E5:BF:36', // debug dépôt
     '9C:F1:79:B7:4A:E8:94:3B:83:0E:25:C2:E6:93:F3:E7:66:0A:99:41', // Play upload
     '94:5D:CB:33:B8:FE:66:B2:92:7F:66:69:EE:B6:E8:18:4F:D6:B1:D2', // Play signing
+    '36:0A:33:74:A3:C7:07:9B:82:0E:E6:23:2B:2F:63:ED:CE:52:3D:DD', // build local détecté
   ];
 
   static const MethodChannel _signatureChannel =
@@ -113,13 +115,26 @@ class GoogleAuthHelper {
               'Ajoute-le dans Firebase → Paramètres projet → Empreintes SHA,\n'
               'puis télécharge un nouveau google-services.json et rebuild.';
 
+      final allowedList = allowedSha1
+          .asMap()
+          .entries
+          .map((e) {
+            final labels = [
+              'Debug dépôt',
+              'Play upload',
+              'Play signing',
+              'Build local',
+            ];
+            final label = e.key < labels.length ? labels[e.key] : 'Autre';
+            return '• $label : ${e.value}';
+          })
+          .join('\n');
+
       return 'Connexion Google refusée (erreur 10).\n\n'
           'Cause : le certificat de cet APK n\'est pas reconnu par Google/Firebase.\n\n'
           '$shaLine'
           'SHA-1 autorisés :\n'
-          '• Debug     : ${allowedSha1[0]}\n'
-          '• Play upload : ${allowedSha1[1]}\n'
-          '• Play signing: ${allowedSha1[2]}\n\n'
+          '$allowedList\n\n'
           'Package attendu : $expectedPackage\n\n'
           '$advice';
     }
