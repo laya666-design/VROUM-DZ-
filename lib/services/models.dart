@@ -19,12 +19,42 @@ class InsuranceInfo {
     if (json == null) return InsuranceInfo();
     return InsuranceInfo(
       compagnie: json['compagnie']?.toString() ?? '',
-      nom: json['nom']?.toString() ?? '',
-      marque: json['marque']?.toString() ?? '',
-      police: json['police']?.toString() ?? '',
-      debut: json['debut']?.toString() ?? '',
-      expirationStr: json['expiration']?.toString() ?? '',
+      // Corrigés : ces 3 champs lisaient les mauvaises clés JSON
+      // ('nom'/'marque'/'police' au lieu de 'nom_assure'/'marque_vehicule'
+      // /'numero_police' réellement renvoyées par le prompt Gemini) — ils
+      // étaient donc TOUJOURS vides en production, malgré une IA qui
+      // répondait correctement.
+      nom: json['nom_assure']?.toString() ?? '',
+      marque: json['marque_vehicule']?.toString() ?? '',
+      police: json['numero_police']?.toString() ?? '',
+      debut: json['date_debut']?.toString() ?? '',
+      // Corrigé : le prompt Gemini renvoie la clé "date_expiration", pas
+      // "expiration" — avec l'ancienne clé ce champ était TOUJOURS vide et
+      // la date IA n'était jamais prise en compte dans le calcul du statut.
+      expirationStr: json['date_expiration']?.toString() ?? '',
     );
+  }
+
+  /// Parse le champ dd/MM/yyyy (ou dd-MM-yyyy / dd.MM.yyyy) renvoyé par
+  /// Gemini, ou null si absent/invalide.
+  DateTime? get expirationParsed {
+    final s = expirationStr.trim();
+    if (s.isEmpty || s.toLowerCase() == 'null') return null;
+    final m = RegExp(r'(\d{1,2})\s*[\/\.\-]\s*(\d{1,2})\s*[\/\.\-]\s*(\d{2,4})')
+        .firstMatch(s);
+    if (m == null) return null;
+    final day = int.tryParse(m.group(1)!);
+    final month = int.tryParse(m.group(2)!);
+    var year = int.tryParse(m.group(3)!);
+    if (day == null || month == null || year == null) return null;
+    if (year < 100) year += 2000;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    if (year < 2000 || year > 2100) return null;
+    try {
+      return DateTime(year, month, day);
+    } catch (_) {
+      return null;
+    }
   }
 }
 
@@ -159,8 +189,8 @@ class CarPartInfo {
   final String nom;
   final String reference;
   final List<String> compatibilite;
-  final num prixDa;
-  final num prixOrigine;
+  final num prixMin;
+  final num prixMax;
   final String disponibilite;
   final String etat;
   final String conseils;
@@ -170,8 +200,8 @@ class CarPartInfo {
     this.nom = '',
     this.reference = '',
     this.compatibilite = const [],
-    this.prixDa = 0,
-    this.prixOrigine = 0,
+    this.prixMin = 0,
+    this.prixMax = 0,
     this.disponibilite = '',
     this.etat = '',
     this.conseils = '',
@@ -187,12 +217,16 @@ class CarPartInfo {
               ?.map((e) => e.toString())
               .toList() ??
           const [],
-      prixDa: (json['prix_da'] is num) ? json['prix_da'] as num : 0,
-      prixOrigine:
-          (json['prix_origine'] is num) ? json['prix_origine'] as num : 0,
+      // Corrigés : ces clés ne correspondaient pas à celles réellement
+      // renvoyées par le prompt Gemini ("prix_dzd_min"/"prix_dzd_max" et
+      // "conseil" au singulier) — le prix affiché était donc TOUJOURS
+      // "0 DA" et le conseil de montage n'apparaissait jamais, quelle que
+      // soit la réponse de l'IA.
+      prixMin: (json['prix_dzd_min'] is num) ? json['prix_dzd_min'] as num : 0,
+      prixMax: (json['prix_dzd_max'] is num) ? json['prix_dzd_max'] as num : 0,
       disponibilite: json['disponibilite']?.toString() ?? '',
       etat: json['etat']?.toString() ?? '',
-      conseils: json['conseils']?.toString() ?? '',
+      conseils: json['conseil']?.toString() ?? '',
       magasins: (json['magasins'] as List?)
               ?.whereType<Map<String, dynamic>>()
               .map((e) => StoreOffer.fromJson(e))

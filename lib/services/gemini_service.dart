@@ -181,6 +181,27 @@ class GeminiService {
 Tu es un expert assurance auto pour l Algerie.
 REGLE CRITIQUE: Ne jamais inventer de nom de magasin, adresse ou telephone.
 Analyse cette image de carte jaune assurance auto algerienne.
+
+REGLE SUR LES DATES — ce document affiche une PERIODE DE VALIDITE,
+generalement sous la forme "DU jj/mm/aaaa AU jj/mm/aaaa" (ou
+equivalents : "VALABLE DU ... AU ...", "DATE D EFFET" / "DATE
+D EXPIRATION", en arabe "من ... الى ..." / "تاريخ الانتهاء" / "صالحة
+حتى"). La date DU (date d effet) est TOUJOURS la plus ANCIENNE, la
+date AU (date d expiration) est TOUJOURS la plus RECENTE.
+
+ETAPE OBLIGATOIRE — avant tout calcul, liste dans "toutes_les_dates"
+CHAQUE date que tu vois sur le document, une par une, au format
+JJ/MM/AAAA, sans exception (date DU, date AU, toute autre date
+visible, tamponnee ou surlignee).
+
+"date_expiration" doit TOUJOURS etre la PLUS RECENTE (la plus loin
+dans le futur) parmi TOUTES les dates listees dans "toutes_les_dates".
+Compare les ANNEES en priorite (ex: 2026 est plus recent que 2025) et
+relis bien le chiffre de l annee avant de trancher si un reflet ou un
+surlignage le rend ambigu.
+"date_debut" est la date DU (date d effet), generalement la plus
+ancienne de la periode.
+
 Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
 
 {
@@ -188,16 +209,31 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
   "nom_assure": "string ou null",
   "marque_vehicule": "string ou null",
   "numero_police": "string ou null",
+  "toutes_les_dates": ["JJ/MM/AAAA", "JJ/MM/AAAA"],
+  "date_debut": "dd/MM/yyyy ou null",
   "date_expiration": "dd/MM/yyyy ou null",
   "jours_restants": 0,
   "magasins": []
 }
 
 REGLE: magasins doit toujours etre un tableau vide [].
+REGLE: ne jamais inventer. Si aucune date n est lisible, mets
+toutes_les_dates a [] et date_debut/date_expiration a null.
 ''';
 
-      final raw = await _callVisionModel(prompt, file);
-      return _parseJson(raw);
+      // reasoning_effort 'low' (au lieu de 'none' par defaut) : comparer
+      // les dates DU/AU entre elles est une vraie etape de raisonnement.
+      final raw =
+          await _callVisionModel(prompt, file, reasoningEffort: 'low');
+      final json = _parseJson(raw);
+      // Filet de securite deterministe : ne fait JAMAIS confiance au choix
+      // du modele pour "date_expiration" seul — recalcule toujours la date
+      // la plus recente nous-memes a partir de "toutes_les_dates", meme
+      // logique que pour le controle technique.
+      _pickMostRecentDateField(json,
+          toutesLesDatesKey: 'toutes_les_dates',
+          dateFinaleKey: 'date_expiration');
+      return json;
     } catch (e) {
       return {'error': _friendlyOcrError(e), 'magasins': []};
     }
@@ -224,18 +260,27 @@ quel que soit leur libelle ou emplacement, par exemple pres de :
   "المراقبة اللاحقة", "prochaine visite"
 - toute autre date visible sur le document, tamponnee ou surlignee
 
+ETAPE OBLIGATOIRE — avant tout calcul, liste dans "toutes_les_dates"
+CHAQUE date que tu vois sur le document, une par une, au format
+JJ/MM/AAAA, sans exception (immatriculation, date de visite du jour,
+prochaine visite, tamponnee ou surlignee — meme celles dont tu ne
+comprends pas le libelle). Ne resume pas, ne choisis pas encore : cette
+liste doit contenir TOUTES les dates lisibles, meme si elles semblent
+redondantes ou peu pertinentes.
+
 La date a retourner dans "date_prochain_controle" est TOUJOURS LA PLUS
-RECENTE (la plus loin dans le futur) parmi TOUTES ces dates : sur ce
-type de document, la date de la prochaine visite periodique est
-structurellement posterieure a toutes les autres dates presentes.
+RECENTE (la plus loin dans le futur) parmi TOUTES les dates listees
+dans "toutes_les_dates" : sur ce type de document, la date de la
+prochaine visite periodique est structurellement posterieure a toutes
+les autres dates presentes.
 Compare les ANNEES en priorite (ex: 2026 est plus recent que 2025) et
 relis bien le chiffre de l annee avant de trancher si un reflet ou un
 surlignage le rend ambigu — ne te fie pas a la position sur la page,
 uniquement a la valeur des dates elles-memes.
 
-Exemple : si tu lis "12/12/2023" (immatriculation) et "VISITE PERIODIQUE
-LE 11/12/2026", alors "date_prochain_controle" = "11/12/2026" (la plus
-recente des deux).
+Exemple : si "toutes_les_dates" contient "12/12/2023" (immatriculation)
+et "11/12/2026" (VISITE PERIODIQUE), alors "date_prochain_controle" =
+"11/12/2026" (la plus recente de la liste).
 
 Pour le centre : cherche "مركز المراقبة" / nom de l agence / "Z.A.C" / nom
 du controleur ou du centre (ex "MEHDAOUI", "HADJADJ").
@@ -247,21 +292,92 @@ Retourne UNIQUEMENT ce JSON (aucun texte avant/apres, pas de markdown):
   "centre": "string ou null",
   "numero": "string ou null",
   "kilometrage": "string ou null",
+  "toutes_les_dates": ["JJ/MM/AAAA", "JJ/MM/AAAA"],
   "date_prochain_controle": "dd/MM/yyyy ou null",
   "jours_restants": 0
 }
 
 REGLE: ne jamais inventer. Si aucune date n est lisible sur le document,
-mets null.
+mets toutes_les_dates a [] et date_prochain_controle a null.
 ''';
 
-      final raw = await _callVisionModel(prompt, file);
+      // reasoning_effort 'low' (au lieu de 'none' par defaut) : cette
+      // analyse demande de COMPARER plusieurs dates entre elles, une vraie
+      // etape de raisonnement — 'none' laissait parfois le modele choisir
+      // une date au hasard/par position plutot que la plus recente.
+      final raw =
+          await _callVisionModel(prompt, file, reasoningEffort: 'low');
       final json = _parseJson(raw);
       json.remove('magasins');
+      // Filet de securite deterministe : ne fait JAMAIS confiance au choix
+      // du modele pour "date_prochain_controle" seul — recalcule toujours
+      // la date la plus recente nous-memes a partir de "toutes_les_dates"
+      // (+ l ancien champ, au cas ou). Corrige exactement le bug observe
+      // (ex: 12/10/2025 retenu au lieu de 12/10/2026 pourtant listee).
+      _pickMostRecentDateField(json,
+          toutesLesDatesKey: 'toutes_les_dates',
+          dateFinaleKey: 'date_prochain_controle');
       return json;
     } catch (e) {
       return {'error': _friendlyOcrError(e)};
     }
+  }
+
+  /// Parse un texte "JJ/MM/AAAA" (ou séparateurs . / -) en DateTime,
+  /// ou null si invalide/illisible.
+  DateTime? _parseDdMmYyyy(String? s) {
+    if (s == null) return null;
+    final t = s.trim();
+    if (t.isEmpty || t.toLowerCase() == 'null') return null;
+    final m = RegExp(r'(\d{1,2})\s*[\/\.\-]\s*(\d{1,2})\s*[\/\.\-]\s*(\d{2,4})')
+        .firstMatch(t);
+    if (m == null) return null;
+    final day = int.tryParse(m.group(1)!);
+    final month = int.tryParse(m.group(2)!);
+    var year = int.tryParse(m.group(3)!);
+    if (day == null || month == null || year == null) return null;
+    if (year < 100) year += 2000;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    if (year < 2000 || year > 2100) return null;
+    try {
+      return DateTime(year, month, day);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Recalcule un champ de date "finale" (ex: date_prochain_controle,
+  /// date_expiration) en code — jamais en se fiant uniquement au
+  /// raisonnement du modèle : prend TOUJOURS la date la plus récente parmi
+  /// [toutesLesDatesKey] (liste) + l'ancienne valeur de [dateFinaleKey],
+  /// pour ne jamais retenir une date antérieure (immatriculation, visite
+  /// du jour, date d'effet assurance...) à la place de la bonne.
+  void _pickMostRecentDateField(
+    Map<String, dynamic> json, {
+    required String toutesLesDatesKey,
+    required String dateFinaleKey,
+  }) {
+    final candidats = <DateTime>[];
+
+    final liste = json[toutesLesDatesKey];
+    if (liste is List) {
+      for (final d in liste) {
+        final parsed = _parseDdMmYyyy(d?.toString());
+        if (parsed != null) candidats.add(parsed);
+      }
+    }
+    final unique = _parseDdMmYyyy(json[dateFinaleKey]?.toString());
+    if (unique != null) candidats.add(unique);
+
+    if (candidats.isEmpty) {
+      json[dateFinaleKey] = null;
+      return;
+    }
+    candidats.sort();
+    final plusRecente = candidats.last;
+    final dd = plusRecente.day.toString().padLeft(2, '0');
+    final mm = plusRecente.month.toString().padLeft(2, '0');
+    json[dateFinaleKey] = '$dd/$mm/${plusRecente.year}';
   }
 
   /// Analyse une photo de carte grise algérienne (jaune) : extrait les

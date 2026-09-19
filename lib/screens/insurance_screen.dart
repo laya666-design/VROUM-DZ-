@@ -51,6 +51,7 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
   File? _image;
   bool _loading = false;
   String? _error;
+  String? _retryLabel; // ex. "Vérification 2/3…" pendant les nouvelles tentatives
 
   ExpiryStatus? _status; // calculé localement via OCR -> fait foi
   InsuranceInfo? _info; // détails structurés via Gemini -> complément
@@ -100,6 +101,40 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
     );
   }
 
+  /// Une seule passe d'analyse complète (OCR local + Gemini + fusion des
+  /// dates), même principe que pour le contrôle technique : on ne fait
+  /// JAMAIS confiance à une seule source pour la date d'expiration.
+  Future<({InsuranceInfo info, DateTime? expiration})> _analyzeOnce(
+      File file) async {
+    final rawText = await _ocr.extractText(file);
+    final allOcrDates = OcrService.extractDates(rawText);
+    final fromOcrKeyword = OcrService.extractDateExpirationAssurance(rawText);
+
+    InsuranceInfo info = InsuranceInfo();
+    try {
+      final json = await _gemini.analyzeInsuranceCard(file);
+      if (json['error'] == null) {
+        info = InsuranceInfo.fromJson(json);
+      }
+    } catch (_) {
+      // Complément IA optionnel — l'OCR local reste la source de vérité des dates.
+    }
+
+    final fromAi = info.expirationParsed;
+    final candidates = <DateTime>[
+      ...allOcrDates,
+      if (fromOcrKeyword != null) fromOcrKeyword,
+      if (fromAi != null) fromAi,
+    ];
+    DateTime? expiration;
+    if (candidates.isNotEmpty) {
+      candidates.sort();
+      expiration = candidates.last; // PLUS RÉCENTE de toutes (= date AU)
+    }
+
+    return (info: info, expiration: expiration);
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     final ok = await ensureDocumentScanConsent(context, isAr: widget.isAr);
     if (!ok) return;
@@ -120,29 +155,47 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
     });
 
     try {
-      // 1) OCR local -> fait foi pour le calcul (fonctionne sans internet)
-      final rawText = await _ocr.extractText(file);
-      final dates = OcrService.extractDates(rawText);
-      final expiration = OcrService.mostRecentDate(dates);
+      // Règle métier (identique au contrôle technique) : on n'a pas droit
+      // à l'erreur sur une date EXPIRÉE affichée à tort. Si le résultat
+      // d'une tentative est rouge, on relance l'analyse complète jusqu'à
+      // 3 fois au total ; dès qu'une tentative trouve une date valide
+      // (verte), on l'affiche et on s'arrête.
+      const maxTentatives = 3;
+      InsuranceInfo? meilleureInfo;
+      DateTime? meilleureExpiration;
 
-      if (expiration != null) {
-        _status = ExpiryStatus(expirationDate: expiration);
+      for (var tentative = 1; tentative <= maxTentatives; tentative++) {
+        if (tentative > 1 && mounted) {
+          setState(() {
+            _retryLabel = _t(
+              'Date expirée détectée, nouvelle vérification $tentative/$maxTentatives…',
+              'تم رصد تاريخ منتهي، إعادة التحقق $tentative/$maxTentatives…',
+            );
+          });
+        }
+
+        final resultat = await _analyzeOnce(file);
+        if (resultat.expiration != null) {
+          meilleureInfo = resultat.info;
+          meilleureExpiration = resultat.expiration;
+          final estExpire = resultat.expiration!.isBefore(DateTime.now());
+          if (!estExpire) break; // date verte trouvée -> on s'arrête là
+          // rouge -> on retente (sauf si c'était la dernière tentative)
+        }
+      }
+      _retryLabel = null;
+
+      if (meilleureExpiration != null) {
+        _status = ExpiryStatus(expirationDate: meilleureExpiration);
+        _info = meilleureInfo;
       } else {
         _error = _t(
-          'Aucune date reconnue sur cette photo. Reprends la photo bien '
-              'cadrée sur les dates, ou vérifie manuellement.',
-          'لم يتم التعرف على أي تاريخ في هذه الصورة. أعد التقاط الصورة مع '
-              'تأطير جيد للتواريخ، أو تحقق يدويًا.',
+          'Aucune date reconnue sur cette photo, même après plusieurs '
+              'vérifications. Reprends la photo bien cadrée sur les dates, '
+              'ou vérifie manuellement.',
+          'لم يتم التعرف على أي تاريخ في هذه الصورة رغم عدة محاولات. أعد '
+              'التقاط الصورة مع تأطير جيد للتواريخ، أو تحقق يدويًا.',
         );
-      }
-
-      // 2) Gemini en complément pour les détails (compagnie, nom, marque...)
-      try {
-        final json = await _gemini.analyzeInsuranceCard(file);
-        _info = InsuranceInfo.fromJson(json);
-      } catch (_) {
-        // Le complément IA est optionnel : l'échec ne bloque pas le calcul.
-        _info = InsuranceInfo();
       }
 
       try {
@@ -161,6 +214,7 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
         );
       }
     } finally {
+      _retryLabel = null;
       if (mounted) setState(() => _loading = false);
     }
 
@@ -258,9 +312,25 @@ class _InsuranceScreenState extends State<InsuranceScreen> {
           ),
         const SizedBox(height: 16),
         if (_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  if (_retryLabel != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _retryLabel!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: Colors.black54, fontSize: 13),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         if (_error != null)
           Container(

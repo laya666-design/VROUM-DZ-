@@ -94,6 +94,49 @@ class OcrService {
     return all.last;
   }
 
+  /// Assurance (carte jaune) — même principe que le contrôle technique :
+  /// 1) TOUTES les dates du document
+  /// 2) + dates proches des mots-clés de fin de période ("AU", "JUSQU'AU",
+  ///    "VALABLE JUSQU'AU", "EXPIRATION", "FIN DE VALIDITE", équivalents
+  ///    arabes) — la case "AU" est parfois tamponnée/mal lue par l'OCR
+  ///    latin seul, ces motifs aident à la récupérer.
+  /// 3) prendre la plus récente de l'ensemble (règle confirmée : sur une
+  ///    carte jaune SAA/CAAT/etc., la date de fin est toujours postérieure
+  ///    à la date de début).
+  static DateTime? extractDateExpirationAssurance(String rawText) {
+    final all = <DateTime>[...extractDates(rawText)];
+
+    final patterns = [
+      RegExp(
+        r"(?:JUSQU['\s]?A?U|VALABLE\s*JUSQU['\s]?A?U|AU|EXPIRATION|FIN\s*DE\s*VALIDITE|DATE\s*D['\s]?EXPIRATION)\s*(?:LE\s*|:)?\s*(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})",
+        caseSensitive: false,
+      ),
+      RegExp(r'تاريخ\s*الانتهاء[^\d]{0,40}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
+      RegExp(r'صالحة\s*(?:الى|إلى|حتى)[^\d]{0,40}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
+      RegExp(r'ساري\s*(?:الى|إلى|حتى)[^\d]{0,40}(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})'),
+    ];
+
+    for (final re in patterns) {
+      for (final m in re.allMatches(rawText)) {
+        final day = int.tryParse(m.group(1) ?? '');
+        final month = int.tryParse(m.group(2) ?? '');
+        var year = int.tryParse(m.group(3) ?? '');
+        if (day == null || month == null || year == null) continue;
+        if (year < 100) year += 2000;
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31 &&
+            year >= 2000 && year <= 2100) {
+          try {
+            all.add(DateTime(year, month, day));
+          } catch (_) {}
+        }
+      }
+    }
+
+    if (all.isEmpty) return null;
+    all.sort();
+    return all.last;
+  }
+
   /// Détecte une marque connue dans un texte OCR brut (arabe ou latin).
   /// Utile en secours si l'IA échoue (rate limit) ou renvoie null.
   ///

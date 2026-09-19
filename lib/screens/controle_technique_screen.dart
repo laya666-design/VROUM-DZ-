@@ -50,6 +50,7 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
   File? _image;
   bool _loading = false;
   String? _error;
+  String? _retryLabel; // ex. "Vérification 2/3…" pendant les nouvelles tentatives
 
   ExpiryStatus? _status; // calculé localement via OCR -> fait foi
   ControleTechniqueInfo? _info; // détails structurés via Gemini -> complément
@@ -114,63 +115,58 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
     });
 
     try {
-      // Règle métier CT (définitive) :
-      // 1) OCR local → TOUTES les dates du document (plus motifs VISITE PERIODIQUE)
-      // 2) Gemini → date_prochain_controle (utile sur tampon rose mal lu par OCR)
-      // 3) On prend TOUJOURS la PLUS RÉCENTE parmi OCR + IA + toutes dates OCR brutes.
-      //    Jamais une ancienne date d'immatriculation si une date 2026+ est présente.
-      final rawText = await _ocr.extractText(file);
-      final fromOcr = OcrService.extractDateVisitePeriodique(rawText);
-      final allOcrDates = OcrService.extractDates(rawText);
+      // Règle métier CT (définitive) : on a pas droit à l'erreur sur une
+      // date EXPIRÉE affichée à tort. Si le résultat d'une tentative est
+      // rouge (expiré), on relance automatiquement l'analyse complète
+      // jusqu'à 3 fois au total : dès qu'une tentative trouve une date
+      // valide (verte), on l'affiche immédiatement et on s'arrête. Si les
+      // 3 tentatives restent rouges, on affiche le résultat de la 3e
+      // (on ne laisse jamais l'écran vide).
+      const maxTentatives = 3;
+      ControleTechniqueInfo? meilleureInfo;
+      DateTime? meilleureExpiration;
+      bool trouveDateValide = false;
 
-      ControleTechniqueInfo info = ControleTechniqueInfo();
-      try {
-        final json = await _gemini.analyzeControleTechnique(file);
-        if (json['error'] == null) {
-          info = ControleTechniqueInfo.fromJson(json);
+      for (var tentative = 1; tentative <= maxTentatives; tentative++) {
+        if (tentative > 1 && mounted) {
+          setState(() {
+            _retryLabel = _t(
+              'Date expirée détectée, nouvelle vérification $tentative/$maxTentatives…',
+              'تم رصد تاريخ منتهي، إعادة التحقق $tentative/$maxTentatives…',
+            );
+          });
         }
-      } catch (_) {
-        // Complément IA optionnel — l'OCR local reste la source de vérité des dates.
-      }
-      _info = info;
 
-      final fromAi = info.dateProchainControleParsed;
-      // Candidats : date OCR "visite", date IA, et TOUTES les dates OCR du doc
-      final candidates = <DateTime>[
-        ...allOcrDates,
-        if (fromOcr != null) fromOcr,
-        if (fromAi != null) fromAi,
-      ];
-      DateTime? expiration;
-      if (candidates.isNotEmpty) {
-        candidates.sort();
-        expiration = candidates.last; // PLUS RÉCENTE de toutes
-      }
-
-      if (expiration != null) {
-        _status = ExpiryStatus(expirationDate: expiration);
-        // Aligne le champ affiché sur la date retenue
-        if (info.dateProchainControle.isEmpty ||
-            fromAi == null ||
-            expiration.isAfter(fromAi)) {
-          final d = expiration;
-          final dd = d.day.toString().padLeft(2, '0');
-          final mm = d.month.toString().padLeft(2, '0');
-          info = ControleTechniqueInfo(
-            centre: info.centre,
-            numero: info.numero,
-            kilometrage: info.kilometrage,
-            dateProchainControle: '$dd/$mm/${d.year}',
-          );
-          _info = info;
+        final resultat = await _analyzeOnce(file);
+        if (resultat.expiration != null) {
+          meilleureInfo = resultat.info;
+          meilleureExpiration = resultat.expiration;
+          final estExpire = resultat.expiration!.isBefore(DateTime.now());
+          if (!estExpire) {
+            trouveDateValide = true;
+            break; // date verte trouvée -> on s'arrête là, pas besoin de retenter
+          }
+          // rouge -> on retente (sauf si c'était la dernière tentative)
         }
+        // Si aucune date n'a été trouvée du tout, on retente aussi (photo
+        // peut-être mal lue cette fois-ci), sauf à la dernière tentative.
+      }
+      _retryLabel = null;
+
+      if (meilleureExpiration != null) {
+        // trouveDateValide == false ici signifie que les 3 tentatives sont
+        // restées rouges : on affiche quand même ce dernier résultat
+        // (jamais d'écran vide), conformément à la règle métier.
+        _status = ExpiryStatus(expirationDate: meilleureExpiration);
+        _info = meilleureInfo;
       } else {
         _error = _t(
-          'Aucune date reconnue sur cette photo. Cadre bien tout le '
-              'document (surtout la zone VISITE PERIODIQUE en bas), ou '
-              'vérifie manuellement.',
-          'لم يتم التعرف على أي تاريخ في هذه الصورة. أطّر الوثيقة كاملةً '
-              '(خاصة منطقة الزيارة الدورية أسفل الصفحة)، أو تحقق يدويًا.',
+          'Aucune date reconnue sur cette photo, même après plusieurs '
+              'vérifications. Cadre bien tout le document (surtout la zone '
+              'VISITE PERIODIQUE en bas), ou vérifie manuellement.',
+          'لم يتم التعرف على أي تاريخ في هذه الصورة رغم عدة محاولات. أطّر '
+              'الوثيقة كاملةً (خاصة منطقة الزيارة الدورية أسفل الصفحة)، أو '
+              'تحقق يدويًا.',
         );
       }
 
@@ -188,6 +184,7 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
         );
       }
     } finally {
+      _retryLabel = null;
       if (mounted) setState(() => _loading = false);
     }
 
@@ -199,6 +196,61 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
       await Future.delayed(const Duration(milliseconds: 900));
       if (mounted) widget.onEnregistre!.call();
     }
+  }
+
+  /// Une seule passe d'analyse complète (OCR local + Gemini + fusion des
+  /// dates). Extrait de _pickImage pour pouvoir être rejouée automatiquement
+  /// jusqu'à 3 fois quand le résultat tombe sur une date expirée (rouge).
+  ///
+  /// 1) OCR local → TOUTES les dates du document (+ motifs VISITE PERIODIQUE)
+  /// 2) Gemini → date_prochain_controle (utile sur tampon rose mal lu par OCR)
+  /// 3) On prend TOUJOURS la PLUS RÉCENTE parmi OCR + IA + toutes dates OCR
+  ///    brutes. Jamais une ancienne date d'immatriculation si une date
+  ///    2026+ est présente.
+  Future<({ControleTechniqueInfo info, DateTime? expiration})> _analyzeOnce(
+      File file) async {
+    final rawText = await _ocr.extractText(file);
+    final fromOcr = OcrService.extractDateVisitePeriodique(rawText);
+    final allOcrDates = OcrService.extractDates(rawText);
+
+    ControleTechniqueInfo info = ControleTechniqueInfo();
+    try {
+      final json = await _gemini.analyzeControleTechnique(file);
+      if (json['error'] == null) {
+        info = ControleTechniqueInfo.fromJson(json);
+      }
+    } catch (_) {
+      // Complément IA optionnel — l'OCR local reste la source de vérité des dates.
+    }
+
+    final fromAi = info.dateProchainControleParsed;
+    final candidates = <DateTime>[
+      ...allOcrDates,
+      if (fromOcr != null) fromOcr,
+      if (fromAi != null) fromAi,
+    ];
+    DateTime? expiration;
+    if (candidates.isNotEmpty) {
+      candidates.sort();
+      expiration = candidates.last; // PLUS RÉCENTE de toutes
+    }
+
+    if (expiration != null &&
+        (info.dateProchainControle.isEmpty ||
+            fromAi == null ||
+            expiration.isAfter(fromAi))) {
+      final d = expiration;
+      final dd = d.day.toString().padLeft(2, '0');
+      final mm = d.month.toString().padLeft(2, '0');
+      info = ControleTechniqueInfo(
+        centre: info.centre,
+        numero: info.numero,
+        kilometrage: info.kilometrage,
+        dateProchainControle: '$dd/$mm/${d.year}',
+      );
+    }
+
+    return (info: info, expiration: expiration);
   }
 
   Widget _infoRow(String label, String value) {
@@ -301,9 +353,25 @@ class _ControleTechniqueScreenState extends State<ControleTechniqueScreen> {
           ),
         const SizedBox(height: 16),
         if (_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  if (_retryLabel != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _retryLabel!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: Colors.black54, fontSize: 13),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         if (_error != null)
           Container(

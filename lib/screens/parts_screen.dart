@@ -816,59 +816,36 @@ class _PartsScreenState extends State<PartsScreen> {
                   ),
                 ),
               ],
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(_t('Prix El Bouni', 'سعر البوني'),
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.black54)),
-                          Text(
-                            '${part.prixDa} DA',
-                            style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF166534)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (part.prixOrigine > 0) ...[
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${part.prixOrigine} DA',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.black45,
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                          ),
-                          Text(
-                            _t(
-                              'Économie: ${part.prixOrigine - part.prixDa} DA',
-                              'توفير: ${part.prixOrigine - part.prixDa} DA',
-                            ),
-                            style: const TextStyle(
-                                fontSize: 12, color: Color(0xFF166534)),
-                          ),
-                        ],
+              if (part.prixMin > 0 || part.prixMax > 0) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_t('Prix estimé (marché)', 'السعر التقديري (السوق)'),
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.black54)),
+                      Text(
+                        part.prixMin > 0 &&
+                                part.prixMax > 0 &&
+                                part.prixMax != part.prixMin
+                            ? '${part.prixMin} - ${part.prixMax} DA'
+                            : '${part.prixMax > 0 ? part.prixMax : part.prixMin} DA',
+                        style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF166534)),
                       ),
                     ],
-                  ],
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(height: 16),
               // Fiche de contact des magasins qui ont répondu à la demande :
               // apparaît uniquement une fois qu'un magasin a effectivement
